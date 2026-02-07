@@ -1,0 +1,55 @@
+---
+title: "Tu Pension Estimada"
+subtitle: "Resumen Personal"
+date: "`r format(Sys.Date(), '%d de %B de %Y')`"
+output:
+  html_document:
+    theme: flatly
+params:
+  resultado: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+format_currency <- function(x) paste0("$", format(round(x, 2), big.mark = ",", nsmall = 2))
+
+resultado <- params$resultado
+entrada <- resultado$entrada
+es_ley73 <- resultado$regimen == "ley73"
+
+if (es_ley73) {
+  pension <- resultado$pension_base$pension_mensual
+  tasa <- resultado$pension_base$tasa_reemplazo
+} else {
+  pension <- resultado$solo_sistema$pension_mensual
+  tasa <- resultado$solo_sistema$tasa_reemplazo
+}
+```
+
+---
+
+## Tu pension estimada
+
+### `r format_currency(pension)` /mes
+
+Esto representa el **`r round(tasa * 100)`%** de tu salario actual.
+
+---
+
+## 3 Cosas que Puedes Hacer HOY
+
+1. **Aportaciones voluntarias** - Incluso $500/mes hacen diferencia
+2. **Revisa tu AFORE** - Compara rendimientos en CONSAR
+3. **Verifica tus semanas** - Consulta en IMSS Digital
+
+---
+
+## Links Utiles
+
+- [IMSS](https://www.imss.gob.mx/)
+- [CONSAR](https://www.consar.gob.mx/)
+- [e-SAR](https://www.e-sar.com.mx/)
+
+---
+
+*Esta es una estimacion educativa, no una garantia.*

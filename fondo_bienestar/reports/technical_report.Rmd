@@ -1,0 +1,65 @@
+---
+title: "Documento Tecnico - Estimacion de Pension"
+subtitle: "Simulador IMSS + Fondo Bienestar"
+date: "`r format(Sys.Date(), '%d de %B de %Y')`"
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+params:
+  resultado: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(knitr)
+
+format_currency <- function(x) paste0("$", format(round(x, 2), big.mark = ",", nsmall = 2))
+format_percent <- function(x) paste0(round(x * 100, 1), "%")
+
+resultado <- params$resultado
+entrada <- resultado$entrada
+es_ley73 <- resultado$regimen == "ley73"
+```
+
+# Resumen Ejecutivo
+
+**Regimen:** `r if(es_ley73) "Ley 73" else "Ley 97 (AFORE)"`
+
+```{r resumen}
+if (es_ley73) {
+  pension <- resultado$pension_base$pension_mensual
+  tasa <- resultado$pension_base$tasa_reemplazo
+} else {
+  pension <- resultado$solo_sistema$pension_mensual
+  tasa <- resultado$solo_sistema$tasa_reemplazo
+}
+```
+
+**Pension mensual estimada:** `r format_currency(pension)`
+
+**Tasa de reemplazo:** `r format_percent(tasa)`
+
+# Datos de Entrada
+
+| Variable | Valor |
+|----------|-------|
+| Salario mensual | `r format_currency(entrada$salario_mensual)` |
+| Edad actual | `r entrada$edad_actual` anos |
+| Edad de retiro | `r entrada$edad_retiro` anos |
+| Semanas cotizadas | `r format(entrada$semanas_actuales, big.mark = ",")` |
+
+# Supuestos y Limitaciones
+
+> **Importante:** Esta es una estimacion educativa, NO una garantia.
+
+- UMA 2025: $113.14/dia
+- Umbral Fondo Bienestar: $17,364/mes
+- El Fondo Bienestar es un programa nuevo (2024)
+- Las leyes pueden cambiar
+
+# Fuentes
+
+- IMSS: https://www.imss.gob.mx/
+- CONSAR: https://www.consar.gob.mx/
