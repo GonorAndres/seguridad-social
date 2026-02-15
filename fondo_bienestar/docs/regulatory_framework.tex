@@ -1,0 +1,2343 @@
+\documentclass[11pt,a4paper]{report}
+
+% ============================================================================
+% PAQUETES
+% ============================================================================
+\usepackage[utf8]{inputenc}
+% babel spanish requires texlive-lang-spanish; using manual overrides instead
+\usepackage{babel}
+\renewcommand{\contentsname}{Contenido}
+\renewcommand{\chaptername}{Cap\'{i}tulo}
+\renewcommand{\tablename}{Tabla}
+\renewcommand{\figurename}{Figura}
+\renewcommand{\listfigurename}{Lista de Figuras}
+\renewcommand{\listtablename}{Lista de Tablas}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[most]{tcolorbox}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{caption}
+
+% ============================================================================
+% CONFIGURACION DE COLORES Y ESTILOS
+% ============================================================================
+\definecolor{teal}{HTML}{0f766e}
+\definecolor{coralaccent}{HTML}{db2777}
+\definecolor{codebg}{HTML}{f8f4e8}
+\definecolor{codeframe}{HTML}{c4a67a}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=teal,
+    urlcolor=coralaccent,
+    citecolor=teal
+}
+
+% Listings style for R code
+\lstdefinestyle{Rstyle}{
+    language=R,
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeframe},
+    keywordstyle=\color{teal}\bfseries,
+    stringstyle=\color{coralaccent},
+    commentstyle=\color{gray}\itshape,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=2,
+    xleftmargin=1em,
+    framexleftmargin=1em
+}
+\lstset{style=Rstyle}
+
+% ============================================================================
+% TITULO
+% ============================================================================
+\title{
+    \vspace{-2cm}
+    {\Huge\bfseries Marco Regulatorio del Sistema\\de Pensiones Mexicano}\\[1cm]
+    {\Large Base de Conocimiento Personal}\\[0.5cm]
+    {\large Referencia actuarial, legal y computacional}\\[1cm]
+    {\normalsize Documento 1 de 4 --- Serie de Referencia}
+}
+\author{Referencia Personal}
+\date{Febrero 2026}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+% ############################################################################
+% CAPITULO 1
+% ############################################################################
+\chapter{Contexto Hist\'orico y Arquitectura Institucional}
+
+El sistema de pensiones mexicano es producto de casi un siglo de evoluci\'on legislativa, desde su fundamento constitucional en 1917 hasta las reformas estructurales de 2020 y 2024. Comprender su arquitectura institucional es requisito previo para cualquier an\'alisis actuarial o de pol\'itica p\'ublica: las f\'ormulas de c\'alculo, los par\'ametros regulatorios y las garant\'ias legales solo adquieren significado dentro del marco jur\'idico que las sustenta.
+
+Este cap\'itulo traza la l\'inea temporal completa del sistema, identifica las seis instituciones clave que gobiernan distintos aspectos del r\'egimen de pensiones, y explica por qu\'e M\'exico opera con un sistema dual ---beneficio definido (Ley 73) y contribuci\'on definida (Ley 97)--- que coexistir\'a durante d\'ecadas.
+
+% ============================================================================
+\section{Fundamento Constitucional}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Art\'iculo 123 Constitucional, Fracci\'on XXIX} (reforma de 1929):\\[0.3em]
+``Se considera de utilidad p\'ublica la expedici\'on de la Ley del Seguro Social y ella comprender\'a seguros de Invalidez, de Vida, de Cesaci\'on Involuntaria del Trabajo, de Enfermedades y Accidentes y otros con fines an\'alogos.''\\[0.5em]
+Este fundamento constitucional establece que la seguridad social no es una concesi\'on del Estado sino un mandato de inter\'es p\'ublico. La Constituci\'on de 1917 (Art. 123) cre\'o el marco de derechos laborales; la reforma de 1929 a la Fracci\'on XXIX elev\'o el seguro social a rango constitucional, habilitando la creaci\'on del IMSS.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El Art\'iculo 123 es el ``ADN'' de todo el sistema de pensiones. Sin \'el, el IMSS no existir\'ia. Lo que dice en esencia es: \emph{``El gobierno tiene la obligaci\'on de crear un sistema que proteja a los trabajadores cuando ya no puedan trabajar ---por vejez, enfermedad o accidente.''} Cada reforma posterior (1943, 1973, 1997, 2020, 2024) es una extensi\'on o reinterpretaci\'on de este mandato original.
+
+Punto clave: el derecho a la pensi\'on en M\'exico no nace de un contrato laboral individual, sino de la Constituci\'on misma. Esto tiene implicaciones profundas ---por ejemplo, la Suprema Corte ha interpretado que las pensiones de Ley 73 son derechos adquiridos que no pueden reducirse retroactivamente.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+En el simulador, el fundamento constitucional se refleja en la funci\'on \texttt{determinar\_regimen()} en \texttt{R/data\_tables.R:208--222}, que implementa la l\'ogica de transici\'on entre los dos reg\'imenes derivados de la evoluci\'on constitucional:
+
+\begin{lstlisting}
+determinar_regimen <- function(fecha_primera_cotizacion) {
+  fecha <- as.Date(fecha_primera_cotizacion)
+  fecha_corte <- as.Date("1997-07-01")
+  if (fecha < fecha_corte) {
+    return("ley73")
+  } else {
+    return("ley97")
+  }
+}
+\end{lstlisting}
+
+La fecha de corte 1997-07-01 es el punto de inflexi\'on constitucional: antes de ella, el trabajador tiene derecho al r\'egimen de beneficio definido (Ley 73); despu\'es, al de contribuci\'on definida (Ley 97).
+\end{tcolorbox}
+
+% ============================================================================
+\section{Fundaci\'on del IMSS y Primera Ley del Seguro Social (1943)}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Ley del Seguro Social de 1943} --- Publicada en el DOF el 19 de enero de 1943, bajo la presidencia de Manuel \'Avila Camacho.\\[0.3em]
+Cre\'o el Instituto Mexicano del Seguro Social (IMSS), organismo p\'ublico descentralizado con personalidad jur\'idica y patrimonio propios. El IMSS inici\'o operaciones el 1 de enero de 1944 en el Distrito Federal y, gradualmente, extendi\'o su cobertura al territorio nacional.\\[0.3em]
+La Ley de 1943 estableci\'o cinco seguros: \emph{Enfermedades y Maternidad}, \emph{Riesgos de Trabajo}, \emph{Invalidez}, \emph{Vejez y Muerte}, y \emph{Cesant\'ia en Edad Avanzada}. El financiamiento era tripartita: empleador, trabajador y Estado.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Antes del IMSS, no exist\'ia un sistema universal de pensiones en M\'exico. Los trabajadores depend\'ian de ahorros personales o del apoyo familiar al envejecer. La creaci\'on del IMSS fue un hito: por primera vez, un obrero de f\'abrica pod\'ia jubilarse con una pensi\'on mensual garantizada.
+
+El modelo original era de ``reparto'' (\emph{pay-as-you-go}): las cotizaciones de los trabajadores activos financiaban las pensiones de los jubilados. Esto funcionaba bien cuando hab\'ia muchos j\'ovenes por cada jubilado, pero crear\'ia problemas d\'ecadas despu\'es cuando la pir\'amide poblacional comenzara a invertirse.
+
+Dato hist\'orico: el IMSS naci\'o durante la Segunda Guerra Mundial. M\'exico viv\'ia un periodo de industrializaci\'on acelerada (el ``milagro mexicano'') y necesitaba instituciones que estabilizaran la relaci\'on obrero-patronal.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La Ley de 1943 no tiene aplicaci\'on directa en el simulador actual (ning\'un trabajador activo cotiz\'o bajo esta ley). Sin embargo, su legado estructural persiste en:
+
+\begin{itemize}
+\item El esquema tripartita de financiamiento, que se mantiene en las tres tasas de aportaci\'on del c\'odigo:
+\end{itemize}
+
+\begin{lstlisting}
+# R/calculations.R:204-207
+tasa_trabajador <- 0.01125   # Trabajador: 1.125%
+tasa_gobierno   <- 0.00225   # Gobierno: ~0.225%
+tasa_patron     <- tasas_patron[anio_str]  # Patron: variable
+\end{lstlisting}
+
+La estructura tripartita (patr\'on + trabajador + gobierno) definida en 1943 sigue siendo la base del financiamiento en 2025, aunque las proporciones han cambiado radicalmente.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Cronolog\'ia de Reformas: 1973, 1997, 2020, 2024}
+
+\subsection{Reforma de 1973: El Sistema de Beneficio Definido}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Ley del Seguro Social de 1973} --- Publicada en el DOF el 12 de marzo de 1973.\\[0.3em]
+Estableci\'o el r\'egimen de pensiones por beneficio definido que hoy conocemos como ``Ley 73''. Art\'iculos clave:
+\begin{itemize}[nosep]
+\item \textbf{Art. 137}: Define los seguros de Cesant\'ia en Edad Avanzada y Vejez
+\item \textbf{Art. 138}: Requisitos para pensi\'on de vejez --- 65 a\~nos de edad, 500 semanas cotizadas
+\item \textbf{Art. 143}: Requisitos para cesant\'ia --- 60+ a\~nos, 500 semanas, privado de trabajo remunerado
+\item \textbf{Art. 167}: Tabla de cuant\'ias b\'asicas e incrementos anuales por grupo salarial (22 rangos)
+\item \textbf{Art. 168}: R\'egimen financiero de las pensiones
+\end{itemize}
+La pensi\'on se calcula como porcentaje del Salario Base de Cotizaci\'on (SBC) promedio de las \'ultimas 250 semanas, multiplicado por un factor de edad para cesant\'ia.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La Ley 73 es, para muchos trabajadores mexicanos mayores de 45 a\~nos, la ley que define su pensi\'on. Su l\'ogica es simple: \emph{``mientras m\'as ganaste y m\'as tiempo cotizaste, mayor tu pensi\'on.''} No depende de cu\'anto ahorraste en una cuenta individual, sino de una f\'ormula fija basada en tu historial laboral.
+
+\textbf{Por qu\'e sigue vigente}: Aunque la Ley del Seguro Social de 1997 derog\'o la de 1973, los art\'iculos transitorios de la nueva ley garantizan que todo trabajador que haya comenzado a cotizar \emph{antes} del 1 de julio de 1997 puede elegir pensionarse bajo las reglas de 1973. Este es el ``derecho de transici\'on'' y es irrevocable.
+
+\textbf{Ejemplo concreto}: Un trabajador que empez\'o a cotizar en 1990 y se jubila en 2025 con 1,820 semanas y SBC de \$500/d\'ia tendr\'a su pensi\'on calculada con la tabla del Art. 167 de 1973, no con las reglas de cuentas individuales.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Toda la l\'ogica de Ley 73 est\'a en \texttt{R/calculations.R:21--103} (\texttt{calculate\_ley73\_pension}):
+
+\begin{lstlisting}
+# Paso 1: grupo salarial
+grupo_salarial <- sbc_promedio_diario / sm_vigente
+
+# Paso 2: lookup Art. 167
+tabla_lookup <- lookup_articulo_167(grupo_salarial)
+
+# Paso 3: incrementos sobre 500 semanas
+n_incrementos <- max(0, floor((semanas - 500) / 52))
+
+# Paso 4: porcentaje total (tope 100%)
+porcentaje_total <- min(cuantia_basica + total_incrementos, 1.0)
+
+# Paso 5: factor de cesantia
+factor_edad <- FACTORES_CESANTIA[as.character(edad)]
+
+# Paso 6: pension final
+pension_diaria <- sbc_promedio_diario * porcentaje_total * factor_edad
+pension_mensual <- pension_diaria * 30.4375
+pension_final <- max(pension_mensual, sm_vigente * 30.4375)
+\end{lstlisting}
+\end{tcolorbox}
+
+\subsection{Reforma de 1997: Cuentas Individuales y AFOREs}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Nueva Ley del Seguro Social} --- Publicada en el DOF el 21 de diciembre de 1995, entrada en vigor el 1 de julio de 1997.\\[0.3em]
+Transform\'o el sistema de pensiones de reparto (beneficio definido) a uno de capitalizaci\'on individual (contribuci\'on definida). Art\'iculos clave:
+\begin{itemize}[nosep]
+\item \textbf{Art. 154--157}: Requisitos para Cesant\'ia en Edad Avanzada (60+, originalmente 1,250 semanas)
+\item \textbf{Art. 159}: Define el Retiro Programado y la Renta Vitalicia como modalidades de pensi\'on
+\item \textbf{Art. 162--164}: Requisitos para pensi\'on de Vejez (65+)
+\item \textbf{Art. 167--169}: R\'egimen financiero del seguro de retiro, cesant\'ia y vejez
+\item \textbf{Art. 170--173}: Pensi\'on M\'inima Garantizada
+\item \textbf{Art. 174--175}: Subcuentas de la cuenta individual (retiro, vivienda, voluntarias)
+\end{itemize}
+Cre\'o las AFOREs (Administradoras de Fondos para el Retiro) y la CONSAR como regulador.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La reforma de 1997 fue un cambio de paradigma. Bajo Ley 73, tu pensi\'on depend\'ia de una f\'ormula: el gobierno calculaba cu\'anto te correspond\'ia. Bajo Ley 97, tu pensi\'on depende de \emph{cu\'anto dinero hay en tu cuenta}: tus aportaciones + las de tu patr\'on + rendimientos - comisiones.
+
+\textbf{Por qu\'e se hizo}: El sistema de reparto era insostenible. En 1970, hab\'ia 12 trabajadores activos por cada jubilado; para 2020, la proporci\'on se acerc\'o a 3:1. Las proyecciones demogr\'aficas de CONAPO mostraban que para 2050 la relaci\'on ser\'ia menor a 2:1.
+
+\textbf{El problema que cre\'o}: La reforma transfiri\'o el riesgo de longevidad del gobierno al trabajador. Si vives m\'as de lo esperado bajo retiro programado, tus fondos se agotan. Adem\'as, las comisiones de AFOREs y los rendimientos variables hacen que la pensi\'on final sea incierta.
+
+\textbf{Coexistencia}: Los trabajadores pre-1997 conservan su derecho a Ley 73. Los post-1997 solo tienen Ley 97. Esto crear\'a un sistema dual que persistir\'a hasta aproximadamente 2060, cuando el \'ultimo trabajador de transici\'on se jubile.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La proyecci\'on AFORE est\'a en \texttt{R/calculations.R:118--181} (\texttt{project\_afore\_balance}):
+
+\begin{lstlisting}
+# Rendimiento neto
+r_neto <- rendimiento_real_anual - comision_anual
+r_mensual <- (1 + r_neto)^(1/12) - 1
+
+# Valor futuro del saldo actual
+fv_actual <- saldo_actual * (1 + r_neto)^anios_al_retiro
+
+# Valor futuro de aportaciones (anualidad)
+fv_aportaciones <- aportacion_mensual *
+    ((1 + r_mensual)^meses - 1) / r_mensual
+
+saldo_final <- fv_actual + fv_aportaciones
+\end{lstlisting}
+
+Y la conversi\'on a pensi\'on en \texttt{R/calculations.R:259--298} (\texttt{calculate\_retiro\_programado}):
+\begin{lstlisting}
+pension_calculada <- saldo / (esperanza_vida * 12)
+pension_minima <- UMA_MENSUAL_2025 * 2.5
+pension_mensual <- max(pension_calculada, pension_minima)
+\end{lstlisting}
+\end{tcolorbox}
+
+\subsection{Reforma de 2020: Incremento Gradual de Aportaciones}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Decreto de Reforma a la LSS y LSAR} --- Aprobado por la C\'amara de Diputados el 9 de diciembre de 2020, vigente a partir del 1 de enero de 2021.\\[0.3em]
+Tres cambios estructurales:
+\begin{enumerate}[nosep]
+\item \textbf{Aportaci\'on patronal}: Incremento gradual de 6.5\% a 15\% del SBC (2023--2030), exclusivamente en la subcuenta de retiro, cesant\'ia y vejez (RCV)
+\item \textbf{Semanas m\'inimas}: Reducci\'on de 1,250 a 1,000 semanas requeridas para acceder a pensi\'on
+\item \textbf{Pensi\'on M\'inima Garantizada}: Flexibilizaci\'on de la f\'ormula, vinculada a semanas cotizadas y edad
+\end{enumerate}
+El calendario de incremento patronal es:
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{A\~no} & \textbf{Tasa Patronal (RCV)} \\
+\midrule
+2023 & 6.20\% \\
+2024 & 6.90\% \\
+2025 & 7.75\% \\
+2026 & 8.60\% \\
+2027 & 9.45\% \\
+2028 & 10.30\% \\
+2029 & 11.15\% \\
+2030+ & 12.00\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+Nota: la tasa total incluye adem\'as trabajador (1.125\%) y gobierno ($\sim$0.225\%).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La reforma de 2020 atac\'o el problema central de Ley 97: las pensiones eran demasiado bajas porque las aportaciones eran demasiado bajas. Con solo 6.5\% del salario entrando a la cuenta, era matem\'aticamente imposible acumular lo suficiente para una pensi\'on digna en la mayor\'ia de los casos.
+
+\textbf{N\'umeros concretos}: Un trabajador que gana \$15,000/mes y cotiza 30 a\~nos:
+\begin{itemize}[nosep]
+\item Con 6.5\% de aportaci\'on: $\sim$\$975/mes de aportaci\'on total
+\item Con 15\% de aportaci\'on (2030+): $\sim$\$2,250/mes de aportaci\'on total
+\end{itemize}
+M\'as del doble entrando a su cuenta cada mes. Con 30 a\~nos de capitalizaci\'on compuesta, la diferencia en saldo final es enorme.
+
+\textbf{Impacto real}: Los beneficiarios plenos de esta reforma son los trabajadores j\'ovenes que cotizar\'an la mayor parte de su vida laboral con tasas elevadas. Un trabajador de 50 a\~nos en 2025 solo goza de 10--15 a\~nos con tasas incrementadas.
+
+\textbf{Simplificaci\'on en nuestro simulador}: Usamos la tasa de 2025 (7.75\% patronal) para todos los a\~nos futuros. Esto \emph{subestima} la pensi\'on real de trabajadores j\'ovenes, cuyas aportaciones crecer\'an a\~no con a\~no hasta 2030.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+El calendario de tasas est\'a en \texttt{R/calculations.R:192--201}:
+
+\begin{lstlisting}
+tasas_patron <- c(
+  "2023" = 0.0620, "2024" = 0.0690, "2025" = 0.0775,
+  "2026" = 0.0860, "2027" = 0.0945, "2028" = 0.1030,
+  "2029" = 0.1115, "2030" = 0.1200
+)
+tasa_trabajador <- 0.01125
+tasa_gobierno   <- 0.00225
+\end{lstlisting}
+
+\textbf{Limitaci\'on documentada}: La funci\'on \texttt{calculate\_aportacion\_obligatoria()} recibe un par\'ametro \texttt{anio} pero el simulador siempre lo invoca con \texttt{anio = 2025}. Modelar el calendario completo requerir\'ia una proyecci\'on a\~no-por-a\~no en lugar de la f\'ormula cerrada actual.
+\end{tcolorbox}
+
+\subsection{Reforma de 2024: Fondo de Pensiones para el Bienestar}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Decreto del Fondo de Pensiones para el Bienestar}:\\
+\begin{itemize}[nosep]
+\item Reforma constitucional: Adici\'on al Art\'iculo 4 (derecho a pensi\'on digna)
+\item DOF 30/04/2024: Decreto que crea el Fondo (reforma a LSS, LISSSTE, LSAR, LINFONAVIT)
+\item DOF 01/05/2024: Decreto presidencial del Fondo de Pensiones para el Bienestar (c\'odigo DOF 5725285)
+\item Vigencia: 1 de julio de 2024 (primer pago de complementos)
+\end{itemize}
+Estructura legal: Fideicomiso p\'ublico no considerado entidad paraestatal. La SHCP lo constituye; Banco de M\'exico act\'ua como fiduciario.\\[0.3em]
+Fuentes de financiamiento: Recursos de cuentas AFORE inactivas (sin reclamar), aportaciones presupuestarias, rendimientos del fideicomiso.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El Fondo Bienestar es la respuesta pol\'itica a un problema real: millones de trabajadores de Ley 97 con pensiones proyectadas de \$3,000--\$6,000 mensuales ---muy por debajo de su \'ultimo salario. El Fondo promete ``complementar'' esa pensi\'on hasta alcanzar el 100\% del salario (o el umbral, lo que sea menor).
+
+\textbf{Por qu\'e es pol\'emico}:
+\begin{itemize}[nosep]
+\item Se financia con cuentas inactivas de \emph{otros} trabajadores (cuesti\'on \'etica y legal)
+\item Su sostenibilidad a largo plazo no est\'a garantizada (depende de flujo de cuentas inactivas + presupuesto)
+\item Es un programa de gobierno, no un derecho actuarialmente fondeado
+\item Puede cambiar o desaparecer con futuros gobiernos
+\end{itemize}
+
+\textbf{Para qui\'en sirve}: Exclusivamente trabajadores Ley 97, con salarios bajos a medios (por debajo del umbral). Trabajadores Ley 73 NO son elegibles porque ya tienen pensiones de beneficio definido generalmente superiores.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La l\'ogica completa del Fondo est\'a en \texttt{R/fondo\_bienestar.R}. La elegibilidad (\texttt{check\_fondo\_eligibility}, l\'ineas 25--92) verifica 4 condiciones simult\'aneas:
+
+\begin{lstlisting}
+checks <- list(
+  regimen_valido = (regimen == "ley97"),
+  edad_minima    = (edad >= 65),
+  semanas_minimas = (semanas >= 1000),
+  salario_bajo_umbral = (sbc_promedio_mensual <= umbral)
+)
+elegible <- all(sapply(checks, function(x) x$cumple))
+\end{lstlisting}
+
+El complemento (\texttt{calculate\_fondo\_complement}, l\'ineas 98--145):
+\begin{lstlisting}
+pension_objetivo <- min(sbc_promedio_mensual, umbral)
+complemento <- max(0, pension_objetivo - pension_afore)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Arquitectura Institucional: Seis Instituciones Clave}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El sistema de pensiones mexicano es gobernado por seis instituciones principales, cada una con competencias espec\'ificas definidas por ley:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Instituci\'on} & \textbf{Competencia} \\
+\midrule
+IMSS & Administra pensiones Ley 73, recauda cotizaciones, otorga servicios m\'edicos \\
+CONSAR & Regula AFOREs y SIEFOREs, publica IRN, supervisa comisiones y rendimientos \\
+INEGI & Calcula la UMA anualmente con base en INPC \\
+CONASAMI & Fija el salario m\'inimo general y profesional \\
+CONAPO & Elabora proyecciones demogr\'aficas y tablas de mortalidad \\
+DOF & Publica todos los decretos, leyes y regulaciones con fuerza legal \\
+\bottomrule
+\end{tabularx}
+\end{center}
+Adicionalmente: SHCP constituye el Fondo de Pensiones para el Bienestar; Banco de M\'exico act\'ua como fiduciario del mismo.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Cada instituci\'on controla un ``dial'' distinto del sistema de pensiones:
+
+\begin{itemize}[nosep]
+\item \textbf{IMSS}: Es el ``operador'' ---paga las pensiones Ley 73, recibe las solicitudes de jubilaci\'on, otorga semanas cotizadas
+\item \textbf{CONSAR}: Es el ``regulador financiero'' ---vigila que las AFOREs no cobren comisiones excesivas y que inviertan bien
+\item \textbf{INEGI}: Determina indirectamente el piso de las pensiones Ley 97 (la UMA define la pensi\'on m\'inima garantizada)
+\item \textbf{CONASAMI}: Determina el piso de las pensiones Ley 73 (1 SM mensual) y afecta los grupos salariales del Art. 167
+\item \textbf{CONAPO}: Sus tablas de mortalidad determinan cu\'antos a\~nos de esperanza de vida se usan para calcular el retiro programado
+\item \textbf{DOF}: Sin publicaci\'on en el DOF, ninguna reforma existe legalmente
+\end{itemize}
+
+\textbf{Implicaci\'on pr\'actica}: Un cambio en el salario m\'inimo (CONASAMI) puede alterar dr\'asticamente una pensi\'on de Ley 73, pero NO afecta la pensi\'on m\'inima de Ley 97 (que depende de la UMA, calculada por INEGI). Esta divergencia post-2016 es cr\'itica.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Cada instituci\'on se refleja en datos espec\'ificos del simulador:
+
+\begin{lstlisting}
+# global.R -- Datos institucionales cargados al inicio
+
+# INEGI -> UMA (pension minima Ley 97)
+UMA_DIARIA_2025 <<- 113.14
+UMA_MENSUAL_2025 <<- 3439.46
+
+# CONASAMI -> Salario Minimo (pension minima Ley 73,
+#             grupos salariales Art. 167)
+SM_DIARIO_2025 <<- 278.80
+SM_MENSUAL_2025 <<- 8474.52
+
+# CONSAR -> Comisiones AFORE (data/afore_comisiones.csv)
+afore_data <<- read.csv("data/afore_comisiones.csv")
+
+# IMSS -> Tabla Art. 167 (data/articulo_167_tabla.csv)
+articulo_167_tabla <<- read.csv("data/articulo_167_tabla.csv")
+
+# CONAPO -> Esperanza de vida (R/data_tables.R:89-143)
+# get_esperanza_vida(edad, genero)
+
+# DOF -> Umbral Fondo Bienestar (global.R:128-138)
+# get_umbral_fondo_bienestar(anio)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{El Sistema Dual: Por Qu\'e Coexisten Dos Reg\'imenes}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Art\'iculos Transitorios de la LSS 1997}:\\[0.3em]
+Los art\'iculos transitorios tercero al und\'ecimo de la nueva Ley del Seguro Social (1997) establecen el mecanismo de transici\'on. El transitorio tercero dispone que los asegurados inscritos con anterioridad a la entrada en vigor de esta Ley podr\'an optar, al momento de cumplir los requisitos para pensionarse, por acogerse a los beneficios del anterior r\'egimen de la Ley del Seguro Social vigente hasta el 30 de junio de 1997.\\[0.3em]
+Esto crea un sistema dual de facto:
+\begin{itemize}[nosep]
+\item \textbf{Ley 73}: Beneficio definido, para trabajadores inscritos antes del 01/07/1997
+\item \textbf{Ley 97}: Contribuci\'on definida (AFORE), para trabajadores inscritos a partir del 01/07/1997
+\end{itemize}
+Los trabajadores de transici\'on (pre-1997) acumulan saldo en AFORE pero pueden elegir pensi\'on Ley 73.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Imaginemos a dos compa\~neros de trabajo en 2025:
+\begin{itemize}[nosep]
+\item \textbf{Carlos} (58 a\~nos): Empez\'o a cotizar en 1990. Es Ley 73. Su pensi\'on depende de su salario y semanas cotizadas. Su AFORE existe, pero probablemente la ignore al jubilarse bajo Ley 73.
+\item \textbf{Andrea} (40 a\~nos): Empez\'o a cotizar en 2005. Es Ley 97. Su pensi\'on depende exclusivamente de lo que haya en su cuenta AFORE al jubilarse. Puede ser elegible para el Fondo Bienestar.
+\end{itemize}
+
+\textbf{El dilema de Carlos}: Aunque cotiza bajo Ley 97 en la pr\'actica (su patr\'on deposita a su AFORE), al jubilarse puede elegir Ley 73. Casi siempre conviene elegir Ley 73 porque las tasas de reemplazo son mucho m\'as generosas ---especialmente con Modalidad 40 para maximizar el SBC promedio.
+
+\textbf{Horizonte temporal del sistema dual}: El \'ultimo trabajador de transici\'on (alguien que comenz\'o a cotizar el 30 de junio de 1997 a los 15 a\~nos) tendr\'a 83 a\~nos en 2065. Realista mente, el sistema dual funcionar\'a con volumen significativo hasta $\sim$2045 y residualmente hasta $\sim$2060.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+El sistema dual se implementa como bifurcaci\'on en \texttt{R/calculations.R:498--614} (\texttt{calculate\_all\_scenarios}):
+
+\begin{lstlisting}
+calculate_all_scenarios <- function(regimen, ...) {
+  if (regimen == "ley73") {
+    # Beneficio definido: Art. 167 + factor cesantia
+    pension_base <- calculate_ley73_pension(...)
+    # Opcional: Modalidad 40
+    pension_m40 <- calculate_modalidad_40(...)
+    # Fondo Bienestar NO aplica
+    return(list(regimen = "ley73",
+                fondo_bienestar_aplica = FALSE))
+  } else {
+    # Contribucion definida: proyeccion AFORE
+    pension_base <- calculate_ley97_pension(...)
+    # Fondo Bienestar SI aplica
+    return(list(regimen = "ley97",
+                fondo_bienestar_aplica = TRUE))
+  }
+}
+\end{lstlisting}
+
+La detecci\'on autom\'atica del r\'egimen usa la fecha de primera cotizaci\'on con corte en 1997-07-01.
+\end{tcolorbox}
+
+% ############################################################################
+% CAPITULO 2
+% ############################################################################
+\chapter{Ley 73 --- Pensi\'on de Beneficio Definido}
+
+La Ley del Seguro Social de 1973 establece un sistema de pensi\'on por beneficio definido: la pensi\'on mensual se calcula mediante una f\'ormula legislada que depende del salario hist\'orico y las semanas cotizadas del trabajador, no del saldo acumulado en una cuenta individual. Este cap\'itulo descompone cada elemento de esa f\'ormula, desde los requisitos de elegibilidad hasta la tabla completa del Art\'iculo 167 y los factores de cesant\'ia por edad.
+
+% ============================================================================
+\section{Elegibilidad: Art\'iculos 137--143 LSS 1973}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+La LSS de 1973 establece dos tipos de pensi\'on por edad:
+
+\textbf{1. Pensi\'on por Vejez (Art. 138):}
+\begin{itemize}[nosep]
+\item Edad m\'inima: 65 a\~nos cumplidos
+\item Semanas cotizadas m\'inimas: 500 (reconocidas por el IMSS)
+\item Factor de edad: 1.0 (100\% de la cuant\'ia calculada)
+\end{itemize}
+
+\textbf{2. Pensi\'on por Cesant\'ia en Edad Avanzada (Art. 143):}
+\begin{itemize}[nosep]
+\item Edad m\'inima: 60 a\~nos cumplidos
+\item Semanas cotizadas m\'inimas: 500
+\item Condici\'on adicional: estar privado de trabajo remunerado
+\item Factor de edad: variable seg\'un tabla de cesant\'ia (75\%--100\%)
+\end{itemize}
+
+\textbf{Pensi\'on M\'inima Garantizada (Ley 73):}\\
+El Art. 168 establece que en ning\'un caso la pensi\'on ser\'a inferior a 1 salario m\'inimo mensual vigente. En 2025: \$278.80 $\times$ 30.4375 = \$8,474.52/mes.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+\textbf{500 semanas = $\sim$9.6 a\~nos de cotizaci\'on continua.} Es el umbral m\'inimo y es relativamente accesible ---la mayor\'ia de trabajadores formales lo alcanzan. Sin embargo, 500 semanas dan una pensi\'on baja (solo la cuant\'ia b\'asica, sin incrementos). Los incrementos comienzan a partir de la semana 501.
+
+\textbf{La diferencia entre vejez y cesant\'ia es enorme:}
+\begin{itemize}[nosep]
+\item A los 60 a\~nos: factor = 0.75 (pierdes 25\% de tu pensi\'on)
+\item A los 63 a\~nos: factor = 0.90 (pierdes 10\%)
+\item A los 65 a\~nos: factor = 1.00 (pensi\'on completa)
+\end{itemize}
+
+\textbf{Ejemplo}: Si tu pensi\'on calculada es \$12,000/mes, jubilarte a los 60 te da \$9,000 y a los 65 te da \$12,000. Esos 5 a\~nos de espera valen \$3,000/mes de por vida.
+
+\textbf{La pensi\'on m\'inima como red de seguridad}: Si un trabajador con 500 semanas y salario bajo calcula una pensi\'on de \$6,000, recibe \$8,474.52 (1 SM mensual). Esto beneficia especialmente a trabajadores de salarios bajos con pocas semanas.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Las validaciones de elegibilidad est\'an en \texttt{R/calculations.R:27--42}:
+
+\begin{lstlisting}
+# Validacion de semanas minimas
+if (semanas < 500) {
+  return(list(
+    pension_mensual = 0,
+    mensaje = "No cumple con el minimo de 500 semanas",
+    elegible = FALSE
+  ))
+}
+
+# Validacion de edad minima
+if (edad < 60) {
+  return(list(
+    pension_mensual = 0,
+    mensaje = "La edad minima para pension es 60 anos",
+    elegible = FALSE
+  ))
+}
+\end{lstlisting}
+
+Los factores de cesant\'ia en \texttt{global.R:67--74}:
+\begin{lstlisting}
+FACTORES_CESANTIA <<- c(
+  "60" = 0.75, "61" = 0.80, "62" = 0.85,
+  "63" = 0.90, "64" = 0.95, "65" = 1.00
+)
+\end{lstlisting}
+
+Y la pensi\'on m\'inima en \texttt{R/calculations.R:77--79}:
+\begin{lstlisting}
+pension_minima <- sm_vigente * DIAS_POR_MES  # 1 SM mensual
+pension_final <- max(pension_mensual, pension_minima)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Art\'iculo 167: Tabla de Cuant\'ias B\'asicas e Incrementos}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El Art\'iculo 167 de la LSS 1973 define la tabla que determina qu\'e porcentaje del salario se otorga como pensi\'on. La tabla clasifica al trabajador en un ``grupo salarial'' (su SBC expresado en veces el salario m\'inimo) y asigna dos valores:
+
+\begin{itemize}[nosep]
+\item \textbf{Cuant\'ia b\'asica} ($c_b$): Porcentaje base que se aplica al SBC para las primeras 500 semanas
+\item \textbf{Incremento anual} ($\Delta$): Porcentaje adicional por cada a\~no completo de cotizaci\'on m\'as all\'a de 500 semanas
+\end{itemize}
+
+\textbf{F\'ormula del porcentaje total:}
+\[
+p = \min\left(c_b + \left\lfloor\frac{S - 500}{52}\right\rfloor \cdot \Delta,\; 1.0\right)
+\]
+
+donde $S$ es el n\'umero de semanas cotizadas.
+
+La tabla completa del Art\'iculo 167 (22 grupos salariales, datos de \texttt{data/articulo\_167\_tabla.csv}):
+
+\begin{center}
+\begin{longtable}{cccc}
+\toprule
+\textbf{Grupo Min (SM)} & \textbf{Grupo Max (SM)} & \textbf{Cuant\'ia B\'asica} & \textbf{Incremento Anual} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Grupo Min (SM)} & \textbf{Grupo Max (SM)} & \textbf{Cuant\'ia B\'asica} & \textbf{Incremento Anual} \\
+\midrule
+\endhead
+0.00 & 1.00 & 80.00\% & 0.563\% \\
+1.01 & 1.25 & 77.11\% & 0.814\% \\
+1.26 & 1.50 & 58.18\% & 1.178\% \\
+1.51 & 1.75 & 49.23\% & 1.430\% \\
+1.76 & 2.00 & 42.67\% & 1.615\% \\
+2.01 & 2.25 & 37.65\% & 1.756\% \\
+2.26 & 2.50 & 33.68\% & 1.868\% \\
+2.51 & 2.75 & 30.48\% & 1.958\% \\
+2.76 & 3.00 & 27.83\% & 2.033\% \\
+3.01 & 3.25 & 25.60\% & 2.096\% \\
+3.26 & 3.50 & 23.70\% & 2.149\% \\
+3.51 & 3.75 & 22.07\% & 2.195\% \\
+3.76 & 4.00 & 20.65\% & 2.235\% \\
+4.01 & 4.25 & 19.39\% & 2.271\% \\
+4.26 & 4.50 & 18.29\% & 2.302\% \\
+4.51 & 4.75 & 17.30\% & 2.330\% \\
+4.76 & 5.00 & 16.41\% & 2.355\% \\
+5.01 & 5.25 & 15.61\% & 2.377\% \\
+5.26 & 5.50 & 14.88\% & 2.398\% \\
+5.51 & 5.75 & 14.22\% & 2.416\% \\
+5.76 & 6.00 & 13.62\% & 2.433\% \\
+6.01 & 25.00 & 13.00\% & 2.450\% \\
+\bottomrule
+\end{longtable}
+\end{center}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La tabla del Art. 167 tiene una l\'ogica redistributiva: \textbf{los trabajadores de menores ingresos reciben un porcentaje mayor de su salario como pensi\'on.}
+
+\begin{itemize}[nosep]
+\item Salario = 1 SM: cuant\'ia b\'asica de 80\% (con 500 semanas ya recibes 80\% de tu salario)
+\item Salario = 3 SM: cuant\'ia b\'asica de 27.83\% (necesitas muchos m\'as a\~nos para una buena pensi\'on)
+\item Salario = 6+ SM: cuant\'ia b\'asica de solo 13\% (pero los incrementos anuales de 2.45\% se acumulan)
+\end{itemize}
+
+\textbf{La clave son los incrementos anuales}: Con cada a\~no adicional sobre las 500 semanas, el porcentaje sube. Para salarios altos (6+ SM), el incremento de 2.45\% por a\~no significa que 20 a\~nos extra (1,540 semanas) agregan 49\% al porcentaje, llevando la cuant\'ia de 13\% a 62\%.
+
+\textbf{El tope del 100\%}: El porcentaje nunca puede exceder 100\%. Esto solo se alcanza con combinaciones de muchos a\~nos de cotizaci\'on en los grupos salariales bajos (donde la cuant\'ia b\'asica ya es alta).
+
+\textbf{El ``salto'' entre grupo 1.00 y 1.26}: La cuant\'ia b\'asica cae abruptamente de 80\% a 77.11\% a 58.18\%. Este es el mayor salto de la tabla y crea un incentivo perverso: a veces conviene tener un SBC ligeramente menor para caer en un grupo con cuant\'ia m\'as favorable.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La b\'usqueda en la tabla est\'a en \texttt{R/data\_tables.R:12--30} (\texttt{lookup\_articulo\_167}):
+
+\begin{lstlisting}
+lookup_articulo_167 <- function(grupo_salarial,
+                                 tabla = articulo_167_tabla) {
+  idx <- which(grupo_salarial >= tabla$grupo_min &
+               grupo_salarial <= tabla$grupo_max)
+
+  if (length(idx) == 0) {
+    if (grupo_salarial > max(tabla$grupo_max)) {
+      idx <- nrow(tabla)  # Usar ultima fila
+    } else {
+      idx <- 1  # Usar primera fila
+    }
+  }
+
+  return(list(
+    cuantia_basica   = tabla$cuantia_basica[idx],
+    incremento_anual = tabla$incremento_anual[idx]
+  ))
+}
+\end{lstlisting}
+
+El grupo salarial se calcula como raz\'on SBC/SM:
+\begin{lstlisting}
+# R/calculations.R:45
+grupo_salarial <- sbc_promedio_diario / sm_vigente
+\end{lstlisting}
+
+\textbf{Nota cr\'itica}: El salario m\'inimo (\texttt{sm\_vigente}) es el denominador de la raz\'on. Cuando el SM sube (como ha ocurrido agresivamente desde 2019), el grupo salarial \emph{baja} ---lo que puede mover al trabajador a un grupo con cuant\'ia b\'asica m\'as alta. Esto tiene implicaciones no triviales para la planificaci\'on de Modalidad 40.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Factores de Cesant\'ia por Edad}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Los factores de cesant\'ia est\'an definidos en la LSS 1973 y aplican \'unicamente a trabajadores que se pensionan entre los 60 y 64 a\~nos de edad (cesant\'ia en edad avanzada). El factor reduce proporcionalmente la pensi\'on calculada:
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Edad de Retiro} & \textbf{Factor de Cesant\'ia} \\
+\midrule
+60 a\~nos & 0.75 (75\%) \\
+61 a\~nos & 0.80 (80\%) \\
+62 a\~nos & 0.85 (85\%) \\
+63 a\~nos & 0.90 (90\%) \\
+64 a\~nos & 0.95 (95\%) \\
+65 a\~nos & 1.00 (100\%) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La f\'ormula final de la pensi\'on diaria es:
+\[
+\Pi_d = \text{SBC}_d \times p \times f_e
+\]
+donde $p$ es el porcentaje del Art. 167 y $f_e$ es el factor de edad.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Los factores de cesant\'ia son la forma que tiene la ley de desincentivar el retiro anticipado. El incremento es lineal: 5 puntos porcentuales por cada a\~no que esperes.
+
+\textbf{An\'alisis costo-beneficio del retiro anticipado}:\\
+Supongamos una pensi\'on base de \$15,000/mes a los 65:
+\begin{itemize}[nosep]
+\item Retiro a los 60: \$15,000 $\times$ 0.75 = \$11,250/mes. Cobras 5 a\~nos extra = 60 meses. Ganancia acumulada: 60 $\times$ \$11,250 = \$675,000
+\item Retiro a los 65: \$15,000/mes. Pero ``perdiste'' 5 a\~nos de cobro.
+\item \textbf{Punto de equilibrio}: \$675,000 / (\$15,000 - \$11,250) = 180 meses = 15 a\~nos. Si vives m\'as de 80 a\~nos, conviene esperar a los 65.
+\end{itemize}
+
+En general, para esperanzas de vida superiores a 15 a\~nos desde el retiro (hombres > 80, mujeres > 80), conviene esperar. Pero factores individuales (salud, necesidad econ\'omica inmediata) pueden invertir esta l\'ogica.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Implementaci\'on en \texttt{R/calculations.R:59--67}:
+
+\begin{lstlisting}
+if (edad >= 65) {
+  factor_edad <- 1.0
+  tipo_efectivo <- "vejez"
+} else {
+  factor_edad <- FACTORES_CESANTIA[as.character(edad)]
+  if (is.na(factor_edad)) factor_edad <- 0.75
+  tipo_efectivo <- "cesantia"
+}
+\end{lstlisting}
+
+El fallback a 0.75 cuando \texttt{is.na(factor\_edad)} cubre el caso te\'orico de una edad no mapeada en el vector (por ejemplo, si alguien ingresara edad 59, que ya fue filtrado por la validaci\'on anterior).
+\end{tcolorbox}
+
+% ============================================================================
+\section{F\'ormula Completa de Pensi\'on Ley 73}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+La pensi\'on mensual bajo Ley 73 se calcula en seis pasos:
+
+\textbf{Paso 1 --- Grupo Salarial:}
+\[
+g = \frac{\text{SBC}_{d,250}}{\text{SM}_d}
+\]
+donde $\text{SBC}_{d,250}$ es el promedio diario del SBC de las \'ultimas 250 semanas y $\text{SM}_d$ es el salario m\'inimo diario vigente.
+
+\textbf{Paso 2 --- Lookup Art. 167:}
+\[
+(c_b, \Delta) = \text{Art167}(g)
+\]
+
+\textbf{Paso 3 --- N\'umero de incrementos:}
+\[
+n = \max\left(0,\; \left\lfloor\frac{S - 500}{52}\right\rfloor\right)
+\]
+
+\textbf{Paso 4 --- Porcentaje total:}
+\[
+p = \min(c_b + n \cdot \Delta,\; 1.0)
+\]
+
+\textbf{Paso 5 --- Factor de edad:}
+\[
+f_e = \begin{cases}
+1.00 & \text{si } e \geq 65 \\
+\text{FACTORES\_CESANTIA}[e] & \text{si } 60 \leq e < 65
+\end{cases}
+\]
+
+\textbf{Paso 6 --- Pensi\'on mensual:}
+\[
+\Pi_m = \max\!\Big(\text{SBC}_{d,250} \times p \times f_e \times 30.4375,\;\; \text{SM}_d \times 30.4375\Big)
+\]
+
+El factor 30.4375 = $\frac{365.25}{12}$ es el est\'andar actuarial para conversi\'on diaria-mensual (no 30 d\'ias).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+\textbf{Ejemplo completo paso a paso:}
+
+Trabajador: SBC promedio diario = \$500, SM diario = \$278.80, 1,820 semanas cotizadas, edad 63.
+
+\begin{enumerate}[nosep]
+\item $g = 500 / 278.80 = 1.793$ $\Rightarrow$ Grupo 1.76--2.00
+\item $c_b = 0.4267$, $\Delta = 0.01615$
+\item $n = \lfloor(1820 - 500) / 52\rfloor = \lfloor 25.38\rfloor = 25$
+\item $p = \min(0.4267 + 25 \times 0.01615, 1.0) = \min(0.8305, 1.0) = 0.8305$
+\item $f_e = 0.90$ (cesant\'ia, 63 a\~nos)
+\item $\Pi_d = 500 \times 0.8305 \times 0.90 = 373.73$
+\item $\Pi_m = 373.73 \times 30.4375 = \$11,374.95$
+\item Comparar con m\'inimo: $278.80 \times 30.4375 = \$8,474.52$ $\Rightarrow$ \$11,374.95 > \$8,474.52
+\item \textbf{Pensi\'on final: \$11,374.95/mes}
+\end{enumerate}
+
+Si el mismo trabajador esperara a los 65: $f_e = 1.0$, pensi\'on = \$12,638.83 (\$1,263.88 m\'as al mes, de por vida).
+
+\textbf{Sobre el 30.4375}: Usar 30 d\'ias en lugar de 30.4375 genera un error de $-1.44\%$. En una pensi\'on de \$12,000/mes, eso es \$173/mes menos. Sobre 20 a\~nos de cobro: \$41,520 de diferencia acumulada.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La f\'ormula completa est\'a en \texttt{R/calculations.R:21--103}. La estructura retorna un \texttt{list()} comprehensivo con 14 campos:
+
+\begin{lstlisting}
+return(list(
+  pension_mensual    = pension_final,
+  pension_sin_minimo = pension_mensual,
+  pension_diaria     = pension_diaria,
+  elegible           = TRUE,
+  tipo_pension       = tipo_efectivo,
+  grupo_salarial     = grupo_salarial,
+  cuantia_basica     = cuantia_basica,
+  incremento_anual   = incremento_anual,
+  n_incrementos      = n_incrementos,
+  total_incrementos  = total_incrementos,
+  porcentaje_total   = porcentaje_total,
+  factor_edad        = factor_edad,
+  tasa_reemplazo     = tasa_reemplazo,
+  aplico_minimo      = pension_mensual < pension_minima,
+  mensaje = paste0("Pension calculada bajo Ley 73 (",
+                   tipo_efectivo, ")")
+))
+\end{lstlisting}
+
+El campo \texttt{aplico\_minimo} es un flag booleano que la UI usa para mostrar un mensaje especial cuando el trabajador recibe la pensi\'on m\'inima en lugar de la calculada.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Modalidad 40: Continuaci\'on Voluntaria en el R\'egimen Obligatorio}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Art\'iculo 218 LSS} (Continuaci\'on Voluntaria al R\'egimen Obligatorio):
+
+Permite a trabajadores que han dejado de cotizar al IMSS continuar pagando cuotas voluntariamente para:
+\begin{enumerate}[nosep]
+\item Incrementar semanas cotizadas
+\item Mejorar el SBC promedio de las \'ultimas 250 semanas
+\end{enumerate}
+
+\textbf{Requisitos:}
+\begin{itemize}[nosep]
+\item M\'inimo 52 semanas cotizadas en los \'ultimos 5 a\~nos
+\item Inscribirse dentro de los 5 a\~nos posteriores a la baja del IMSS
+\item No estar cotizando activamente con un patr\'on
+\end{itemize}
+
+\textbf{Costo (hist\'orico)}: 10.075\% del SBC elegido $\times$ 30 d\'ias = cuota mensual.\\
+\textbf{Costo 2025}: 13.347\% (incrementado por la reforma 2020).\\
+\textbf{Costo 2026}: 14.438\%.\\
+\textbf{SBC elegible}: Entre el \'ultimo SBC registrado y 25 UMAs (tope).\\
+\textbf{L\'imite te\'orico}: 5 a\~nos (260 semanas), aunque puede renovarse.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Modalidad 40 es la \textbf{herramienta m\'as poderosa} de planificaci\'on para trabajadores Ley 73. Permite ``inflar'' el SBC de las \'ultimas 250 semanas cotizando al tope (25 UMAs $\approx$ \$2,828.50/d\'ia = \$86,067/mes) durante 5 a\~nos.
+
+\textbf{Estrategia t\'ipica}:
+\begin{enumerate}[nosep]
+\item Trabajador de 60 a\~nos con SBC de \$400/d\'ia y 1,500 semanas
+\item Se da de baja, se inscribe en M40 con SBC de \$2,828.50/d\'ia (tope)
+\item Cotiza 5 a\~nos (260 semanas = todas las \'ultimas 250 semanas a SBC tope)
+\item Se jubila a los 65 con SBC promedio $\approx$ \$2,828.50/d\'ia
+\item Pensi\'on resultante mucho mayor que sin M40
+\end{enumerate}
+
+\textbf{Costo vs. beneficio}: Con SBC tope, la cuota mensual 2025 ser\'ia:
+$2,828.50 \times 30 \times 0.13347 = \$11,325/\text{mes}$
+
+Por 5 a\~nos = \$679,500 de inversi\'on total. Si la pensi\'on mejora en \$5,000/mes, se recupera en $\sim$11 a\~nos. Con esperanza de vida de 17+ a\~nos, es altamente rentable.
+
+\textbf{Advertencia}: La tasa de Modalidad 40 est\'a subiendo cada a\~no por la reforma 2020. Lo que costaba 10\% ahora cuesta 13\% y pronto costar\'a 14.4\%. Esto reduce la rentabilidad de la estrategia.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Implementaci\'on en \texttt{R/calculations.R:412--487} (\texttt{calculate\_modalidad\_40}):
+
+\begin{lstlisting}
+# Tasa M40 (usa tasa historica en el simulador)
+tasa_m40 <- 0.10075
+cuota_mensual_m40 <- sbc_m40_real * 30 * tasa_m40
+
+# Nuevo SBC promedio ponderado
+if (semanas_m40 >= 250) {
+  nuevo_sbc_promedio <- sbc_m40_real
+} else {
+  semanas_nuevas <- min(semanas_m40, 250)
+  semanas_viejas <- 250 - semanas_nuevas
+  nuevo_sbc_promedio <- (sbc_m40_real * semanas_nuevas +
+                         sbc_actual * semanas_viejas) / 250
+}
+
+# Recalcular pension con nuevos parametros
+nueva_pension <- calculate_ley73_pension(
+  sbc_promedio_diario = nuevo_sbc_promedio,
+  semanas = semanas_totales,
+  edad = edad_retiro
+)
+
+# Tiempo de recuperacion
+meses_recuperacion <- ceiling(costo_total / incremento_pension)
+\end{lstlisting}
+
+\textbf{Limitaci\'on conocida}: El simulador usa \texttt{tasa\_m40 = 0.10075} (tasa hist\'orica). La tasa real 2025 es 13.347\%, lo que subestima el costo de M40 en un 32.5\%. Esto est\'a documentado como simplificaci\'on intencional.
+\end{tcolorbox}
+
+% ############################################################################
+% CAPITULO 3
+% ############################################################################
+\chapter{Ley 97 --- Sistema de Cuentas Individuales (AFORE)}
+
+A diferencia de la Ley 73, donde la pensi\'on se calcula mediante una f\'ormula legislada sobre el salario hist\'orico, la Ley 97 establece un sistema de contribuci\'on definida: cada trabajador acumula recursos en una cuenta individual administrada por una AFORE, y su pensi\'on al retiro depende del saldo acumulado. Este cap\'itulo describe la arquitectura del sistema AFORE, la estructura de contribuciones (incluyendo el calendario de incrementos de la reforma 2020), las modalidades de pensi\'on disponibles y la pensi\'on m\'inima garantizada.
+
+% ============================================================================
+\section{Arquitectura del Sistema AFORE}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El sistema de cuentas individuales se compone de tres capas institucionales:
+
+\textbf{1. AFOREs} (Administradoras de Fondos para el Retiro):
+\begin{itemize}[nosep]
+\item Entidades financieras autorizadas por CONSAR para administrar cuentas individuales
+\item Cobran una comisi\'on anual sobre el saldo administrado
+\item En 2025 operan 10 AFOREs en M\'exico (11 con datos hist\'oricos en nuestro CSV)
+\item Cada trabajador elige una AFORE; puede cambiarse una vez al a\~no
+\end{itemize}
+
+\textbf{2. SIEFOREs} (Sociedades de Inversi\'on Especializadas de Fondos para el Retiro):
+\begin{itemize}[nosep]
+\item Fondos de inversi\'on donde se depositan los recursos
+\item Desde 2019: SIEFOREs Generacionales (por a\~no de nacimiento del trabajador)
+\item Trabajadores j\'ovenes: mayor proporci\'on en renta variable
+\item Trabajadores pr\'oximos al retiro: mayor proporci\'on en renta fija
+\end{itemize}
+
+\textbf{3. CONSAR} (Comisi\'on Nacional del Sistema de Ahorro para el Retiro):
+\begin{itemize}[nosep]
+\item \'Organo regulador y supervisor
+\item Publica el IRN (Indicador de Rendimiento Neto) mensualmente
+\item Establece l\'imites de comisiones y reg\'imenes de inversi\'on
+\item Base legal: Ley de los Sistemas de Ahorro para el Retiro (LSAR)
+\end{itemize}
+
+\textbf{Subcuentas de la Cuenta Individual} (Art. 174--175 LSS):
+\begin{enumerate}[nosep]
+\item Retiro, Cesant\'ia en Edad Avanzada y Vejez (RCV) --- principal
+\item Vivienda (aportaciones al INFONAVIT, no disponibles para pensi\'on)
+\item Aportaciones Voluntarias (deducibles fiscalmente hasta cierto l\'imite)
+\item Aportaciones Complementarias
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Piensa en una AFORE como un ``banco de jubilaci\'on''. Tu patr\'on deposita dinero cada mes, t\'u depositas un poco, el gobierno otro poco, y la AFORE invierte todo ese dinero para que crezca. A cambio, la AFORE cobra una comisi\'on.
+
+\textbf{La comisi\'on importa m\'as de lo que parece}:\\
+Una comisi\'on de 0.53\% anual suena peque\~na. Pero sobre 30 a\~nos:
+\begin{itemize}[nosep]
+\item Saldo de \$1,000,000 con 4\% rendimiento, 0\% comisi\'on: \$3,243,397
+\item Saldo de \$1,000,000 con 4\% rendimiento, 0.53\% comisi\'on: \$2,806,794
+\item Diferencia: \$436,603 (13.5\% menos)
+\end{itemize}
+
+\textbf{SIEFOREs Generacionales}: Antes de 2019, hab\'ia SIEFOREs B\'asicas 1--4 (por edad). El sistema generacional es m\'as granular: cada generaci\'on (a\~no de nacimiento) tiene su propio fondo con una trayectoria de inversi\'on que autom\'aticamente reduce riesgo conforme se acerca el retiro.
+
+\textbf{Dato importante}: Las comisiones mexicanas, aunque han bajado, siguen siendo altas comparadas con est\'andares internacionales. Chile cobra $\sim$0.5\%, mientras que fondos indexados en EE.UU. cobran 0.03--0.10\%.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Los datos de AFOREs se cargan desde CSV en \texttt{global.R:38}:
+
+\begin{lstlisting}
+afore_data <<- read.csv("data/afore_comisiones.csv",
+                         stringsAsFactors = FALSE)
+\end{lstlisting}
+
+La tabla completa (\texttt{data/afore\_comisiones.csv}):
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+\textbf{AFORE} & \textbf{Comisi\'on 2024} & \textbf{Comisi\'on 2025} & \textbf{IRN 2024} \\
+\midrule
+Azteca & 0.57\% & 0.53\% & 5.12\% \\
+Citibanamex & 0.57\% & 0.53\% & 6.45\% \\
+Coppel & 0.56\% & 0.53\% & 5.89\% \\
+Inbursa & 0.47\% & 0.47\% & 4.23\% \\
+Invercap & 0.55\% & 0.53\% & 5.67\% \\
+PensionISSSTE & 0.53\% & 0.52\% & 6.12\% \\
+Principal & 0.51\% & 0.50\% & 6.34\% \\
+Profuturo & 0.55\% & 0.53\% & 6.78\% \\
+SURA & 0.53\% & 0.52\% & 6.56\% \\
+XXI Banorte & 0.52\% & 0.51\% & 6.89\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Las funciones de acceso en \texttt{R/data\_tables.R:38--69}:
+\begin{lstlisting}
+get_afore_comision <- function(afore_nombre, anio = 2025) {
+  row <- afore_data[afore_data$afore == afore_nombre, ]
+  if (nrow(row) == 0) {
+    return(mean(afore_data$comision_2025) / 100)
+  }
+  return(row$comision_2025 / 100)
+}
+
+get_afore_irn <- function(afore_nombre) {
+  row <- afore_data[afore_data$afore == afore_nombre, ]
+  if (nrow(row) == 0) {
+    return(mean(afore_data$irn_2024) / 100)
+  }
+  return(row$irn_2024 / 100)
+}
+\end{lstlisting}
+
+\textbf{Nota}: Las comisiones se almacenan como porcentaje (0.53) en el CSV y se dividen entre 100 al usarse en c\'alculos (0.0053). El IRN se usa como proxy de rendimiento en la funci\'on \texttt{compare\_afores()}.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Estructura de Contribuciones y Reforma 2020}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Las contribuciones a la subcuenta RCV (Retiro, Cesant\'ia y Vejez) provienen de tres fuentes:
+
+\textbf{1. Aportaci\'on Patronal} (variable seg\'un reforma 2020):
+\[
+A_p(t) = \text{SBC}_m \times \tau_p(t)
+\]
+donde $\tau_p(t)$ sigue el calendario:
+\begin{center}
+\begin{tabular}{ccccccccc}
+\toprule
+A\~no & 2023 & 2024 & 2025 & 2026 & 2027 & 2028 & 2029 & 2030+ \\
+\midrule
+$\tau_p$ & 6.20\% & 6.90\% & 7.75\% & 8.60\% & 9.45\% & 10.30\% & 11.15\% & 12.00\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{2. Aportaci\'on del Trabajador} (fija):
+\[
+A_t = \text{SBC}_m \times 0.01125
+\]
+
+\textbf{3. Cuota Social del Gobierno} (aproximada):
+\[
+A_g \approx \text{SBC}_m \times 0.00225
+\]
+
+\textbf{Nota}: La cuota social del gobierno es en realidad variable seg\'un tramo salarial (decrece para salarios m\'as altos). El valor 0.225\% es una aproximaci\'on para salarios medios.
+
+\textbf{Tope de Cotizaci\'on}: El SBC cotizable tiene un tope de 25 UMAs diarias:
+\[
+\text{Tope}_{2025} = 113.14 \times 25 = \$2,828.50/\text{d\'ia} = \$84,855/\text{mes}
+\]
+
+\textbf{Aportaci\'on total mensual:}
+\[
+A_{\text{total}}(t) = \min(\text{Salario}_m, \text{Tope}_m) \times \big[\tau_p(t) + 0.01125 + 0.00225\big]
+\]
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+\textbf{Antes de la reforma 2020}: La tasa total era aproximadamente 6.5\% + 1.125\% + 0.225\% = 7.85\% del salario. Para un trabajador con sueldo de \$15,000/mes, eso significaba $\sim$\$1,178/mes entrando a su AFORE.
+
+\textbf{Despu\'es de la reforma (2030+)}: La tasa total ser\'a 12\% + 1.125\% + 0.225\% = 13.35\%. Para el mismo trabajador: $\sim$\$2,003/mes. \textbf{Casi el doble.}
+
+\textbf{Qui\'en paga el incremento}: Exclusivamente el patr\'on. El trabajador sigue aportando 1.125\% y el gobierno $\sim$0.225\%. El incremento patronal de 6.20\% a 12.00\% representa un aumento del 93.5\% en la carga patronal.
+
+\textbf{Sobre el tope de cotizaci\'on}: Un trabajador que gana \$100,000/mes solo cotiza sobre \$84,855 (25 UMAs). Esto significa que para salarios muy altos, la tasa efectiva de ahorro para el retiro es menor que la nominal. Tambi\'en significa que su pensi\'on AFORE estar\'a ``topada'' independientemente de su salario real.
+
+\textbf{La cuota social variable}: En realidad, el gobierno aporta m\'as para trabajadores de salarios bajos (hasta 1 SM) y menos para salarios altos. La tasa de 0.225\% que usamos es un promedio razonable para salarios medios, pero subestima la aportaci\'on para salarios bajos y la sobreestima para salarios altos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Funci\'on completa en \texttt{R/calculations.R:188--235}:
+
+\begin{lstlisting}
+calculate_aportacion_obligatoria <- function(salario_mensual,
+                                              anio = 2025) {
+  tasas_patron <- c(
+    "2023" = 0.0620, "2024" = 0.0690, "2025" = 0.0775,
+    "2026" = 0.0860, "2027" = 0.0945, "2028" = 0.1030,
+    "2029" = 0.1115, "2030" = 0.1200
+  )
+  tasa_trabajador <- 0.01125
+  tasa_gobierno   <- 0.00225
+
+  # Tasa patron segun ano
+  anio_str <- as.character(anio)
+  if (anio_str %in% names(tasas_patron)) {
+    tasa_patron <- tasas_patron[anio_str]
+  } else if (anio >= 2030) {
+    tasa_patron <- 0.12
+  } else {
+    tasa_patron <- 0.0775  # default 2025
+  }
+
+  # Aplicar tope de cotizacion
+  tope_mensual <- TOPE_SBC_DIARIO * 30
+  salario_cotizable <- min(salario_mensual, tope_mensual)
+
+  aportacion <- salario_cotizable *
+    (tasa_patron + tasa_trabajador + tasa_gobierno)
+
+  return(list(
+    aportacion_total = aportacion,
+    aportacion_patron = salario_cotizable * tasa_patron,
+    aportacion_trabajador = salario_cotizable * tasa_trabajador,
+    aportacion_gobierno = salario_cotizable * tasa_gobierno,
+    tasa_total = tasa_patron + tasa_trabajador + tasa_gobierno,
+    salario_cotizable = salario_cotizable
+  ))
+}
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Elegibilidad y Semanas M\'inimas}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Requisitos para pensi\'on bajo Ley 97} (post-reforma 2020):
+
+\textbf{Cesant\'ia en Edad Avanzada} (Art. 154 LSS):
+\begin{itemize}[nosep]
+\item Edad: 60 a\~nos o m\'as
+\item Semanas cotizadas: m\'inimo 1,000 (reducido de 1,250 por reforma 2020)
+\item Condici\'on: estar dado de baja del r\'egimen obligatorio
+\end{itemize}
+
+\textbf{Vejez} (Art. 162 LSS):
+\begin{itemize}[nosep]
+\item Edad: 65 a\~nos o m\'as
+\item Semanas cotizadas: m\'inimo 1,000
+\end{itemize}
+
+\textbf{Nota sobre la reducci\'on de semanas}: La reforma 2020 implement\'o una reducci\'on gradual del requisito de semanas, iniciando en 750 semanas en 2021 e incrementando 25 semanas por a\~no hasta llegar a 1,000 en 2031. Sin embargo, el est\'andar final es 1,000 semanas.
+
+\textbf{Si no se cumplen las semanas m\'inimas}: El trabajador puede:
+\begin{enumerate}[nosep]
+\item Retirar el saldo total de su cuenta individual (retiro en una sola exhibici\'on)
+\item Continuar cotizando hasta alcanzar el m\'inimo
+\item Acceder a la Negativa de Pensi\'on (retiro parcial, conservando derecho a servicio m\'edico)
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+\textbf{1,000 semanas = $\sim$19.2 a\~nos de cotizaci\'on continua.} Es casi el doble que las 500 semanas de Ley 73. Esto refleja la realidad del sistema de cuentas individuales: necesitas acumular suficiente saldo para que tu pensi\'on sea viable.
+
+\textbf{El problema de la informalidad}: En M\'exico, la densidad de cotizaci\'on promedio es del 50--65\%. Esto significa que un trabajador que lleva 20 a\~nos en el mercado laboral podr\'ia tener solo 520--676 semanas cotizadas (no las 1,040 te\'oricas). Muchos trabajadores de Ley 97 no alcanzar\'an las 1,000 semanas.
+
+\textbf{Qu\'e pasa si no llegas}: Si tienes 65 a\~nos y 800 semanas, no puedes pensionarte. Tienes dos opciones: retirar todo tu saldo de golpe (y quedarte sin pensi\'on mensual) o solicitar la ``Negativa de Pensi\'on'' que te permite retirar parcialmente tu saldo conservando derecho a servicios m\'edicos del IMSS.
+
+\textbf{Simplificaci\'on en nuestro simulador}: Asumimos densidad de cotizaci\'on de 100\% ---cada a\~no restante genera 52 semanas. Esto sobreestima las semanas futuras para trabajadores con empleo intermitente o informal.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La validaci\'on de semanas en \texttt{R/calculations.R:324--334}:
+
+\begin{lstlisting}
+# Dentro de calculate_ley97_pension()
+anios_restantes <- edad_retiro - edad_actual
+semanas_al_retiro <- semanas_actuales + (anios_restantes * 52)
+
+if (semanas_al_retiro < 1000) {
+  return(list(
+    pension_mensual = 0,
+    elegible = FALSE,
+    mensaje = paste0("Se requieren 1,000 semanas. Tendras ",
+                    round(semanas_al_retiro),
+                    " semanas al retiro.")
+  ))
+}
+\end{lstlisting}
+
+N\'otese que \texttt{anios\_restantes * 52} asume 100\% de densidad. Un modelo m\'as realista usar\'ia un factor de densidad:
+\begin{lstlisting}
+# Version mejorada (no implementada)
+densidad <- 0.60  # 60% densidad promedio
+semanas_futuras <- anios_restantes * 52 * densidad
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Proyecci\'on del Saldo AFORE}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+La proyecci\'on del saldo AFORE al momento del retiro usa la f\'ormula de valor futuro con anualidad:
+
+\textbf{Rendimiento neto:}
+\[
+r_n = r_{\text{bruto}} - c_{\text{AFORE}}
+\]
+
+\textbf{Tasa mensual equivalente:}
+\[
+r_m = (1 + r_n)^{1/12} - 1
+\]
+
+\textbf{Valor futuro del saldo actual} (capitalizaci\'on compuesta anual):
+\[
+\text{FV}_{\text{saldo}} = S_0 \cdot (1 + r_n)^n
+\]
+
+\textbf{Valor futuro de aportaciones} (anualidad ordinaria mensual):
+\[
+\text{FV}_{\text{aport}} = A_m \cdot \frac{(1 + r_m)^{12n} - 1}{r_m}
+\]
+
+\textbf{Saldo final proyectado:}
+\[
+S_f = \text{FV}_{\text{saldo}} + \text{FV}_{\text{aport}}
+\]
+
+donde:
+\begin{itemize}[nosep]
+\item $S_0$ = saldo actual en la AFORE
+\item $r_n$ = rendimiento real neto anual
+\item $r_m$ = rendimiento mensual equivalente
+\item $A_m$ = aportaci\'on mensual total (obligatoria + voluntaria)
+\item $n$ = a\~nos restantes hasta el retiro
+\end{itemize}
+
+\textbf{Caso especial}: Si $|r_m| < 10^{-10}$ (rendimiento efectivamente cero):
+\[
+\text{FV}_{\text{aport}} = A_m \times 12n
+\]
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La f\'ormula tiene dos componentes que trabajan juntos:
+
+\textbf{1. El saldo actual crece exponencialmente}: Si tienes \$200,000 hoy y el rendimiento neto es 3.5\% anual, en 25 a\~nos tendr\'as $200{,}000 \times 1.035^{25} = \$471,710$. Tu dinero se duplic\'o sin que aportaras nada m\'as.
+
+\textbf{2. Las aportaciones futuras se acumulan con inter\'es}: \$2,000/mes durante 25 a\~nos a 3.5\% anual neto generan $\sim$\$1,100,000. Aportaste \$600,000 y ganaste \$500,000 en rendimientos.
+
+\textbf{El poder del tiempo}: Un trabajador de 25 a\~nos con \$50,000 en su AFORE y aportaciones de \$1,500/mes tiene 40 a\~nos por delante. Con rendimiento neto de 3.5\%: saldo final $\sim$\$2,000,000. El mismo trabajador a los 45 con 20 a\~nos: $\sim$\$700,000. Empezar temprano triplica el resultado.
+
+\textbf{La comisi\'on como ``impuesto invisible''}: Si el rendimiento bruto es 4\% y la comisi\'on es 0.53\%, el rendimiento neto es 3.47\%. Esa diferencia de 0.53\% se traduce en $\sim$12--15\% menos saldo final sobre 30 a\~nos. Es como pagar un impuesto que nunca ves.
+
+\textbf{Los tres escenarios del simulador}:
+\begin{itemize}[nosep]
+\item Conservador: 3\% real anual (econom\'ia estancada, alta inflaci\'on)
+\item Base: 4\% real anual (crecimiento moderado, inflaci\'on controlada)
+\item Optimista: 5\% real anual (econom\'ia din\'amica, buenos rendimientos)
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Implementaci\'on en \texttt{R/calculations.R:118--181}:
+
+\begin{lstlisting}
+project_afore_balance <- function(saldo_actual,
+                                   aportacion_mensual,
+                                   anios_al_retiro,
+                                   rendimiento_real_anual = 0.04,
+                                   comision_anual = 0.0053,
+                                   incluir_trayectoria = FALSE) {
+  r_neto <- rendimiento_real_anual - comision_anual
+  r_mensual <- (1 + r_neto)^(1/12) - 1
+  meses <- anios_al_retiro * 12
+
+  # Valor futuro saldo actual
+  fv_actual <- saldo_actual * (1 + r_neto)^anios_al_retiro
+
+  # Valor futuro aportaciones
+  if (abs(r_mensual) < 1e-10) {
+    fv_aportaciones <- aportacion_mensual * meses
+  } else {
+    fv_aportaciones <- aportacion_mensual *
+      ((1 + r_mensual)^meses - 1) / r_mensual
+  }
+
+  saldo_final <- fv_actual + fv_aportaciones
+  total_aportado <- saldo_actual + (aportacion_mensual * meses)
+  ganancia <- saldo_final - total_aportado
+
+  return(list(
+    saldo_final = saldo_final,
+    fv_saldo_actual = fv_actual,
+    fv_aportaciones = fv_aportaciones,
+    total_aportado = total_aportado,
+    ganancia_intereses = ganancia,
+    rendimiento_neto_usado = r_neto
+  ))
+}
+\end{lstlisting}
+
+Los escenarios de rendimiento en \texttt{global.R:62--64}:
+\begin{lstlisting}
+RENDIMIENTO_CONSERVADOR <<- 0.03
+RENDIMIENTO_BASE        <<- 0.04
+RENDIMIENTO_OPTIMISTA   <<- 0.05
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Retiro Programado vs. Renta Vitalicia}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+La LSS de 1997 establece dos modalidades de pensi\'on para trabajadores de Ley 97:
+
+\textbf{1. Retiro Programado} (Art. 157 LSS):
+\begin{itemize}[nosep]
+\item La AFORE administra el pago de la pensi\'on
+\item Pensi\'on recalculada anualmente basada en saldo remanente y esperanza de vida
+\item F\'ormula simplificada: $\Pi_m = \frac{S_f}{e_x \times 12}$
+\item Saldo restante es heredable a beneficiarios
+\item Riesgo: si el pensionado vive m\'as de lo esperado, el saldo puede agotarse
+\end{itemize}
+
+\textbf{2. Renta Vitalicia} (Art. 159 LSS):
+\begin{itemize}[nosep]
+\item El saldo se transfiere a una aseguradora
+\item La aseguradora paga una pensi\'on fija mensual de por vida
+\item Pensi\'on se actualiza anualmente por inflaci\'on (INPC)
+\item Se requiere comprar un Seguro de Sobrevivencia para beneficiarios
+\item Riesgo: insolvencia de la aseguradora (mitigado por regulaci\'on)
+\end{itemize}
+
+\textbf{Pensi\'on anticipada}: Bajo renta vitalicia, es posible pensionarse antes de los 60 a\~nos si la pensi\'on calculada supera en m\'as del 30\% a la pensi\'on m\'inima garantizada.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La elecci\'on entre retiro programado y renta vitalicia es una de las decisiones financieras m\'as importantes que un jubilado de Ley 97 tomar\'a:
+
+\textbf{Retiro Programado conviene si:}
+\begin{itemize}[nosep]
+\item Tienes problemas de salud y esperas vivir menos que el promedio
+\item Quieres dejar herencia a tus beneficiarios (el saldo restante se hereda)
+\item Conf\'ias en que los rendimientos de tu AFORE seguir\'an siendo buenos
+\item Prefieres flexibilidad (puedes cambiar a renta vitalicia despu\'es)
+\end{itemize}
+
+\textbf{Renta Vitalicia conviene si:}
+\begin{itemize}[nosep]
+\item Esperas vivir muchos a\~nos (la pensi\'on no se agota nunca)
+\item Prefieres certidumbre (monto fijo, ajustado por inflaci\'on)
+\item No necesitas dejar herencia del saldo de retiro
+\item Quieres protegerte del riesgo de longevidad
+\end{itemize}
+
+\textbf{Nuestro simulador solo modela retiro programado}. La renta vitalicia requiere cotizaciones de aseguradoras que var\'ian diariamente y dependen de las tablas de mortalidad de CNSF (Comisi\'on Nacional de Seguros y Fianzas), que son distintas a las de CONAPO.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Solo retiro programado est\'a implementado, en \texttt{R/calculations.R:259--298}:
+
+\begin{lstlisting}
+calculate_retiro_programado <- function(saldo, edad,
+                                         genero = "M") {
+  esperanza_vida <- get_esperanza_vida(edad, genero)
+  meses_esperados <- esperanza_vida * 12
+
+  # Pension = saldo / meses de vida esperados
+  pension_calculada <- saldo / meses_esperados
+
+  # Pension minima garantizada
+  pension_minima <- UMA_MENSUAL_2025 * 2.5  # ~$8,598.65
+
+  pension_mensual <- max(pension_calculada, pension_minima)
+
+  return(list(
+    pension_mensual = pension_mensual,
+    pension_calculada = pension_calculada,
+    esperanza_vida = esperanza_vida,
+    pension_minima = pension_minima,
+    aplico_minimo = pension_calculada < pension_minima,
+    saldo_minimo_para_superar_garantia =
+      pension_minima * meses_esperados
+  ))
+}
+\end{lstlisting}
+
+\textbf{Simplificaci\'on importante}: La f\'ormula real de retiro programado es m\'as compleja ---incluye factores actuariales de descuento, recalculaci\'on anual del monto, y proyecci\'on de rendimientos futuros del saldo remanente. Nuestra versi\'on simplificada divide el saldo entre los meses esperados de vida, lo cual da una buena aproximaci\'on del monto inicial pero no captura la din\'amica de recalculaci\'on anual.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Pensi\'on M\'inima Garantizada (Ley 97)}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Art\'iculos 170--173 LSS}:\\[0.3em]
+La Pensi\'on M\'inima Garantizada (PMG) es un piso de protecci\'on para trabajadores de Ley 97 cuyo saldo AFORE genera una pensi\'on inferior al m\'inimo legal.
+
+\textbf{Monto}: 2.5 UMAs mensuales
+\[
+\text{PMG}_{2025} = 3{,}439.46 \times 2.5 = \$8{,}598.65/\text{mes}
+\]
+
+\textbf{Condici\'on de activaci\'on}: Se otorga cuando:
+\[
+\frac{S_f}{e_x \times 12} < \text{PMG}
+\]
+
+\textbf{Saldo m\'inimo para no requerir PMG} (ejemplo: hombre, 65 a\~nos, $e_{65} = 17$ a\~nos):
+\[
+S_{\min} = \$8{,}598.65 \times 17 \times 12 = \$1{,}754{,}124.60
+\]
+
+\textbf{Financiamiento de la PMG}: Cuando el saldo del trabajador es insuficiente, el gobierno federal cubre la diferencia con recursos del Presupuesto de Egresos de la Federaci\'on.
+
+\textbf{Comparaci\'on con Ley 73}: La pensi\'on m\'inima de Ley 73 es 1 SM mensual = \$8,474.52. La PMG de Ley 97 (2.5 UMA = \$8,598.65) es ligeramente superior debido a la divergencia UMA/SM post-2016.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La PMG es la \textbf{red de seguridad definitiva} del sistema Ley 97. Si tu AFORE acumul\'o poco dinero (por bajas aportaciones, malos rendimientos, o muchas comisiones), el gobierno garantiza que no recibir\'as menos de 2.5 UMAs al mes.
+
+\textbf{Qui\'en la recibe}: En la pr\'actica, la mayor\'ia de los primeros jubilados de Ley 97 recibir\'an la PMG, porque:
+\begin{itemize}[nosep]
+\item Cotizaron la mayor parte de su vida laboral con tasas bajas (6.5\% total)
+\item Las comisiones de AFOREs eran m\'as altas en los primeros a\~nos
+\item La informalidad redujo su densidad de cotizaci\'on
+\end{itemize}
+
+\textbf{El saldo de \$1.75 millones}: Para un hombre de 65 a\~nos, necesitas \emph{al menos} \$1,754,124 en tu AFORE para superar la PMG. Para una mujer (esperanza de vida 20 a\~nos): \$2,063,676. Con un salario de \$15,000/mes y 30 a\~nos de cotizaci\'on al 7.85\%, el saldo proyectado es $\sim$\$1,200,000 ---insuficiente. Esto explica por qu\'e la reforma 2020 aument\'o las tasas.
+
+\textbf{Efecto ``enmascarador''}: Cuando aplica la PMG, las diferencias por g\'enero (esperanza de vida), rendimiento, y comisi\'on quedan enmascaradas: todos reciben el mismo monto m\'inimo. Esto es bueno para equidad pero malo para incentivos de ahorro.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La PMG se implementa como piso (\texttt{max}) en \texttt{R/calculations.R:277--285}:
+
+\begin{lstlisting}
+# Pension minima garantizada (Ley 97)
+pension_minima <- UMA_MENSUAL_2025 * 2.5  # ~$8,598.65
+
+aplico_minimo <- FALSE
+pension_mensual <- pension_calculada
+
+if (pension_calculada < pension_minima) {
+  pension_mensual <- pension_minima
+  aplico_minimo <- TRUE
+}
+\end{lstlisting}
+
+El campo \texttt{saldo\_minimo\_para\_superar\_garantia} ayuda a la UI a comunicar al usuario cu\'anto necesita acumular:
+\begin{lstlisting}
+saldo_minimo_para_superar_garantia =
+    pension_minima * meses_esperados
+\end{lstlisting}
+
+Esto permite mostrar mensajes como: ``Necesitas acumular al menos \$1,754,124 para que tu pensi\'on AFORE supere la garant\'ia m\'inima.''
+\end{tcolorbox}
+
+% ############################################################################
+% CAPITULO 4
+% ############################################################################
+\chapter{Fondo de Pensiones para el Bienestar (2024)}
+
+El Fondo de Pensiones para el Bienestar es la intervenci\'on m\'as reciente y pol\'iticamente significativa en el sistema de pensiones mexicano. Creado por decreto constitucional y publicado en el DOF en mayo de 2024, representa un cambio de filosof\'ia: de la responsabilidad individual del ahorro (Ley 97) a un complemento estatal que busca garantizar una ``pensi\'on digna''. Este cap\'itulo analiza el decreto, la matriz de elegibilidad, la f\'ormula del complemento, la mec\'anica del umbral, y las consideraciones de sostenibilidad.
+
+% ============================================================================
+\section{Base Legal: Decreto DOF 01/05/2024}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Cronolog\'ia legislativa:}
+\begin{itemize}[nosep]
+\item \textbf{30/04/2024} (DOF edici\'on vespertina): Decreto que reforma, adiciona y deroga diversas disposiciones de la LSS, LISSSTE, LSAR y LINFONAVIT para crear el Fondo
+\item \textbf{01/05/2024} (DOF c\'odigo 5725285): Decreto presidencial del Fondo de Pensiones para el Bienestar
+\item \textbf{01/07/2024}: Entrada en vigor --- primer pago de complementos
+\end{itemize}
+
+\textbf{Reforma constitucional:} Adici\'on al Art\'iculo 4 de la Constituci\'on Pol\'itica, que ahora incluye el derecho a una ``pensi\'on digna'' como garant\'ia constitucional.
+
+\textbf{Estructura jur\'idica del Fondo:}
+\begin{itemize}[nosep]
+\item Naturaleza: Fideicomiso p\'ublico, NO considerado entidad paraestatal
+\item Fideicomitente: Secretar\'ia de Hacienda y Cr\'edito P\'ublico (SHCP)
+\item Fiduciario: Banco de M\'exico (Banxico)
+\item Prop\'osito: Recibir, administrar, invertir y entregar recursos para complementar pensiones
+\end{itemize}
+
+\textbf{Fuentes de financiamiento:}
+\begin{enumerate}[nosep]
+\item Recursos de cuentas AFORE inactivas (sin reclamar por sus titulares)
+\item Aportaciones del Presupuesto de Egresos de la Federaci\'on
+\item Rendimientos generados por la inversi\'on de los recursos del Fondo
+\end{enumerate}
+
+\textbf{Alcance:} Aplica a trabajadores bajo Ley 97 (IMSS) y Ley ISSSTE 2007. \textbf{No aplica} a trabajadores Ley 73 ni ISSSTE anterior.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El Fondo Bienestar naci\'o de una realidad pol\'itica y social: los primeros jubilados ``puros'' de Ley 97 estaban comenzando a retirarse con pensiones de \$3,000--\$6,000/mes ---muy por debajo de su \'ultimo salario y, en muchos casos, insuficientes para cubrir necesidades b\'asicas.
+
+\textbf{La promesa}: ``Tu pensi\'on ser\'a igual a tu \'ultimo salario'' (o al umbral del Fondo, lo que sea menor). Esto suena extraordinario, pero tiene varias capas de complejidad:
+
+\begin{enumerate}[nosep]
+\item \textbf{Solo aplica a salarios bajos-medios}: Si ganas m\'as de \$17,364/mes (2025), no eres elegible. El Fondo est\'a dise\~nado para trabajadores de ingresos bajos.
+\item \textbf{Se financia con dinero de otros}: Las cuentas inactivas son propiedad de trabajadores que no las han reclamado. Usar ese dinero para pagar pensiones de otros trabajadores genera cuestionamientos legales y \'eticos.
+\item \textbf{Sostenibilidad incierta}: Las cuentas inactivas son un recurso finito que eventualmente se agotar\'a. Despu\'es de eso, el Fondo depende del presupuesto federal.
+\item \textbf{Es un programa, no un derecho actuarial}: A diferencia de la pensi\'on AFORE (que depende de TU saldo), el complemento del Fondo depende de la voluntad pol\'itica y fiscal del gobierno en turno.
+\end{enumerate}
+
+\textbf{Analog\'ia}: Es como si el gobierno dijera: ``Tu cuenta de ahorro no fue suficiente, as\'i que nosotros ponemos la diferencia.'' Generoso hoy, pero incierto ma\~nana.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La referencia al decreto est\'a documentada en el encabezado de \texttt{R/fondo\_bienestar.R:1--6}:
+
+\begin{lstlisting}
+# R/fondo_bienestar.R - Logica del Fondo de Pensiones
+#                       para el Bienestar
+# Simulador de Pension IMSS + Fondo Bienestar
+#
+# Decreto: DOF 01/05/2024
+# Entrada en vigor: 01/07/2024
+\end{lstlisting}
+
+La advertencia sobre sostenibilidad se genera en \texttt{R/fondo\_bienestar.R:295--299}:
+\begin{lstlisting}
+advertencia = if (elegibilidad$elegible) {
+  paste0("El Fondo Bienestar es nuevo (2024) y su ",
+         "sostenibilidad a largo plazo no esta ",
+         "garantizada. Tus aportaciones voluntarias ",
+         "son la parte mas segura de tu pension.")
+} else { NULL }
+\end{lstlisting}
+
+Este mensaje es parte central de la filosof\'ia del simulador: \emph{inform\'ar sin generar falsas expectativas}.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Matriz de Elegibilidad: Cuatro Condiciones Simult\'aneas}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Para ser elegible al complemento del Fondo de Pensiones para el Bienestar, el trabajador debe cumplir \textbf{las cuatro condiciones simult\'aneamente}:
+
+\begin{center}
+\begin{tabular}{clc}
+\toprule
+\textbf{N.} & \textbf{Condici\'on} & \textbf{Criterio} \\
+\midrule
+1 & R\'egimen & Ley 97 (IMSS) o Ley ISSSTE 2007 \\
+2 & Edad & $\geq$ 65 a\~nos \\
+3 & Semanas cotizadas & $\geq$ 1,000 \\
+4 & Salario (SBC promedio) & $\leq$ Umbral del a\~no vigente \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Si \textbf{cualquiera} de las cuatro condiciones no se cumple, el trabajador NO es elegible.
+
+\textbf{Nota sobre condici\'on 1}: Los trabajadores de Ley 73 \textbf{nunca} son elegibles, independientemente de las dem\'as condiciones. La justificaci\'on es que las pensiones de beneficio definido de Ley 73 son generalmente superiores a las de Ley 97 para el mismo nivel salarial.
+
+\textbf{Nota sobre condici\'on 4}: El ``salario'' es el promedio del SBC de las \'ultimas 240 semanas cotizadas ($\approx$4.6 a\~nos). No es el \'ultimo salario ni el salario m\'inimo.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Las cuatro condiciones crean un ``filtro'' que selecciona al beneficiario t\'ipico del Fondo:
+
+\begin{itemize}[nosep]
+\item \textbf{Ley 97}: Excluye a trabajadores con derechos Ley 73 (que ya tienen mejor pensi\'on)
+\item \textbf{65 a\~nos}: Excluye a jubilados anticipados (60--64), que podr\'ian seguir trabajando
+\item \textbf{1,000 semanas}: Excluye a trabajadores con poca cotizaci\'on (que no tendr\'ian pensi\'on de todas formas)
+\item \textbf{Salario $\leq$ umbral}: Excluye a trabajadores de altos ingresos (cuyas pensiones AFORE ser\'an razonables)
+\end{itemize}
+
+\textbf{Ejemplo de exclusi\'on por umbral}:\\
+Un trabajador Ley 97, 65 a\~nos, 1,200 semanas, pero con salario promedio de \$20,000/mes. No es elegible porque \$20,000 > \$17,364 (umbral 2025). Su pensi\'on AFORE ser\'a relativamente alta por su salario, y el gobierno considera que no necesita complemento.
+
+\textbf{El borde}: Un trabajador con salario de \$17,300 (justo bajo el umbral) obtiene complemento. Uno con \$17,400 no. Esto crea un efecto de ``acantilado'' que podr\'ia generar incentivos a subdeclarar salario.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Funci\'on completa en \texttt{R/fondo\_bienestar.R:25--92}:
+
+\begin{lstlisting}
+check_fondo_eligibility <- function(regimen, edad, semanas,
+                                     sbc_promedio_mensual,
+                                     anio = ANIO_ACTUAL) {
+  umbral <- get_umbral_fondo_bienestar(anio)
+
+  checks <- list(
+    regimen_valido = list(
+      cumple = (regimen == "ley97"),
+      mensaje = if (regimen == "ley97") {
+        "Regimen Ley 97: Elegible"
+      } else {
+        "Regimen Ley 73: NO elegible"
+      }
+    ),
+    edad_minima = list(
+      cumple = (edad >= 65),
+      mensaje = ...
+    ),
+    semanas_minimas = list(
+      cumple = (semanas >= 1000),
+      mensaje = ...
+    ),
+    salario_bajo_umbral = list(
+      cumple = (sbc_promedio_mensual <= umbral),
+      mensaje = ...
+    )
+  )
+
+  elegible <- all(sapply(checks, function(x) x$cumple))
+  return(list(elegible = elegible, checks = checks,
+              umbral_usado = umbral))
+}
+\end{lstlisting}
+
+La estructura de \texttt{checks} como lista con \texttt{cumple} + \texttt{mensaje} permite que la UI muestre cada condici\'on con un indicador visual (verde/rojo) y texto explicativo.
+\end{tcolorbox}
+
+% ============================================================================
+\section{F\'ormula del Complemento}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El complemento del Fondo de Pensiones para el Bienestar se calcula como:
+
+\textbf{Pensi\'on objetivo:}
+\[
+\Pi_{\text{obj}} = \min(\overline{\text{SBC}}_m,\; U_t)
+\]
+
+\textbf{Complemento:}
+\[
+C = \max\!\big(0,\; \Pi_{\text{obj}} - \Pi_{\text{AFORE}}\big)
+\]
+
+\textbf{Pensi\'on total con Fondo:}
+\[
+\Pi_{\text{total}} = \Pi_{\text{AFORE}} + C
+\]
+
+donde:
+\begin{itemize}[nosep]
+\item $\overline{\text{SBC}}_m$ = SBC promedio mensual de las \'ultimas 240 semanas
+\item $U_t$ = umbral del Fondo para el a\~no $t$
+\item $\Pi_{\text{AFORE}}$ = pensi\'on mensual calculada de la AFORE (retiro programado)
+\end{itemize}
+
+\textbf{Interpretaci\'on}: El Fondo complementa hasta alcanzar el 100\% del salario, pero nunca m\'as all\'a del umbral. Si la pensi\'on AFORE ya supera el objetivo, el complemento es cero.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La f\'ormula es elegantemente simple. Tres escenarios posibles:
+
+\textbf{Escenario A --- Salario bajo el umbral} (ej: salario \$12,000, umbral \$17,364):\\
+Objetivo = \$12,000. Si AFORE da \$5,000, complemento = \$7,000.\\
+Resultado: pensi\'on total = \$12,000 = 100\% del salario.
+
+\textbf{Escenario B --- Salario igual al umbral} (ej: salario \$17,364):\\
+Objetivo = \$17,364. Si AFORE da \$6,000, complemento = \$11,364.\\
+Resultado: pensi\'on total = \$17,364 = 100\% del salario.
+
+\textbf{Escenario C --- AFORE ya supera el objetivo} (ej: salario \$10,000, AFORE \$11,000):\\
+Objetivo = \$10,000. AFORE > objetivo, complemento = \$0.\\
+Resultado: pensi\'on total = \$11,000 (solo AFORE).
+
+\textbf{Nota cr\'itica sobre incentivos}: Si el Fondo garantiza 100\% del salario, el incentivo para hacer aportaciones voluntarias \emph{desaparece} para trabajadores elegibles ---total, el gobierno pone la diferencia. El simulador contrarresta esto con el mensaje de que el Fondo puede no ser permanente.
+
+\textbf{Efecto de las aportaciones voluntarias con Fondo}: Si tu AFORE sube de \$5,000 a \$8,000 por voluntarias, el complemento baja de \$7,000 a \$4,000. Tu pensi\'on total no cambia (\$12,000 en ambos casos). Pero si el Fondo desaparece, la diferencia es \$5,000 vs. \$8,000 ---las voluntarias son tu seguro contra riesgo pol\'itico.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Implementaci\'on en \texttt{R/fondo\_bienestar.R:98--145}:
+
+\begin{lstlisting}
+calculate_fondo_complement <- function(pension_afore,
+                                        sbc_promedio_mensual,
+                                        elegibilidad) {
+  if (!elegibilidad$elegible) {
+    return(list(complemento = 0,
+                pension_total = pension_afore,
+                elegible = FALSE))
+  }
+
+  umbral <- elegibilidad$umbral_usado
+
+  # Objetivo: 100% del salario, tope en umbral
+  pension_objetivo <- min(sbc_promedio_mensual, umbral)
+
+  # Complemento = objetivo - AFORE
+  complemento <- max(0, pension_objetivo - pension_afore)
+  pension_total <- pension_afore + complemento
+
+  return(list(
+    complemento = complemento,
+    pension_total = pension_total,
+    pension_afore = pension_afore,
+    pension_objetivo = pension_objetivo,
+    elegible = TRUE,
+    tasa_reemplazo_sin_fondo =
+        pension_afore / sbc_promedio_mensual,
+    tasa_reemplazo_con_fondo =
+        pension_total / sbc_promedio_mensual
+  ))
+}
+\end{lstlisting}
+
+Las tasas de reemplazo (con y sin Fondo) permiten que la UI muestre el impacto del complemento en t\'erminos de ``porcentaje del salario reemplazado''.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Mecanismo del Umbral}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El umbral del Fondo de Pensiones para el Bienestar es el l\'imite superior de salario para elegibilidad y el tope del complemento. Se actualiza anualmente y corresponde aproximadamente al promedio del SBC de los trabajadores inscritos al IMSS:
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+\textbf{A\~no} & \textbf{Umbral (mensual)} & \textbf{Fuente} \\
+\midrule
+2024 & \$16,777.68 & DOF / IMSS \\
+2025 & \$17,364.00 & DOF / IMSS \\
+2026 & $\sim$\$18,050 & Estimado \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El crecimiento impl\'icito del umbral entre 2024 y 2025 es del 3.49\%, lo cual es cercano a la tasa de inflaci\'on del periodo. Se puede inferir que el umbral se actualiza por INPC, aunque el mecanismo exacto no est\'a codificado en ley (depende de la determinaci\'on del IMSS sobre el promedio salarial de sus afiliados).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El umbral tiene dos funciones:
+
+\textbf{1. Filtro de elegibilidad}: Si ganas m\'as que el umbral, no eres elegible. Punto.
+
+\textbf{2. Tope del complemento}: Incluso si eres elegible, el Fondo nunca te dar\'a m\'as que el umbral menos tu pensi\'on AFORE.
+
+\textbf{Ejemplo del tope}: Trabajador con salario \$17,364 (justo en el l\'imite) y AFORE de \$5,000.
+\begin{itemize}[nosep]
+\item Complemento = min(\$17,364, \$17,364) - \$5,000 = \$12,364
+\item Pensi\'on total = \$17,364 (100\% del salario)
+\end{itemize}
+
+\textbf{Qu\'e pasa si el umbral no crece al mismo ritmo que los salarios}: Si los salarios crecen 5\% anual pero el umbral solo 3\%, cada a\~no m\'as trabajadores quedar\'an \emph{excluidos} del Fondo porque su salario superar\'a el umbral. Esto podr\'ia ser una v\'alvula de sostenibilidad impl\'icita ---el Fondo atiende a menos personas con el tiempo.
+
+\textbf{Proyecci\'on del umbral}: Para nuestro simulador, estimamos linealmente \$18,050 para 2026. Para a\~nos posteriores, usamos el \'ultimo valor conocido. Esta es una simplificaci\'on conservadora.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La tabla de umbrales en \texttt{global.R:128--138}:
+
+\begin{lstlisting}
+get_umbral_fondo_bienestar <<- function(anio) {
+  umbrales <- c(
+    "2024" = 16777.68,
+    "2025" = 17364,
+    "2026" = 18050  # estimado
+  )
+  if (as.character(anio) %in% names(umbrales)) {
+    return(umbrales[as.character(anio)])
+  }
+  return(umbrales[length(umbrales)])  # ultimo conocido
+}
+\end{lstlisting}
+
+La funci\'on retorna el \'ultimo valor conocido para a\~nos futuros no mapeados. Esto significa que un trabajador que se jubila en 2035 ver\'a el umbral de 2026 (\$18,050), lo cual subestima el umbral real futuro. Una mejora ser\'ia proyectar con una tasa de crecimiento estimada.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Sostenibilidad y Riesgo Pol\'itico}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Fuentes de riesgo del Fondo de Pensiones para el Bienestar:}
+
+\textbf{1. Riesgo de agotamiento de cuentas inactivas:}
+Las cuentas AFORE inactivas son un recurso finito. El monto inicial transferido al Fondo fue significativo, pero a medida que m\'as trabajadores reclamen sus cuentas (por informaci\'on o por necesidad), el flujo de nuevas cuentas inactivas disminuir\'a.
+
+\textbf{2. Riesgo presupuestal:}
+Una vez agotadas las cuentas inactivas, el Fondo depende del Presupuesto de Egresos de la Federaci\'on. Esto lo hace vulnerable a restricciones fiscales, prioridades pol\'iticas cambiantes, y crisis econ\'omicas.
+
+\textbf{3. Riesgo demogr\'afico:}
+Seg\'un CONAPO, para 2070 habr\'a 48.4 millones de personas mayores de 60 a\~nos (34.2\% de la poblaci\'on). El n\'umero de beneficiarios del Fondo crecer\'a exponencialmente conforme las generaciones de Ley 97 se jubilen.
+
+\textbf{4. Riesgo legal:}
+Aunque el derecho a ``pensi\'on digna'' est\'a ahora en la Constituci\'on (Art. 4), el monto espec\'ifico del complemento y los criterios de elegibilidad son regulatorios, no constitucionales. Un futuro gobierno podr\'ia modificar el umbral, las condiciones, o el monto del complemento.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+\textbf{La pregunta central es: estar\'a el Fondo cuando yo me jubile?}
+
+Para un trabajador de 25 a\~nos en 2025 que se jubilar\'a en 2065:
+\begin{itemize}[nosep]
+\item Habr\'an pasado 8+ gobiernos federales
+\item La poblaci\'on mayor de 60 se habr\'a triplicado
+\item Las cuentas inactivas iniciales estar\'an agotadas hace d\'ecadas
+\item El costo fiscal del Fondo ser\'a enorme
+\end{itemize}
+
+\textbf{La respuesta honesta}: Nadie lo sabe. El Fondo existe hoy y es ley. Pero su permanencia a 40 a\~nos vista es altamente incierta.
+
+\textbf{La recomendaci\'on del simulador}: ``Tus aportaciones voluntarias son la parte m\'as segura de tu pensi\'on.'' El dinero en tu AFORE es \emph{tuyo} por ley. El complemento del Fondo es una \emph{promesa} del gobierno. En la planificaci\'on financiera personal, siempre es mejor depender de lo que controlas.
+
+\textbf{Escenarios de degradaci\'on}:
+\begin{enumerate}[nosep]
+\item Mejor caso: El Fondo se institucionaliza y se financia sosteniblemente (como PEMEX o CFE)
+\item Caso medio: El umbral se congela o baja, excluyendo a m\'as trabajadores cada a\~no
+\item Peor caso: El Fondo se agota y el complemento se reduce o elimina
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+El simulador implementa la advertencia de sostenibilidad de dos formas:
+
+\textbf{1. Mensaje expl\'icito} en \texttt{R/fondo\_bienestar.R:296--299}:
+\begin{lstlisting}
+advertencia = paste0(
+  "El Fondo Bienestar es nuevo (2024) y su ",
+  "sostenibilidad a largo plazo no esta garantizada. ",
+  "Tus aportaciones voluntarias son la parte ",
+  "mas segura de tu pension.")
+\end{lstlisting}
+
+\textbf{2. Tres escenarios en la UI}:
+\begin{lstlisting}
+# R/fondo_bienestar.R:178-303 (calculate_pension_with_fondo)
+# Escenario 1: Solo sistema (AFORE sin Fondo)
+# Escenario 2: Con Fondo Bienestar (complemento)
+# Escenario 3: Con tus acciones (aportaciones voluntarias)
+\end{lstlisting}
+
+Los tres escenarios permiten al usuario ver: (a) qu\'e pasa sin el Fondo, (b) qu\'e pasa con el Fondo, y (c) qu\'e pasa si adem\'as hace aportaciones voluntarias. Esto comunica impl\'icitamente que el Fondo no es la \'unica soluci\'on y que las acciones personales importan.
+\end{tcolorbox}
+
+% ############################################################################
+% CAPITULO 5
+% ############################################################################
+\chapter{Constantes Clave y Fuentes de Datos (2025)}
+
+Este cap\'itulo documenta todas las constantes regulatorias utilizadas en el simulador, sus fuentes oficiales, su relaci\'on entre s\'i, y c\'omo se codifican en el sistema. Es la referencia t\'ecnica definitiva para verificar que el simulador usa valores correctos y actualizados.
+
+% ============================================================================
+\section{UMA vs. Salario M\'inimo: La Divergencia Post-2016}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Reforma constitucional de enero 2016} --- Creaci\'on de la UMA (Unidad de Medida y Actualizaci\'on):
+
+\begin{itemize}[nosep]
+\item \textbf{Antes de 2016}: El salario m\'inimo serv\'ia como unidad de referencia para multas, cr\'editos, pensiones, y toda obligaci\'on legal denominada en ``salarios m\'inimos''
+\item \textbf{A partir de 2016}: Se cre\'o la UMA para reemplazar al salario m\'inimo como unidad de referencia
+\item \textbf{Calculada por}: INEGI, anualmente, con base en la variaci\'on del INPC (inflaci\'on)
+\item \textbf{Publicada en}: DOF, cada 10 de enero (o d\'ia h\'abil siguiente)
+\end{itemize}
+
+\textbf{Valores 2025:}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Concepto} & \textbf{UMA} & \textbf{Salario M\'inimo} \\
+\midrule
+Diario & \$113.14 & \$278.80 \\
+Mensual (30.4375) & \$3,439.46 & \$8,474.52 \\
+Anual & \$41,298.60 & \$101,762.00 \\
+\midrule
+Raz\'on SM/UMA & \multicolumn{2}{c}{2.465} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Prop\'osito de la desvinculaci\'on}: Permitir aumentos significativos al salario m\'inimo sin que esto dispare autom\'aticamente el costo de multas, cr\'editos INFONAVIT, pensiones garantizadas, y otras obligaciones indexadas.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La divergencia UMA/SM es quiz\'as el concepto m\'as importante y menos comprendido del sistema de pensiones mexicano actual.
+
+\textbf{Antes de 2016}: UMA = SM. Si el SM sub\'ia 10\%, todo sub\'ia 10\% ---pensiones m\'inimas, cr\'editos INFONAVIT, multas, etc.
+
+\textbf{Despu\'es de 2016}: El SM ha subido agresivamente (de \$73.04 en 2016 a \$278.80 en 2025, un aumento del 281\%). La UMA solo ha seguido la inflaci\'on (de \$73.04 a \$113.14, un aumento del 55\%).
+
+\textbf{Impacto en pensiones}:
+\begin{itemize}[nosep]
+\item \textbf{Pensi\'on m\'inima Ley 73} = 1 SM mensual = \$8,474.52 (creci\'o con el SM)
+\item \textbf{Pensi\'on m\'inima Ley 97} = 2.5 UMA mensuales = \$8,598.65 (creci\'o con inflaci\'on)
+\end{itemize}
+
+En 2016, ambas eran iguales. En 2025, la de Ley 73 ya es menor que la de Ley 97 en t\'erminos nominales, pero el SM ha crecido mucho m\'as r\'apido, lo cual beneficia los \textbf{grupos salariales} del Art. 167: al dividir el SBC entre un SM m\'as alto, el grupo salarial baja, lo que puede dar una cuant\'ia b\'asica m\'as generosa.
+
+\textbf{El tope de cotizaci\'on tambi\'en se afect\'o}: Est\'a en 25 UMAs, no 25 SMs. Si estuviera en SMs, ser\'ia \$6,970/d\'ia en lugar de \$2,828.50. Los trabajadores de altos ingresos cotizar\'ian sobre montos mucho mayores.
+
+\textbf{En resumen}: La desvinculaci\'on benefici\'o los aumentos al SM (pol\'itica social) pero limit\'o el crecimiento de las pensiones m\'inimas de Ley 97 y del tope de cotizaci\'on.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Ambas constantes coexisten en \texttt{global.R:47--53}:
+
+\begin{lstlisting}
+# UMA 2025 (INEGI)
+UMA_DIARIA_2025  <<- 113.14
+UMA_MENSUAL_2025 <<- 3439.46
+
+# Salario minimo 2025 (CONASAMI)
+SM_DIARIO_2025  <<- 278.80
+SM_MENSUAL_2025 <<- 8474.52
+\end{lstlisting}
+
+D\'onde se usa cada una:
+\begin{itemize}[nosep]
+\item \textbf{UMA}: Pensi\'on m\'inima Ley 97 (\texttt{UMA\_MENSUAL\_2025 * 2.5}), tope SBC (\texttt{UMA\_DIARIA\_2025 * 25})
+\item \textbf{SM}: Pensi\'on m\'inima Ley 73 (\texttt{sm\_vigente * 30.4375}), grupo salarial Art. 167 (\texttt{sbc\_diario / sm\_vigente})
+\end{itemize}
+
+La UMA hist\'orica se carga desde \texttt{data/uma\_historico.csv} via \texttt{get\_uma(anio)}. El SM hist\'orico desde \texttt{data/salario\_minimo.csv} via \texttt{get\_salario\_minimo(anio)}.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Comisiones AFORE y el IRN}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Comisiones AFORE:}
+\begin{itemize}[nosep]
+\item Se cobran como porcentaje anual del saldo administrado
+\item CONSAR establece l\'imites m\'aximos
+\item Tendencia descendente: promedio de $\sim$1.5\% en 2008 a $\sim$0.52\% en 2025
+\item Se aplican diariamente (1/365 de la comisi\'on anual por d\'ia)
+\end{itemize}
+
+\textbf{IRN} (Indicador de Rendimiento Neto):
+\begin{itemize}[nosep]
+\item Publicado mensualmente por CONSAR
+\item F\'ormula: rendimiento bruto ponderado (ventana de 36 meses) menos comisi\'on sobre saldo
+\item Refleja el rendimiento real que recibe el trabajador despu\'es de comisiones
+\item Es el m\'etrico est\'andar para comparar AFOREs
+\item Cambio metodol\'ogico reciente: se eliminaron las Unidades de Pensi\'on del c\'alculo
+\end{itemize}
+
+\textbf{SIEFOREs Generacionales}: Desde 2019, los fondos se asignan por generaci\'on (a\~no de nacimiento). Trabajadores j\'ovenes tienen mayor proporci\'on en renta variable (mayor riesgo, mayor rendimiento esperado); pr\'oximos al retiro, m\'as renta fija.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+\textbf{La comisi\'on es el \'unico factor de tu pensi\'on AFORE sobre el que tienes control directo} (adem\'as de las aportaciones voluntarias). Elegir una AFORE con 0.47\% de comisi\'on (Inbursa) vs. 0.53\% (promedio) ahorra 0.06\% anual ---que sobre 30 a\~nos y un saldo promedio de \$500,000 representa $\sim$\$40,000.
+
+\textbf{Pero el IRN es m\'as importante que la comisi\'on sola}:\\
+\begin{itemize}[nosep]
+\item Inbursa: comisi\'on m\'as baja (0.47\%) pero IRN m\'as bajo (4.23\%)
+\item XXI Banorte: comisi\'on 0.51\% pero IRN de 6.89\%
+\end{itemize}
+La diferencia de 2.66\% en IRN domina totalmente la diferencia de 0.04\% en comisi\'on. Sin embargo, el IRN pasado no garantiza rendimiento futuro.
+
+\textbf{Simplificaci\'on del simulador}: Restamos la comisi\'on directamente del rendimiento ($r_n = r - c$). En realidad, la comisi\'on se cobra sobre el saldo acumulado, no sobre el rendimiento. Para rendimientos peque\~nos y comisiones peque\~nas, la aproximaci\'on es razonable, pero diverge para montos grandes o periodos largos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Los datos AFORE se almacenan en \texttt{data/afore\_comisiones.csv} y se acceden via \texttt{R/data\_tables.R}:
+
+\begin{lstlisting}
+# Comision como decimal
+get_afore_comision("XXI Banorte")  # -> 0.0051
+
+# Rendimiento neto para comparacion
+get_afore_irn("XXI Banorte")       # -> 0.0689
+
+# En la proyeccion:
+r_neto <- rendimiento_real_anual - comision_anual
+\end{lstlisting}
+
+La funci\'on \texttt{compare\_afores()} (\texttt{R/calculations.R:624--671}) usa el IRN como proxy de rendimiento para comparar todas las AFOREs:
+\begin{lstlisting}
+for (afore in afores) {
+  comision <- get_afore_comision(afore)
+  irn <- get_afore_irn(afore)
+  proyeccion <- project_afore_balance(
+    saldo_actual = saldo_actual,
+    rendimiento_real_anual = irn,
+    comision_anual = comision
+  )
+}
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Tablas de Mortalidad y Esperanza de Vida}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Fuente}: CONAPO (Consejo Nacional de Poblaci\'on), ``Proyecciones de la Poblaci\'on de M\'exico y las Entidades Federativas 2020--2070''.
+
+\textbf{Esperanza de vida al nacimiento (2023):}
+\begin{itemize}[nosep]
+\item Mujeres: 78.4 a\~nos
+\item Hombres: 72.1 a\~nos
+\item Diferencia por g\'enero: $\sim$6.3 a\~nos
+\end{itemize}
+
+\textbf{Esperanza de vida residual} (a\~nos de vida restante esperados, usada para retiro programado):
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+\textbf{Edad} & \textbf{Hombres ($e_x^M$)} & \textbf{Mujeres ($e_x^F$)} \\
+\midrule
+60 & 21.0 & 24.5 \\
+61 & 20.2 & 23.6 \\
+62 & 19.4 & 22.7 \\
+63 & 18.6 & 21.8 \\
+64 & 17.8 & 20.9 \\
+65 & 17.0 & 20.0 \\
+66 & 16.3 & 19.2 \\
+67 & 15.5 & 18.3 \\
+68 & 14.8 & 17.5 \\
+69 & 14.1 & 16.7 \\
+70 & 13.4 & 15.9 \\
+75 & 10.5 & 12.5 \\
+80 & 8.0 & 9.5 \\
+85 & 5.8 & 7.0 \\
+90 & 4.2 & 5.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Nota}: Estos valores son simplificaciones educativas basadas en CONAPO, no tablas actuariales oficiales. Las aseguradoras y el IMSS usan tablas de mortalidad completas (EMSSA para IMSS, tablas de CNSF para seguros).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La esperanza de vida residual es el factor que convierte un saldo AFORE en una pensi\'on mensual. \textbf{M\'as a\~nos de vida esperados = pensi\'on mensual m\'as baja} (el mismo saldo se reparte entre m\'as meses).
+
+\textbf{El impacto del g\'enero es significativo}:\\
+A los 65 a\~nos:
+\begin{itemize}[nosep]
+\item Hombre: $e_{65} = 17$ a\~nos $\Rightarrow$ 204 meses
+\item Mujer: $e_{65} = 20$ a\~nos $\Rightarrow$ 240 meses
+\end{itemize}
+
+Con el mismo saldo de \$2,000,000:
+\begin{itemize}[nosep]
+\item Hombre: \$2M / 204 = \$9,804/mes
+\item Mujer: \$2M / 240 = \$8,333/mes (\textbf{15\% menos})
+\end{itemize}
+
+Las mujeres reciben menos pensi\'on mensual \emph{no por discriminaci\'on}, sino porque estad\'isticamente viven m\'as. Sin embargo, cuando aplica la pensi\'on m\'inima garantizada (\$8,598.65), ambos reciben lo mismo ---el efecto ``enmascarador'' que se document\'o anteriormente.
+
+\textbf{Impacto de COVID}: La pandemia redujo temporalmente la esperanza de vida en M\'exico ($\sim$4 a\~nos de ca\'ida en 2020--2021), pero se recuper\'o desde 2022. Las tablas actuales reflejan la tendencia recuperada.
+
+\textbf{Proyecci\'on demogr\'afica}: Para 2070, CONAPO proyecta 48.4 millones de personas 60+ (34.2\% de la poblaci\'on), frente a $\sim$16 millones en 2025. Esto triplicar\'a la presi\'on sobre todos los sistemas de pensi\'on.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Implementaci\'on en \texttt{R/data\_tables.R:89--143}:
+
+\begin{lstlisting}
+get_esperanza_vida <- function(edad, genero = "M") {
+  # Validacion de inputs
+  if (is.null(genero) || is.na(genero)) genero <- "M"
+  if (is.null(edad) || is.na(edad)) edad <- 65
+
+  if (genero == "F") {
+    base <- c(
+      "60" = 24.5, "65" = 20.0, "70" = 15.9,
+      "75" = 12.5, "80" = 9.5, "85" = 7.0, "90" = 5.0)
+  } else {
+    base <- c(
+      "60" = 21.0, "65" = 17.0, "70" = 13.4,
+      "75" = 10.5, "80" = 8.0, "85" = 5.8, "90" = 4.2)
+  }
+
+  # Interpolacion lineal para edades intermedias
+  edades <- as.numeric(names(base))
+  valores <- as.numeric(base)
+  idx_inf <- max(which(edades <= edad))
+  idx_sup <- min(which(edades >= edad))
+  prop <- (edad - edades[idx_inf]) /
+           (edades[idx_sup] - edades[idx_inf])
+  return(valores[idx_inf] +
+         prop * (valores[idx_sup] - valores[idx_inf]))
+}
+\end{lstlisting}
+
+La interpolaci\'on lineal es una simplificaci\'on. Las tablas actuariales profesionales usan funciones de mortalidad como Gompertz-Makeham o tablas completas edad-por-edad. Nuestra aproximaci\'on es adecuada para fines educativos pero no para c\'alculos de seguros.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Tabla Consolidada de Constantes 2025}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Referencia completa de todas las constantes regulatorias del simulador (a\~no 2025):
+
+\begin{center}
+\begin{longtable}{lrll}
+\toprule
+\textbf{Par\'ametro} & \textbf{Valor} & \textbf{Unidad} & \textbf{Fuente} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Par\'ametro} & \textbf{Valor} & \textbf{Unidad} & \textbf{Fuente} \\
+\midrule
+\endhead
+UMA diaria & \$113.14 & MXN/d\'ia & INEGI/DOF \\
+UMA mensual & \$3,439.46 & MXN/mes & Calculado \\
+SM diario & \$278.80 & MXN/d\'ia & CONASAMI \\
+SM mensual & \$8,474.52 & MXN/mes & Calculado \\
+Raz\'on SM/UMA & 2.465 & --- & Derivado \\
+\midrule
+Tope SBC (25 UMA) & \$2,828.50 & MXN/d\'ia & LSS \\
+Tope SBC mensual & \$84,855 & MXN/mes & Calculado \\
+\midrule
+Umbral Fondo (2024) & \$16,777.68 & MXN/mes & DOF/IMSS \\
+Umbral Fondo (2025) & \$17,364.00 & MXN/mes & DOF/IMSS \\
+Umbral Fondo (2026) & $\sim$\$18,050 & MXN/mes & Estimado \\
+\midrule
+Pensi\'on m\'in. Ley 73 & \$8,474.52 & MXN/mes & 1 SM \\
+Pensi\'on m\'in. Ley 97 & \$8,598.65 & MXN/mes & 2.5 UMA \\
+\midrule
+Tasa patr\'on (2025) & 7.75\% & anual & Reforma 2020 \\
+Tasa patr\'on (2030+) & 12.00\% & anual & Reforma 2020 \\
+Tasa trabajador & 1.125\% & anual, fija & LSS \\
+Tasa gobierno & $\sim$0.225\% & anual, aprox & LSS \\
+\midrule
+Rend. conservador & 3.0\% & real anual & Par\'ametro \\
+Rend. base & 4.0\% & real anual & Par\'ametro \\
+Rend. optimista & 5.0\% & real anual & Par\'ametro \\
+\midrule
+D\'ias/mes (actuarial) & 30.4375 & d\'ias & 365.25/12 \\
+Semanas/a\~no & 52 & semanas & Est\'andar \\
+\midrule
+Factor cesant\'ia 60 & 0.75 & --- & LSS 1973 \\
+Factor cesant\'ia 61 & 0.80 & --- & LSS 1973 \\
+Factor cesant\'ia 62 & 0.85 & --- & LSS 1973 \\
+Factor cesant\'ia 63 & 0.90 & --- & LSS 1973 \\
+Factor cesant\'ia 64 & 0.95 & --- & LSS 1973 \\
+Factor cesant\'ia 65 & 1.00 & --- & LSS 1973 \\
+\bottomrule
+\end{longtable}
+\end{center}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Esta tabla es la ``fuente de verdad'' del simulador. Cada a\~no, cuando INEGI publica la nueva UMA (enero) y CONASAMI el nuevo SM, hay que actualizar:
+\begin{enumerate}[nosep]
+\item UMA diaria y mensual
+\item SM diario y mensual
+\item Tope SBC (recalcular como UMA * 25)
+\item Umbral Fondo Bienestar (publicado por IMSS)
+\item Comisiones AFORE (publicadas por CONSAR)
+\item Tasa patronal (seg\'un calendario de reforma 2020)
+\end{enumerate}
+
+\textbf{Qu\'e NO cambia cada a\~no}: Factores de cesant\'ia, tabla Art. 167, tasa del trabajador (1.125\%), escenarios de rendimiento, factor 30.4375.
+
+\textbf{Orden de actualizaci\'on recomendado}: INEGI publica UMA en enero $\rightarrow$ CONASAMI publica SM en enero $\rightarrow$ CONSAR publica comisiones en febrero $\rightarrow$ IMSS publica umbral Fondo durante el a\~no. Actualizar \texttt{global.R} y los CSVs en ese orden.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Todas las constantes est\'an centralizadas en \texttt{global.R:43--74}:
+
+\begin{lstlisting}
+# Ano actual para calculos
+ANIO_ACTUAL <<- 2025
+
+# UMA 2025
+UMA_DIARIA_2025  <<- 113.14
+UMA_MENSUAL_2025 <<- 3439.46
+
+# Salario minimo 2025
+SM_DIARIO_2025  <<- 278.80
+SM_MENSUAL_2025 <<- 8474.52
+
+# Umbral Fondo Bienestar 2025
+UMBRAL_FONDO_BIENESTAR_2025 <<- 17364
+
+# Tope de cotizacion (25 UMAs)
+TOPE_SBC_DIARIO <<- UMA_DIARIA_2025 * 25
+
+# Escenarios de rendimiento real
+RENDIMIENTO_CONSERVADOR <<- 0.03
+RENDIMIENTO_BASE        <<- 0.04
+RENDIMIENTO_OPTIMISTA   <<- 0.05
+
+# Factores de cesantia (Ley 73)
+FACTORES_CESANTIA <<- c(
+  "60" = 0.75, "61" = 0.80, "62" = 0.85,
+  "63" = 0.90, "64" = 0.95, "65" = 1.00
+)
+\end{lstlisting}
+
+\textbf{Procedimiento de actualizaci\'on anual}: Modificar los valores num\'ericos en \texttt{global.R}, actualizar los archivos CSV en \texttt{data/}, y ejecutar la suite de tests (\texttt{Rscript tests/testthat.R}) para verificar que ning\'un c\'alculo se rompe con los nuevos valores.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Determinaci\'on del R\'egimen}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El r\'egimen de ley se determina por la fecha de primera cotizaci\'on al IMSS:
+
+\[
+\text{R\'egimen} = \begin{cases}
+\text{Ley 73} & \text{si fecha primera cotizaci\'on} < \text{01/07/1997} \\
+\text{Ley 97} & \text{si fecha primera cotizaci\'on} \geq \text{01/07/1997}
+\end{cases}
+\]
+
+\textbf{Base legal}: Art\'iculos transitorios de la LSS 1997, transitorio tercero.
+
+\textbf{Implicaciones}:
+\begin{itemize}[nosep]
+\item \textbf{Ley 73}: Pensi\'on por beneficio definido (Art. 167), Modalidad 40 relevante, Fondo Bienestar NO aplica
+\item \textbf{Ley 97}: Pensi\'on por cuenta individual (AFORE), Fondo Bienestar puede aplicar, Modalidad 40 irrelevante para pensi\'on (no cambia el saldo AFORE significativamente)
+\end{itemize}
+
+\textbf{Nota sobre trabajadores de transici\'on}: Un trabajador inscrito antes de 1997 cotiza bajo las reglas de Ley 97 (su patr\'on deposita a AFORE), pero al pensionarse puede \emph{elegir} entre Ley 73 y Ley 97. Casi siempre conviene Ley 73.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La fecha de corte del 1 de julio de 1997 es el l\'imite m\'as importante de todo el sistema. Un d\'ia de diferencia puede significar decenas de miles de pesos mensuales en pensi\'on.
+
+\textbf{Ejemplo extremo}:
+\begin{itemize}[nosep]
+\item Trabajador A: primera cotizaci\'on 30/06/1997 $\rightarrow$ Ley 73 $\rightarrow$ pensi\'on \$15,000/mes (beneficio definido)
+\item Trabajador B: primera cotizaci\'on 01/07/1997 $\rightarrow$ Ley 97 $\rightarrow$ pensi\'on \$6,000/mes (cuenta individual)
+\end{itemize}
+
+Mismo salario, mismas semanas, un d\'ia de diferencia, pensi\'on 2.5x mayor.
+
+\textbf{En la pr\'actica}: El simulador detecta autom\'aticamente el r\'egimen a partir de la fecha de inicio de cotizaci\'on que ingresa el usuario. Si el usuario naci\'o despu\'es de 1979 (y empez\'o a cotizar a los 18), es autom\'aticamente Ley 97.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Implementaci\'on en \texttt{R/data\_tables.R:205--222}:
+
+\begin{lstlisting}
+determinar_regimen <- function(fecha_primera_cotizacion) {
+  if (is.character(fecha_primera_cotizacion)) {
+    fecha <- as.Date(fecha_primera_cotizacion)
+  } else {
+    fecha <- fecha_primera_cotizacion
+  }
+  fecha_corte <- as.Date("1997-07-01")
+  if (fecha < fecha_corte) {
+    return("ley73")
+  } else {
+    return("ley97")
+  }
+}
+\end{lstlisting}
+
+El simulador tambi\'en valida consistencia entre fecha de nacimiento y fecha de primera cotizaci\'on en \texttt{R/data\_tables.R:228--244}:
+\begin{lstlisting}
+validar_consistencia_fechas <- function(fecha_nacimiento,
+                                         fecha_cotizacion) {
+  edad_inicio <- as.numeric(
+    difftime(fecha_cotizacion, fecha_nacimiento,
+             units = "days")) / 365.25
+  if (edad_inicio < 15) {
+    return(list(is_consistent = FALSE,
+      message = "Empezaste a cotizar muy joven"))
+  }
+  if (edad_inicio > 35) {
+    return(list(is_consistent = FALSE,
+      message = "Inicio inusualmente tardio"))
+  }
+  return(list(is_consistent = TRUE))
+}
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+% INDICE DE REFERENCIAS LEGALES
+% ============================================================================
+\appendix
+\chapter{\'Indice de Referencias Legales}
+
+\begin{center}
+\begin{longtable}{lll}
+\toprule
+\textbf{Referencia} & \textbf{Descripci\'on} & \textbf{Secci\'on} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Referencia} & \textbf{Descripci\'on} & \textbf{Secci\'on} \\
+\midrule
+\endhead
+Art. 4 CPEUM & Derecho a pensi\'on digna (2024) & 4.1 \\
+Art. 123 CPEUM & Fundamento del seguro social & 1.1 \\
+Art. 123 Fr. XXIX & Utilidad p\'ublica de la LSS & 1.1 \\
+\midrule
+Art. 137 LSS 1973 & Seguro de Vejez y CEA & 2.1 \\
+Art. 138 LSS 1973 & Requisitos pensi\'on vejez & 2.1 \\
+Art. 143 LSS 1973 & Requisitos cesant\'ia & 2.1 \\
+Art. 167 LSS 1973 & Tabla cuant\'ias/incrementos & 2.2 \\
+Art. 168 LSS 1973 & Pensi\'on m\'inima (1 SM) & 2.1 \\
+Art. 218 LSS & Modalidad 40 & 2.5 \\
+\midrule
+Art. 154 LSS 1997 & Cesant\'ia Ley 97 & 3.3 \\
+Art. 157 LSS 1997 & Retiro programado & 3.5 \\
+Art. 159 LSS 1997 & Renta vitalicia & 3.5 \\
+Art. 162--164 LSS 1997 & Vejez Ley 97 & 3.3 \\
+Art. 167--169 LSS 1997 & R\'egimen financiero RCV & 3.2 \\
+Art. 170--173 LSS 1997 & Pensi\'on m\'inima garantizada & 3.6 \\
+Art. 174--175 LSS 1997 & Subcuentas cuenta individual & 3.1 \\
+\midrule
+DOF 19/01/1943 & Creaci\'on del IMSS & 1.2 \\
+DOF 12/03/1973 & LSS 1973 & 1.3.1 \\
+DOF 21/12/1995 & Nueva LSS (vigente 01/07/1997) & 1.3.2 \\
+DOF 27/01/2016 & Creaci\'on de la UMA & 5.1 \\
+DOF 09/12/2020 & Reforma 2020 (contribuciones) & 1.3.3 \\
+DOF 30/04/2024 & Decreto Fondo Bienestar & 4.1 \\
+DOF 01/05/2024 & Decreto presidencial Fondo & 4.1 \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\chapter{\'Indice de Funciones del Simulador}
+
+\begin{center}
+\begin{longtable}{llr}
+\toprule
+\textbf{Funci\'on} & \textbf{Archivo} & \textbf{L\'inea} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Funci\'on} & \textbf{Archivo} & \textbf{L\'inea} \\
+\midrule
+\endhead
+\texttt{calculate\_ley73\_pension} & R/calculations.R & 21 \\
+\texttt{project\_afore\_balance} & R/calculations.R & 118 \\
+\texttt{calculate\_aportacion\_obligatoria} & R/calculations.R & 188 \\
+\texttt{calculate\_retiro\_programado} & R/calculations.R & 259 \\
+\texttt{calculate\_ley97\_pension} & R/calculations.R & 313 \\
+\texttt{calculate\_modalidad\_40} & R/calculations.R & 412 \\
+\texttt{calculate\_all\_scenarios} & R/calculations.R & 498 \\
+\texttt{compare\_afores} & R/calculations.R & 624 \\
+\midrule
+\texttt{check\_fondo\_eligibility} & R/fondo\_bienestar.R & 25 \\
+\texttt{calculate\_fondo\_complement} & R/fondo\_bienestar.R & 98 \\
+\texttt{calculate\_pension\_with\_fondo} & R/fondo\_bienestar.R & 165 \\
+\texttt{analyze\_voluntary\_contributions} & R/fondo\_bienestar.R & 315 \\
+\texttt{analyze\_retirement\_age} & R/fondo\_bienestar.R & 363 \\
+\texttt{generate\_personalized\_message} & R/fondo\_bienestar.R & 418 \\
+\midrule
+\texttt{lookup\_articulo\_167} & R/data\_tables.R & 12 \\
+\texttt{get\_afore\_comision} & R/data\_tables.R & 46 \\
+\texttt{get\_afore\_irn} & R/data\_tables.R & 63 \\
+\texttt{get\_esperanza\_vida} & R/data\_tables.R & 89 \\
+\texttt{validar\_entrada} & R/data\_tables.R & 155 \\
+\texttt{determinar\_regimen} & R/data\_tables.R & 208 \\
+\texttt{validar\_consistencia\_fechas} & R/data\_tables.R & 228 \\
+\midrule
+\texttt{get\_uma} & global.R & 110 \\
+\texttt{get\_salario\_minimo} & global.R & 119 \\
+\texttt{get\_umbral\_fondo\_bienestar} & global.R & 128 \\
+\texttt{format\_currency} & global.R & 90 \\
+\texttt{format\_percent} & global.R & 100 \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\end{document}

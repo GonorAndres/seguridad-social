@@ -1,0 +1,2279 @@
+\documentclass[11pt,a4paper]{report}
+
+% ============================================================================
+% PAQUETES
+% ============================================================================
+\usepackage[utf8]{inputenc}
+% babel spanish requires texlive-lang-spanish; using manual overrides instead
+\usepackage{babel}
+\renewcommand{\contentsname}{Contenido}
+\renewcommand{\chaptername}{Cap\'{i}tulo}
+\renewcommand{\tablename}{Tabla}
+\renewcommand{\figurename}{Figura}
+\renewcommand{\listfigurename}{Lista de Figuras}
+\renewcommand{\listtablename}{Lista de Tablas}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage[most]{tcolorbox}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{mathtools}
+\usepackage{cancel}
+
+% ============================================================================
+% CONFIGURACION
+% ============================================================================
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  urlcolor=teal,
+  citecolor=green!50!black
+}
+
+\lstset{
+  language=R,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue!70!black}\bfseries,
+  commentstyle=\color{green!50!black}\itshape,
+  stringstyle=\color{orange!80!black},
+  breaklines=true,
+  frame=none,
+  numbers=none,
+  showstringspaces=false,
+  tabsize=2
+}
+
+% Teoremas y definiciones
+\newtheorem{definicion}{Definici\'on}[chapter]
+\newtheorem{proposicion}{Proposici\'on}[chapter]
+\newtheorem{lema}{Lema}[chapter]
+\newtheorem{corolario}{Corolario}[chapter]
+\theoremstyle{remark}
+\newtheorem{nota}{Nota}[chapter]
+\newtheorem{ejemplo}{Ejemplo}[chapter]
+
+% Operadores
+\DeclareMathOperator{\FV}{FV}
+\DeclareMathOperator{\PV}{PV}
+
+% ============================================================================
+% PORTADA
+% ============================================================================
+\title{
+  \vspace{-2cm}
+  \textbf{Metodolog\'ia Matem\'atica del\\Simulador de Pensiones}\\[0.5cm]
+  \large IMSS Ley 73 $\cdot$ Ley 97 $\cdot$ Fondo de Pensiones para el Bienestar\\[0.3cm]
+  \normalsize Documento de referencia personal -- M\'axima profundidad actuarial
+}
+\author{Documento generado autom\'aticamente desde el c\'odigo fuente}
+\date{Febrero 2026 -- Constantes regulatorias 2025}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+% ############################################################################
+% CAPITULO 1: FUNDAMENTOS ACTUARIALES
+% ############################################################################
+\chapter{Fundamentos Actuariales}
+
+Este cap\'itulo establece la base matem\'atica sobre la que se construyen todos los c\'alculos del simulador. Cada f\'ormula presentada aqu\'i se traduce directamente a c\'odigo R en los archivos fuente.
+
+% ============================================================================
+\section{Valor del Dinero en el Tiempo}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Sea $r$ la tasa de inter\'es real anual y $n$ el n\'umero de per\'iodos (a\~nos). Definimos:
+
+\textbf{Valor Futuro (FV):}
+\begin{equation}
+\FV = \PV \cdot (1 + r)^n
+\label{eq:fv_basic}
+\end{equation}
+
+\textbf{Valor Presente (PV):}
+\begin{equation}
+\PV = \FV \cdot (1 + r)^{-n} = \FV \cdot v^n
+\end{equation}
+
+donde $v = (1 + r)^{-1}$ es el factor de descuento.
+
+\textbf{Equivalencia de tasas (anual $\leftrightarrow$ mensual):}
+Sea $r$ la tasa efectiva anual y $r^{(12)}$ la tasa nominal convertible mensualmente. La tasa efectiva mensual es:
+\begin{equation}
+r_{\text{mensual}} = (1 + r)^{1/12} - 1
+\label{eq:r_mensual}
+\end{equation}
+
+Esto satisface la relaci\'on de equivalencia:
+\begin{equation}
+(1 + r_{\text{mensual}})^{12} = 1 + r
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El valor del dinero en el tiempo captura una idea simple: un peso hoy vale m\'as que un peso ma\~nana, porque el peso de hoy puede generar rendimiento.
+
+En el simulador, usamos rendimientos \textbf{reales} (ya descontada la inflaci\'on), lo que significa que todos los valores est\'an en ``pesos de hoy''. No necesitamos modelar inflaci\'on expl\'icitamente.
+
+La conversi\'on anual $\to$ mensual usa ra\'iz doceava, no divisi\'on simple. La diferencia importa:
+\begin{itemize}
+  \item Divisi\'on simple: $r_m = 0.04/12 = 0.003333$
+  \item Ra\'iz correcta: $r_m = (1.04)^{1/12} - 1 = 0.003274$
+\end{itemize}
+La diferencia es peque\~na (~1.8\%) pero se acumula sobre 30+ a\~nos de proyecci\'on.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 126--130:
+\begin{lstlisting}
+# Rendimiento neto despues de comision
+r_neto <- rendimiento_real_anual - comision_anual
+# Tasa mensual equivalente
+r_mensual <- (1 + r_neto)^(1/12) - 1
+\end{lstlisting}
+
+Con valores 2025: rendimiento base $= 4\%$, comisi\'on XXI Banorte $= 0.51\%$:
+\[
+r_{\text{neto}} = 0.04 - 0.0051 = 0.0349 \qquad r_{\text{mensual}} = (1.0349)^{1/12} - 1 = 0.002862
+\]
+\end{tcolorbox}
+
+% ============================================================================
+\section{Anualidades: Valor Futuro de Pagos Peri\'odicos}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Valor futuro de una anualidad ordinaria} (pagos al final de cada per\'iodo):
+
+Sea $P$ el pago peri\'odico, $r$ la tasa por per\'iodo, y $n$ el n\'umero de per\'iodos:
+\begin{equation}
+\FV_{\text{anualidad}} = P \cdot \frac{(1 + r)^n - 1}{r} = P \cdot \ddot{s}_{\overline{n}|r}
+\label{eq:fv_annuity}
+\end{equation}
+
+En notaci\'on actuarial internacional (IAN), $\ddot{s}_{\overline{n}|} = \frac{(1+i)^n - 1}{d}$ para anualidades anticipadas. El simulador usa anualidades ordinarias (pagos al final), por lo que usamos:
+\begin{equation}
+s_{\overline{n}|r} = \frac{(1+r)^n - 1}{r}
+\end{equation}
+
+\textbf{Caso l\'imite} ($r \to 0$):
+\begin{equation}
+\lim_{r \to 0} P \cdot \frac{(1+r)^n - 1}{r} = P \cdot n
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Cada aportaci\'on mensual a la AFORE es un pago de una anualidad. El primer pago tiene 360 meses para crecer, el segundo 359, y as\'i sucesivamente. La f\'ormula cerrada evita sumar 360 t\'erminos individuales.
+
+El factor $s_{\overline{n}|r}$ se llama ``factor de acumulaci\'on de anualidad''. Para el simulador con $r_m = 0.002862$ y $n = 360$ meses:
+\[
+s_{\overline{360}|0.002862} = \frac{(1.002862)^{360} - 1}{0.002862} = \frac{1.8017}{0.002862} = 629.52
+\]
+Esto significa que cada peso mensual se convierte en \$629.52 despu\'es de 30 a\~nos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 136--141:
+\begin{lstlisting}
+if (abs(r_mensual) < 1e-10) {
+  fv_aportaciones <- aportacion_mensual * meses
+} else {
+  fv_aportaciones <- aportacion_mensual *
+    ((1 + r_mensual)^meses - 1) / r_mensual
+}
+\end{lstlisting}
+
+El guard $|r_m| < 10^{-10}$ maneja el caso degenerado de rendimiento cero para evitar divisi\'on por cero. Con valores 2025:
+\[
+\FV_{\text{aport}} = 1{,}365 \times \frac{(1.002862)^{360} - 1}{0.002862} = 1{,}365 \times 629.52 = \$859{,}295
+\]
+\end{tcolorbox}
+
+% ============================================================================
+\section{Rendimientos Reales vs. Nominales}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Ecuaci\'on de Fisher:}
+\begin{equation}
+(1 + r_{\text{nominal}}) = (1 + r_{\text{real}}) \cdot (1 + \pi)
+\label{eq:fisher}
+\end{equation}
+
+donde $\pi$ es la tasa de inflaci\'on. Para tasas peque\~nas, la aproximaci\'on lineal es:
+\begin{equation}
+r_{\text{real}} \approx r_{\text{nominal}} - \pi
+\end{equation}
+
+\textbf{Rendimiento neto del simulador:}
+\begin{equation}
+r_{\text{neto}} = r_{\text{real,bruto}} - c_{\text{AFORE}}
+\label{eq:r_neto}
+\end{equation}
+
+donde $c_{\text{AFORE}}$ es la comisi\'on anual de la administradora. Esta simplificaci\'on resta la comisi\'on del rendimiento en lugar de aplicarla sobre el saldo, lo cual es una aproximaci\'on conservadora.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El simulador trabaja enteramente en t\'erminos reales. Esto tiene ventajas importantes:
+\begin{enumerate}
+  \item No necesitamos proyectar inflaci\'on a 30+ a\~nos (predicci\'on imposible).
+  \item Los resultados son directamente comparables con el poder adquisitivo actual.
+  \item Las pensiones del IMSS se ajustan por inflaci\'on, as\'i que el valor real es lo relevante.
+\end{enumerate}
+
+La comisi\'on AFORE en realidad se cobra como porcentaje del saldo, no del rendimiento. Restarla del rendimiento es una simplificaci\'on que \textbf{sobreestima} ligeramente el impacto de la comisi\'on (por lo tanto es conservadora). Para comisiones menores a 1\% y horizontes normales, la diferencia es menor al 3\% del saldo final.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{global.R}, l\'ineas 62--64 (escenarios de rendimiento real):
+\begin{lstlisting}
+RENDIMIENTO_CONSERVADOR <<- 0.03  # 3%
+RENDIMIENTO_BASE <<- 0.04         # 4%
+RENDIMIENTO_OPTIMISTA <<- 0.05    # 5%
+\end{lstlisting}
+
+\texttt{R/calculations.R}, l\'inea 126:
+\begin{lstlisting}
+r_neto <- rendimiento_real_anual - comision_anual
+\end{lstlisting}
+
+Ejemplo con XXI Banorte (comisi\'on 2025: $0.51\%$):
+\begin{align*}
+r_{\text{neto,conservador}} &= 0.03 - 0.0051 = 0.0249 \\
+r_{\text{neto,base}} &= 0.04 - 0.0051 = 0.0349 \\
+r_{\text{neto,optimista}} &= 0.05 - 0.0051 = 0.0449
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Esperanza de Vida y Tablas de Mortalidad}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Esperanza de vida curtata} (curtate expectation of life):
+\begin{equation}
+e_x = \sum_{k=1}^{\omega - x} {}_k p_x
+\end{equation}
+
+donde ${}_k p_x$ es la probabilidad de que una persona de edad $x$ sobreviva $k$ a\~nos m\'as, y $\omega$ es la edad l\'imite.
+
+\textbf{Esperanza de vida completa:}
+\begin{equation}
+\mathring{e}_x = \int_0^{\omega - x} {}_t p_x \, dt \approx e_x + \frac{1}{2}
+\end{equation}
+
+\textbf{Fuerza de mortalidad:}
+\begin{equation}
+\mu_x = -\frac{d}{dx} \ln({}_t p_x)\Big|_{t=0} = \lim_{h \to 0^+} \frac{q_x(h)}{h}
+\end{equation}
+
+El simulador usa una tabla simplificada basada en CONAPO con interpolaci\'on lineal entre edades clave, que aproxima la esperanza de vida completa $\mathring{e}_x$.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La esperanza de vida determina cu\'antos meses dividimos el saldo AFORE para obtener la pensi\'on mensual. Es el par\'ametro m\'as cr\'itico del retiro programado:
+\begin{itemize}
+  \item Hombre de 65 a\~nos: $\mathring{e}_{65} = 17.0$ a\~nos $\to$ 204 meses
+  \item Mujer de 65 a\~nos: $\mathring{e}_{65} = 20.0$ a\~nos $\to$ 240 meses
+\end{itemize}
+
+Una mujer necesita acumular $240/204 = 17.6\%$ m\'as que un hombre para obtener la misma pensi\'on mensual, simplemente por vivir m\'as. Sin embargo, cuando aplica la pensi\'on m\'inima garantizada (\$8,598.65), esta diferencia queda enmascarada.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/data\_tables.R}, l\'ineas 89--143 --- Tabla simplificada CONAPO:
+\begin{lstlisting}
+get_esperanza_vida <- function(edad, genero = "M") {
+  if (genero == "F") {
+    base <- c("60"=24.5, "61"=23.6, ..., "65"=20.0,
+              ..., "90"=5.0)
+  } else {
+    base <- c("60"=21.0, "61"=20.2, ..., "65"=17.0,
+              ..., "90"=4.2)
+  }
+  # Interpolacion lineal entre edades listadas
+  # Piso minimo: 2 anos
+}
+\end{lstlisting}
+
+Edades listadas expl\'icitamente: 60--70 (cada a\~no), 75, 80, 85, 90. Para edades intermedias (e.g., 72), se interpola linealmente:
+\[
+\mathring{e}_{72,M} = 13.4 + \frac{72 - 70}{75 - 70} \times (10.5 - 13.4) = 13.4 - 1.16 = 12.24 \text{ a\~nos}
+\]
+\end{tcolorbox}
+
+% ============================================================================
+\section{La Constante 30.4375: D\'ias por Mes Actuarial}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\begin{equation}
+D = \frac{365.25}{12} = 30.4375
+\label{eq:dias_mes}
+\end{equation}
+
+Esta es la duraci\'on media del mes gregoriano considerando a\~nos bisiestos (uno cada cuatro a\~nos, con excepciones cada 100/400). Es el est\'andar actuarial para convertir entre cantidades diarias y mensuales.
+
+\textbf{Error por usar 30:}
+\begin{equation}
+\varepsilon = \frac{30.4375 - 30}{30} = \frac{0.4375}{30} = 1.458\%
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Usar 30 d\'ias/mes en lugar de 30.4375 subestima cada pensi\'on mensual en 1.46\%. Esto parece poco, pero acumulado sobre 20 a\~nos de retiro:
+
+\begin{itemize}
+  \item Pensi\'on de \$10,000/mes $\times$ 1.46\% $= \$146$ mensuales menos
+  \item En 20 a\~nos: $\$146 \times 240 = \$35{,}040$ de subestimaci\'on acumulada
+\end{itemize}
+
+La elecci\'on de 30.4375 no es arbitraria: es el est\'andar en ciencia actuarial, usado por CONSAR, CNSF, y la mayor\'ia de las aseguradoras mexicanas en sus c\'alculos de reservas.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 72--78:
+\begin{lstlisting}
+DIAS_POR_MES <- 30.4375
+pension_diaria <- sbc_promedio_diario * porcentaje_total * factor_edad
+pension_mensual <- pension_diaria * DIAS_POR_MES
+# Pension minima (1 SM mensual)
+pension_minima <- sm_vigente * DIAS_POR_MES
+\end{lstlisting}
+
+Verificaci\'on num\'erica:
+\begin{align*}
+\text{SM diario 2025} &= \$278.80 \\
+\text{SM mensual (30 d\'ias)} &= 278.80 \times 30 = \$8{,}364.00 \\
+\text{SM mensual (30.4375)} &= 278.80 \times 30.4375 = \$8{,}485.98 \\
+\text{Diferencia} &= \$121.98 \text{ mensuales}
+\end{align*}
+\end{tcolorbox}
+
+
+% ############################################################################
+% CAPITULO 2: CADENA DE FORMULAS LEY 73 (8 PASOS)
+% ############################################################################
+\chapter{Cadena de F\'ormulas Ley 73 (8 Pasos)}
+
+La Ley del Seguro Social de 1973 establece un sistema de \textbf{beneficio definido}: la pensi\'on se calcula como un porcentaje del salario base de cotizaci\'on, ponderado por semanas cotizadas y edad al retiro. Este cap\'itulo descompone la cadena completa en ocho pasos formales.
+
+% ============================================================================
+\section{Paso 1: Grupo Salarial}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\begin{equation}
+G = \frac{\overline{\text{SBC}}_d}{\text{SM}_d}
+\label{eq:grupo_salarial}
+\end{equation}
+
+donde:
+\begin{itemize}
+  \item $\overline{\text{SBC}}_d$ = Salario Base de Cotizaci\'on promedio diario (\'ultimas 250 semanas)
+  \item $\text{SM}_d$ = Salario M\'inimo diario vigente
+  \item $G$ = Grupo salarial (veces salario m\'inimo)
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El grupo salarial normaliza el salario del trabajador en t\'erminos de salarios m\'inimos. Esto permite que la tabla del Art\'iculo 167 sea independiente del nivel absoluto de salarios y se mantenga vigente a trav\'es del tiempo.
+
+Un trabajador que gana exactamente el salario m\'inimo tiene $G = 1.0$. Si gana el doble, $G = 2.0$. El tope de cotizaci\'on es 25 UMAs, lo que equivale aproximadamente a $G = 10.14$ en 2025.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'inea 45:
+\begin{lstlisting}
+grupo_salarial <- sbc_promedio_diario / sm_vigente
+\end{lstlisting}
+
+Con valores 2025 ($\text{SM}_d = \$278.80$):
+\begin{align*}
+\text{Si SBC}_d = \$278.80: &\quad G = 278.80 / 278.80 = 1.000 \\
+\text{Si SBC}_d = \$500.00: &\quad G = 500.00 / 278.80 = 1.794 \\
+\text{Si SBC}_d = \$2{,}828.50: &\quad G = 2828.50 / 278.80 = 10.145 \text{ (tope)}
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Paso 2: B\'usqueda en Tabla Art\'iculo 167}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Sea $\mathcal{T} = \{(G_i^{\min}, G_i^{\max}, c_i, \delta_i)\}_{i=1}^{23}$ la tabla del Art\'iculo 167, donde:
+\begin{itemize}
+  \item $c_i$ = cuant\'ia b\'asica (porcentaje base de pensi\'on)
+  \item $\delta_i$ = incremento anual por cada a\~no excedente a 500 semanas
+\end{itemize}
+
+La funci\'on de b\'usqueda es:
+\begin{equation}
+\text{lookup}(G) = (c_j, \delta_j) \quad \text{donde } j = \{i : G_i^{\min} \leq G \leq G_i^{\max}\}
+\label{eq:lookup_167}
+\end{equation}
+
+Casos frontera:
+\begin{align}
+G < G_1^{\min} &\implies j = 1 \\
+G > G_{23}^{\max} &\implies j = 23
+\end{align}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La tabla del Art\'iculo 167 es el coraz\'on de Ley 73. Tiene una propiedad clave: \textbf{a mayor salario, menor cuant\'ia b\'asica pero mayor incremento anual}. Esto crea un dise\~no progresivo:
+\begin{itemize}
+  \item Salarios bajos ($G \leq 1.0$): cuant\'ia $= 80\%$, incremento $= 0.563\%$/a\~no
+  \item Salarios medios ($G \approx 2.0$): cuant\'ia $= 42.67\%$, incremento $= 1.615\%$/a\~no
+  \item Salarios altos ($G > 6.0$): cuant\'ia $= 13\%$, incremento $= 2.45\%$/a\~no
+\end{itemize}
+
+Es decir, trabajadores de salario bajo arrancan con un porcentaje alto pero crecen lento; trabajadores de salario alto arrancan bajo pero crecen m\'as r\'apido por cada a\~no adicional cotizado.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/data\_tables.R}, l\'ineas 12--30:
+\begin{lstlisting}
+lookup_articulo_167 <- function(grupo_salarial,
+                                tabla = articulo_167_tabla) {
+  idx <- which(grupo_salarial >= tabla$grupo_min &
+               grupo_salarial <= tabla$grupo_max)
+  if (length(idx) == 0) {
+    if (grupo_salarial > max(tabla$grupo_max)) {
+      idx <- nrow(tabla)    # Usar ultima fila
+    } else {
+      idx <- 1              # Usar primera fila
+    }
+  }
+  return(list(
+    cuantia_basica = tabla$cuantia_basica[idx],
+    incremento_anual = tabla$incremento_anual[idx]
+  ))
+}
+\end{lstlisting}
+
+Ejemplo: $G = 1.794$ cae en el rango $[1.76, 2.00]$:
+\[
+c = 0.4267, \quad \delta = 0.01615
+\]
+
+Tabla completa (extracto de \texttt{data/articulo\_167\_tabla.csv}):
+\begin{center}
+\small
+\begin{tabular}{cccc}
+\toprule
+$G_{\min}$ & $G_{\max}$ & Cuant\'ia $c$ & Incremento $\delta$ \\
+\midrule
+0.00 & 1.00 & 0.8000 & 0.00563 \\
+1.01 & 1.25 & 0.7711 & 0.00814 \\
+1.26 & 1.50 & 0.5818 & 0.01178 \\
+1.51 & 1.75 & 0.4923 & 0.01430 \\
+1.76 & 2.00 & 0.4267 & 0.01615 \\
+$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+6.01 & 25.00 & 0.1300 & 0.02450 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Paso 3: N\'umero de Incrementos}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\begin{equation}
+n_{\text{incr}} = \max\left(0, \left\lfloor \frac{W - 500}{52} \right\rfloor\right)
+\label{eq:n_incrementos}
+\end{equation}
+
+donde $W$ = semanas cotizadas totales al momento del retiro. El operador $\lfloor \cdot \rfloor$ denota la funci\'on piso (parte entera inferior).
+
+\textbf{Total de incrementos:}
+\begin{equation}
+I = n_{\text{incr}} \times \delta
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Los primeros 500 semanas ($\approx 9.6$ a\~nos) son el m\'inimo para tener derecho a pensi\'on. A partir de la semana 501, cada \textbf{a\~no completo} adicional (52 semanas) otorga un incremento $\delta$ al porcentaje de pensi\'on.
+
+Ejemplo: Con 1,800 semanas:
+\[
+n_{\text{incr}} = \left\lfloor \frac{1800 - 500}{52} \right\rfloor = \left\lfloor 25.0 \right\rfloor = 25 \text{ incrementos}
+\]
+
+Las semanas ``sobrantes'' (fracciones de a\~no) no cuentan. Con 1,850 semanas:
+\[
+n_{\text{incr}} = \left\lfloor \frac{1350}{52} \right\rfloor = \left\lfloor 25.96 \right\rfloor = 25 \text{ (mismos 25 incrementos)}
+\]
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 53--54:
+\begin{lstlisting}
+n_incrementos <- max(0, floor((semanas - 500) / 52))
+total_incrementos <- n_incrementos * incremento_anual
+\end{lstlisting}
+
+Con 1,800 semanas y $\delta = 0.01615$ (grupo 1.76--2.00):
+\begin{align*}
+n_{\text{incr}} &= \left\lfloor \frac{1300}{52} \right\rfloor = 25 \\
+I &= 25 \times 0.01615 = 0.40375
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Paso 4: Porcentaje Total}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\begin{equation}
+\pi = \min(c + I, \; 1.0)
+\label{eq:porcentaje}
+\end{equation}
+
+donde $c$ es la cuant\'ia b\'asica e $I$ el total de incrementos. El tope de $100\%$ refleja que la pensi\'on no puede exceder el salario base.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El porcentaje total $\pi$ representa qu\'e fracci\'on del SBC promedio ser\'a la pensi\'on (antes del factor de edad). El tope de 100\% es te\'orico; en la pr\'actica, alcanzarlo requiere salarios muy bajos (cuant\'ia alta) con much\'isimas semanas cotizadas.
+
+Ejemplo extremo: $G \leq 1.0$ (cuant\'ia $= 0.80$), se necesitan:
+\[
+n_{\text{incr}} = \frac{1.0 - 0.80}{0.00563} = 35.5 \implies W = 500 + 36 \times 52 = 2{,}372 \text{ semanas} \approx 45.6 \text{ a\~nos}
+\]
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'inea 57:
+\begin{lstlisting}
+porcentaje_total <- min(cuantia_basica + total_incrementos, 1.0)
+\end{lstlisting}
+
+Continuando el ejemplo ($c = 0.4267$, $I = 0.40375$):
+\[
+\pi = \min(0.4267 + 0.40375, \; 1.0) = \min(0.83045, \; 1.0) = 0.83045
+\]
+\end{tcolorbox}
+
+% ============================================================================
+\section{Paso 5: Factor de Edad (Cesant\'ia)}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\begin{equation}
+f(a) = \begin{cases}
+0.75 & \text{si } a = 60 \\
+0.80 & \text{si } a = 61 \\
+0.85 & \text{si } a = 62 \\
+0.90 & \text{si } a = 63 \\
+0.95 & \text{si } a = 64 \\
+1.00 & \text{si } a \geq 65
+\end{cases}
+\label{eq:factores_cesantia}
+\end{equation}
+
+donde $a$ es la edad al momento del retiro. Para $a < 60$, no hay derecho a pensi\'on por cesant\'ia.
+
+El factor sigue una progresi\'on lineal:
+\begin{equation}
+f(a) = 0.75 + 0.05 \times (a - 60) \quad \text{para } 60 \leq a \leq 65
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El factor de cesant\'ia penaliza el retiro anticipado. Retirarse a los 60 en lugar de 65 reduce la pensi\'on en 25\%. La progresi\'on es lineal: cada a\~no de espera adicional gana 5 puntos porcentuales.
+
+Esto crea un incentivo poderoso para retrasar el retiro. La diferencia entre 60 y 65 a\~nos es:
+\[
+\frac{1.00}{0.75} = 1.333 \quad \text{(33.3\% m\'as de pensi\'on)}
+\]
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{global.R}, l\'ineas 67--74 y \texttt{R/calculations.R}, l\'ineas 60--67:
+\begin{lstlisting}
+FACTORES_CESANTIA <<- c(
+  "60" = 0.75, "61" = 0.80, "62" = 0.85,
+  "63" = 0.90, "64" = 0.95, "65" = 1.00
+)
+
+# En calculate_ley73_pension:
+if (edad >= 65) {
+  factor_edad <- 1.0
+} else {
+  factor_edad <- FACTORES_CESANTIA[as.character(edad)]
+  if (is.na(factor_edad)) factor_edad <- 0.75
+}
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Pasos 6--8: C\'alculo Final de Pensi\'on}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Paso 6 -- Pensi\'on diaria:}
+\begin{equation}
+P_d = \overline{\text{SBC}}_d \times \pi \times f(a)
+\label{eq:pension_diaria}
+\end{equation}
+
+\textbf{Paso 7 -- Conversi\'on a mensual:}
+\begin{equation}
+P_m = P_d \times D = P_d \times 30.4375
+\label{eq:pension_mensual_73}
+\end{equation}
+
+\textbf{Paso 8 -- Garant\'ia de pensi\'on m\'inima:}
+\begin{equation}
+P_{\text{final}} = \max(P_m, \; \text{SM}_d \times D)
+\label{eq:pension_final_73}
+\end{equation}
+
+La pensi\'on m\'inima para Ley 73 es un salario m\'inimo mensual:
+\begin{equation}
+P_{\min}^{73} = 278.80 \times 30.4375 = \$8{,}485.98
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La cadena completa Ley 73 se resume as\'i:
+
+\begin{center}
+\fbox{Salario} $\xrightarrow{\text{Paso 1}}$ \fbox{Grupo} $\xrightarrow{\text{Paso 2}}$ \fbox{Cuant\'ia, Incr.} $\xrightarrow{\text{Pasos 3-4}}$ \fbox{Porcentaje} $\xrightarrow{\text{Paso 5}}$ \fbox{$\times$ Factor edad} $\xrightarrow{\text{Pasos 6-8}}$ \fbox{Pensi\'on}
+\end{center}
+
+La pensi\'on m\'inima act\'ua como un \textbf{piso}: ning\'un pensionado de Ley 73 recibe menos de un salario m\'inimo (\$8,485.98/mes en 2025). Esto protege a trabajadores de salarios bajos con pocas semanas cotizadas, cuyo c\'alculo formulario dar\'ia una pensi\'on inferior.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 72--79:
+\begin{lstlisting}
+DIAS_POR_MES <- 30.4375
+pension_diaria <- sbc_promedio_diario * porcentaje_total *
+                  factor_edad
+pension_mensual <- pension_diaria * DIAS_POR_MES
+pension_minima <- sm_vigente * DIAS_POR_MES
+pension_final <- max(pension_mensual, pension_minima)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Ejemplo Completo Resuelto: Caso 2}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Datos:} $\overline{\text{SBC}}_d = \$500$, $W = 1{,}800$ semanas, $a = 60$ a\~nos.
+
+\textbf{Cadena completa:}
+\begin{align}
+G &= \frac{500}{278.80} = 1.7935 \label{eq:ex_grupo} \\
+(c, \delta) &= (0.4267, 0.01615) \quad \text{[rango 1.76--2.00]} \\
+n_{\text{incr}} &= \left\lfloor \frac{1800 - 500}{52} \right\rfloor = 25 \\
+I &= 25 \times 0.01615 = 0.40375 \\
+\pi &= \min(0.4267 + 0.40375, 1.0) = 0.83045 \\
+f(60) &= 0.75 \\
+P_d &= 500 \times 0.83045 \times 0.75 = 311.42 \\
+P_m &= 311.42 \times 30.4375 = 9{,}478.80 \\
+P_{\min}^{73} &= 278.80 \times 30.4375 = 8{,}485.98 \\
+P_{\text{final}} &= \max(9{,}478.80, \; 8{,}485.98) = \boxed{\$9{,}478.80}
+\end{align}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Este trabajador recibe el 83\% de su salario como porcentaje, reducido a 75\% por retirarse a los 60, resultando en una pensi\'on de $\$9{,}478.80$ (62.3\% de su salario mensual de $\$15{,}218.75$).
+
+Si esperara a los 65, su pensi\'on ser\'ia:
+\[
+P_{65} = 500 \times 0.83045 \times 1.00 \times 30.4375 = \$12{,}638.40
+\]
+Diferencia: $\$3{,}159.60$ mensuales, o 33\% m\'as. El costo de retirarse 5 a\~nos antes es perder un tercio de la pensi\'on \textbf{de por vida}.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Verificaci\'on en tests (\texttt{tests/testthat/test\_calculations.R}, secci\'on B3):
+\begin{lstlisting}
+result <- calculate_ley73_pension(
+  sbc_promedio_diario = 500,
+  semanas = 1800,
+  edad = 60
+)
+expect_true(result$elegible)
+expect_equal(result$factor_edad, 0.75)
+# pension_mensual approx 9478.80
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Ejemplo Completo Resuelto: Caso 1 (Pensi\'on M\'inima)}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Datos:} $\overline{\text{SBC}}_d = \$266.67$ ($\$8{,}000$ mensual $/ 30$), $W = 1{,}252$ semanas, $a = 65$.
+
+\begin{align}
+G &= \frac{266.67}{278.80} = 0.9565 \\
+(c, \delta) &= (0.8000, 0.00563) \quad \text{[rango 0.00--1.00]} \\
+n_{\text{incr}} &= \left\lfloor \frac{1252 - 500}{52} \right\rfloor = \left\lfloor 14.46 \right\rfloor = 14 \\
+I &= 14 \times 0.00563 = 0.07882 \\
+\pi &= \min(0.8000 + 0.07882, 1.0) = 0.87882 \\
+f(65) &= 1.00 \\
+P_d &= 266.67 \times 0.87882 \times 1.00 = 234.35 \\
+P_m &= 234.35 \times 30.4375 = 7{,}131.35 \\
+P_{\min}^{73} &= 8{,}485.98 \\
+P_{\text{final}} &= \max(7{,}131.35, \; 8{,}485.98) = \boxed{\$8{,}485.98 \text{ (m\'inimo)}}
+\end{align}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+A pesar de tener una cuant\'ia alta (80\%) y buena antig\"uedad (14 incrementos), el salario bajo hace que el c\'alculo formulario ($\$7{,}131.35$) quede por debajo de la pensi\'on m\'inima. El piso de un salario m\'inimo protege a este trabajador, otorg\'andole $\$8{,}485.98$ mensuales.
+
+Esto ilustra por qu\'e Ley 73 es generosa para salarios bajos: el m\'inimo garantizado equivale a una tasa de reemplazo del 106\% de su salario ($8{,}485.98 / 8{,}113.78$).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 79--80:
+\begin{lstlisting}
+pension_final <- max(pension_mensual, pension_minima)
+\end{lstlisting}
+
+El campo \texttt{aplico\_minimo} en el resultado marca este caso:
+\begin{lstlisting}
+aplico_minimo = pension_mensual < pension_minima
+# TRUE en este caso
+\end{lstlisting}
+\end{tcolorbox}
+
+
+% ############################################################################
+% CAPITULO 3: MODELO DE PROYECCION LEY 97
+% ############################################################################
+\chapter{Modelo de Proyecci\'on Ley 97}
+
+La Ley del Seguro Social de 1997 establece un sistema de \textbf{contribuci\'on definida}: el trabajador acumula un saldo en su cuenta individual AFORE, y la pensi\'on depende del saldo acumulado al retiro. Este cap\'itulo formaliza el modelo de proyecci\'on.
+
+% ============================================================================
+\section{Rendimiento Neto y Tasa Mensual}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\begin{align}
+r_{\text{neto}} &= r_{\text{real}} - c_{\text{AFORE}} \label{eq:rneto_def} \\
+r_m &= (1 + r_{\text{neto}})^{1/12} - 1 \label{eq:rm_def}
+\end{align}
+
+Los tres escenarios del simulador:
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Escenario & $r_{\text{real}}$ & $c_{\text{AFORE}}$ (ejemplo) & $r_{\text{neto}}$ \\
+\midrule
+Conservador & 3\% & 0.51\% & 2.49\% \\
+Base & 4\% & 0.51\% & 3.49\% \\
+Optimista & 5\% & 0.51\% & 4.49\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El rendimiento neto es lo que realmente gana el trabajador despu\'es de que la AFORE cobra su comisi\'on. La comisi\'on se resta del rendimiento bruto (simplificaci\'on del simulador). En la realidad, la comisi\'on se cobra como porcentaje del saldo total, lo que es ligeramente diferente.
+
+La conversi\'on a tasa mensual usa composici\'on (ra\'iz doceava), no divisi\'on simple, porque los rendimientos se capitalizan mensualmente en la pr\'actica.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 126--130:
+\begin{lstlisting}
+r_neto <- rendimiento_real_anual - comision_anual
+r_mensual <- (1 + r_neto)^(1/12) - 1
+meses <- anios_al_retiro * 12
+\end{lstlisting}
+
+Valores con escenario base y XXI Banorte:
+\begin{align*}
+r_{\text{neto}} &= 0.04 - 0.0051 = 0.0349 \\
+r_m &= (1.0349)^{1/12} - 1 = 0.002862 \\
+\text{Para 30 a\~nos:} \quad m &= 30 \times 12 = 360 \text{ meses}
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Proyecci\'on del Saldo Actual}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El saldo actual $S_0$ crece a tasa compuesta anual:
+\begin{equation}
+\FV_{\text{saldo}} = S_0 \cdot (1 + r_{\text{neto}})^n
+\label{eq:fv_saldo}
+\end{equation}
+
+donde $n$ es el n\'umero de a\~nos al retiro. Esto es aplicaci\'on directa de la ecuaci\'on \eqref{eq:fv_basic}.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El saldo actual es dinero que ya est\'a en la cuenta y tiene todo el horizonte temporal para crecer. Con 30 a\~nos y 3.49\% neto:
+\[
+(1.0349)^{30} = 2.7874
+\]
+Es decir, cada peso actual se convierte en \$2.79. Un saldo de \$300,000 se vuelve \$836,220 sin ninguna aportaci\'on adicional.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'inea 133:
+\begin{lstlisting}
+fv_actual <- saldo_actual * (1 + r_neto)^anios_al_retiro
+\end{lstlisting}
+
+Ejemplo: $S_0 = \$300{,}000$, $n = 30$, $r_{\text{neto}} = 0.0349$:
+\[
+\FV_{\text{saldo}} = 300{,}000 \times (1.0349)^{30} = 300{,}000 \times 2.7874 = \$836{,}220
+\]
+\end{tcolorbox}
+
+% ============================================================================
+\section{Proyecci\'on de Aportaciones Mensuales}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Sea $A$ la aportaci\'on mensual total (obligatoria + voluntaria). El valor futuro de la serie de aportaciones es una anualidad ordinaria con capitalizaci\'on mensual:
+
+\begin{equation}
+\FV_{\text{aport}} = A \cdot \frac{(1 + r_m)^{m} - 1}{r_m}
+\label{eq:fv_aport}
+\end{equation}
+
+donde $m = 12n$ es el n\'umero total de meses.
+
+\textbf{Caso l\'imite:} si $|r_m| < 10^{-10}$:
+\begin{equation}
+\FV_{\text{aport}} = A \cdot m
+\end{equation}
+
+\textbf{Saldo final total:}
+\begin{equation}
+S_{\text{final}} = \FV_{\text{saldo}} + \FV_{\text{aport}}
+\label{eq:saldo_final}
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La ecuaci\'on \eqref{eq:fv_aport} es la f\'ormula de anualidad del Cap\'itulo 1. Cada aportaci\'on mensual crece desde el momento en que se deposita hasta el retiro. El factor $s_{\overline{m}|r_m}$ captura el efecto acumulado de todos los dep\'ositos.
+
+El saldo final es la suma de dos componentes independientes:
+\begin{enumerate}
+  \item Lo que crece el dinero que \textbf{ya ten\'ias} ($\FV_{\text{saldo}}$)
+  \item Lo que acumulas con aportaciones \textbf{futuras} ($\FV_{\text{aport}}$)
+\end{enumerate}
+
+Esta separaci\'on permite evaluar por separado el impacto de cada variable.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 136--143:
+\begin{lstlisting}
+if (abs(r_mensual) < 1e-10) {
+  fv_aportaciones <- aportacion_mensual * meses
+} else {
+  fv_aportaciones <- aportacion_mensual *
+    ((1 + r_mensual)^meses - 1) / r_mensual
+}
+saldo_final <- fv_actual + fv_aportaciones
+\end{lstlisting}
+
+Ejemplo: $A = \$1{,}365$, $r_m = 0.002862$, $m = 360$:
+\begin{align*}
+(1.002862)^{360} &= 2.8017 \\
+\FV_{\text{aport}} &= 1{,}365 \times \frac{2.8017 - 1}{0.002862} = 1{,}365 \times 629.52 = \$859{,}295 \\
+S_{\text{final}} &= 836{,}220 + 859{,}295 = \$1{,}695{,}515
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Aportaciones Obligatorias: Tasas de Contribuci\'on}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+La aportaci\'on obligatoria mensual se compone de tres fuentes:
+\begin{equation}
+A_{\text{oblig}} = S_c \cdot (\tau_p + \tau_t + \tau_g)
+\label{eq:aport_oblig}
+\end{equation}
+
+donde:
+\begin{align}
+S_c &= \min(S_m, \text{TOPE\_SBC\_DIARIO} \times 30) \quad \text{(salario cotizable)} \\
+\tau_t &= 0.01125 \quad \text{(trabajador: 1.125\%, fijo)} \\
+\tau_g &\approx 0.00225 \quad \text{(gobierno: 0.225\%, aproximado)} \\
+\tau_p &= \tau_p(a\tilde{n}o) \quad \text{(patr\'on: variable por reforma)}
+\end{align}
+
+\textbf{Calendario de reforma patronal:}
+\begin{center}
+\begin{tabular}{cc|cc}
+\toprule
+A\~no & $\tau_p$ & A\~no & $\tau_p$ \\
+\midrule
+2023 & 6.20\% & 2027 & 9.45\% \\
+2024 & 6.90\% & 2028 & 10.30\% \\
+2025 & 7.75\% & 2029 & 11.15\% \\
+2026 & 8.60\% & 2030+ & 12.00\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Tasa total 2025:}
+\begin{equation}
+\tau_{\text{total}} = 0.0775 + 0.01125 + 0.00225 = 0.0910 \quad (9.10\%)
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La reforma de 2020 aumenta gradualmente la contribuci\'on patronal del 6.2\% al 12\% entre 2023 y 2030. Esto casi duplica las aportaciones obligatorias, lo que beneficiar\'a enormemente a trabajadores j\'ovenes.
+
+\textbf{Simplificaci\'on del simulador:} se usa la tasa de 2025 (9.1\%) para todo el horizonte de proyecci\'on. En realidad, las tasas aumentar\'an cada a\~no, lo que significa que el simulador \textbf{subestima} las aportaciones futuras para trabajadores que se retiren despu\'es de 2030.
+
+La cuota social del gobierno (0.225\%) es una aproximaci\'on. En realidad var\'ia inversamente con el salario: trabajadores de menores ingresos reciben mayor cuota social.
+
+El tope de cotizaci\'on (25 UMAs = \$2,828.50/d\'ia = \$84,855/mes) limita las aportaciones para salarios altos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 188--234:
+\begin{lstlisting}
+calculate_aportacion_obligatoria <- function(salario_mensual,
+                                             anio = 2025) {
+  tasas_patron <- c(
+    "2023"=0.0620, "2024"=0.0690, "2025"=0.0775,
+    "2026"=0.0860, "2027"=0.0945, "2028"=0.1030,
+    "2029"=0.1115, "2030"=0.1200
+  )
+  tasa_trabajador <- 0.01125
+  tasa_gobierno <- 0.00225
+  tasa_total <- tasa_patron + tasa_trabajador + tasa_gobierno
+  tope_mensual <- TOPE_SBC_DIARIO * 30
+  salario_cotizable <- min(salario_mensual, tope_mensual)
+  aportacion <- salario_cotizable * tasa_total
+}
+\end{lstlisting}
+
+Ejemplo: salario $= \$15{,}000$, a\~no 2025:
+\begin{align*}
+S_c &= \min(15{,}000, \; 84{,}855) = 15{,}000 \\
+\tau_{\text{total}} &= 0.091 \\
+A_{\text{oblig}} &= 15{,}000 \times 0.091 = \$1{,}365
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Retiro Programado: De Saldo a Pensi\'on}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El retiro programado divide el saldo total entre los meses de vida esperada:
+\begin{equation}
+P_{\text{calc}} = \frac{S_{\text{final}}}{\mathring{e}_a \times 12}
+\label{eq:retiro_programado}
+\end{equation}
+
+\textbf{Pensi\'on m\'inima garantizada Ley 97:}
+\begin{equation}
+P_{\min}^{97} = 2.5 \times \text{UMA}_{\text{mensual}} = 2.5 \times 3{,}439.46 = \$8{,}598.65
+\label{eq:pension_min_97}
+\end{equation}
+
+\textbf{Pensi\'on final:}
+\begin{equation}
+P_{\text{final}} = \max(P_{\text{calc}}, \; P_{\min}^{97})
+\label{eq:pension_final_97}
+\end{equation}
+
+\textbf{Saldo necesario para superar el m\'inimo:}
+\begin{equation}
+S_{\text{umbral}} = P_{\min}^{97} \times \mathring{e}_a \times 12
+\end{equation}
+
+Para hombre de 65: $S_{\text{umbral}} = 8{,}598.65 \times 204 = \$1{,}754{,}125$
+
+Para mujer de 65: $S_{\text{umbral}} = 8{,}598.65 \times 240 = \$2{,}063{,}676$
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El retiro programado es la forma m\'as simple de convertir un saldo en pensi\'on: se divide el dinero entre los meses que se espera vivir. Es una simplificaci\'on del simulador; en la realidad, el retiro programado se recalcula anualmente con rendimientos reales y tablas de mortalidad actualizadas.
+
+La pensi\'on m\'inima de 2.5 UMAs (\$8,598.65) es un piso que protege a trabajadores con saldos bajos. Cuando aplica:
+\begin{itemize}
+  \item La pensi\'on es id\'entica para hombres y mujeres (ambos reciben \$8,598.65)
+  \item La diferencia en esperanza de vida queda enmascarada
+  \item El gobierno subsidia la diferencia entre el m\'inimo y lo que el saldo dar\'ia
+\end{itemize}
+
+No se modela la \textbf{renta vitalicia} (comprar una anualidad de una aseguradora), que puede dar pensiones diferentes al retiro programado.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 259--298:
+\begin{lstlisting}
+calculate_retiro_programado <- function(saldo, edad,
+                                        genero = "M") {
+  esperanza_vida <- get_esperanza_vida(edad, genero)
+  meses_esperados <- esperanza_vida * 12
+  pension_calculada <- saldo / meses_esperados
+  pension_minima <- UMA_MENSUAL_2025 * 2.5  # $8,598.65
+  pension_mensual <- max(pension_calculada, pension_minima)
+}
+\end{lstlisting}
+
+Ejemplo (Caso 3): $S = \$1{,}695{,}515$, hombre 65:
+\begin{align*}
+\mathring{e}_{65,M} &= 17.0 \text{ a\~nos} \to 204 \text{ meses} \\
+P_{\text{calc}} &= 1{,}695{,}515 / 204 = \$8{,}311.35 \\
+P_{\min}^{97} &= \$8{,}598.65 \\
+P_{\text{final}} &= \max(8{,}311.35, \; 8{,}598.65) = \$8{,}598.65 \text{ (m\'inimo aplica)}
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Pensi\'on Ley 97 Completa: Pipeline Integrado}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+La funci\'on \texttt{calculate\_ley97\_pension} integra todo el pipeline:
+
+\begin{align}
+W_r &= W_0 + (a_r - a_0) \times 52 \quad \text{(semanas al retiro)} \label{eq:sem_retiro} \\
+A_{\text{total}} &= A_{\text{oblig}} + A_{\text{vol}} \label{eq:aport_total} \\
+S_{\text{final}} &= S_0 (1+r_n)^{n} + A_{\text{total}} \cdot \frac{(1+r_m)^{12n}-1}{r_m} \\
+P &= \max\!\left(\frac{S_{\text{final}}}{\mathring{e}_{a_r} \times 12}, \; P_{\min}^{97}\right)
+\end{align}
+
+\textbf{Condici\'on de elegibilidad:} $W_r \geq 1{,}000$ semanas.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El pipeline Ley 97 es fundamentalmente diferente a Ley 73:
+\begin{itemize}
+  \item \textbf{Ley 73}: Pensi\'on depende del \textbf{salario} y \textbf{semanas}. El saldo AFORE es irrelevante.
+  \item \textbf{Ley 97}: Pensi\'on depende del \textbf{saldo acumulado}. El salario solo importa para determinar aportaciones.
+\end{itemize}
+
+Las variables de control del trabajador son:
+\begin{enumerate}
+  \item Aportaciones voluntarias ($A_{\text{vol}}$) -- control total
+  \item Elecci\'on de AFORE (afecta $c_{\text{AFORE}}$) -- control total
+  \item Edad de retiro ($a_r$) -- control parcial
+  \item Rendimiento del mercado ($r_{\text{real}}$) -- sin control
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 313--391 (extracto):
+\begin{lstlisting}
+calculate_ley97_pension <- function(saldo_actual,
+    salario_mensual, edad_actual, edad_retiro = 65,
+    semanas_actuales, genero = "M",
+    aportacion_voluntaria = 0,
+    afore_nombre = "XXI Banorte",
+    escenario = "base") {
+  # 1. Validar semanas
+  semanas_al_retiro <- semanas_actuales +
+    (anios_restantes * 52)
+  if (semanas_al_retiro < 1000) return(ineligible)
+  # 2. Obtener parametros
+  rendimiento <- switch(escenario, ...)
+  comision <- get_afore_comision(afore_nombre)
+  # 3. Calcular aportacion total
+  aport_oblig <- calculate_aportacion_obligatoria(
+    salario_mensual)
+  aportacion_total <- aport_oblig$aportacion_total +
+    aportacion_voluntaria
+  # 4. Proyectar + calcular pension
+  proyeccion <- project_afore_balance(...)
+  pension <- calculate_retiro_programado(
+    proyeccion$saldo_final, edad_retiro, genero)
+}
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Ejemplo Completo Resuelto: Caso 3}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Datos:} $S_0 = \$300{,}000$, salario $= \$15{,}000$, edad 35$\to$65, 600 semanas, hombre, XXI Banorte, escenario base. Aportaci\'on voluntaria $= \$2{,}000$/mes.
+
+\textbf{Sin aportaciones voluntarias:}
+\begin{align}
+W_r &= 600 + 30 \times 52 = 2{,}160 \geq 1{,}000 \quad \checkmark \\
+r_n &= 0.0349, \quad r_m = 0.002862, \quad m = 360 \\
+A_{\text{oblig}} &= 15{,}000 \times 0.091 = 1{,}365 \\
+\FV_{\text{saldo}} &= 300{,}000 \times 2.7874 = 836{,}220 \\
+\FV_{\text{aport}} &= 1{,}365 \times 629.52 = 859{,}295 \\
+S_{\text{final}} &= 1{,}695{,}515 \\
+P &= \max(1{,}695{,}515 / 204, \; 8{,}598.65) = \max(8{,}311.35, \; 8{,}598.65) = \$8{,}598.65
+\end{align}
+
+\textbf{Con \$2,000 voluntarios:}
+\begin{align}
+A_{\text{total}} &= 1{,}365 + 2{,}000 = 3{,}365 \\
+\FV_{\text{aport}} &= 3{,}365 \times 629.52 = 2{,}118{,}335 \\
+S_{\text{final}} &= 836{,}220 + 2{,}118{,}335 = 2{,}954{,}555 \\
+P &= \max(2{,}954{,}555 / 204, \; 8{,}598.65) = \max(14{,}483.11, \; 8{,}598.65) = \boxed{\$14{,}483.11}
+\end{align}
+
+Las aportaciones voluntarias m\'as que duplicaron la pensi\'on (de \$8,598.65 a \$14,483.11).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Este caso ilustra el poder de las aportaciones voluntarias. Con \$2,000 mensuales durante 30 a\~nos:
+\begin{itemize}
+  \item Inversi\'on total: $2{,}000 \times 360 = \$720{,}000$
+  \item Valor futuro: $\$1{,}258{,}987$ (adicional a las obligatorias)
+  \item Ganancia por rendimiento: $\$538{,}987$ (74.9\% de rendimiento sobre lo aportado)
+  \item Incremento de pensi\'on: $+\$5{,}884$ mensuales de por vida
+\end{itemize}
+
+La raz\'on por la que el incremento es tan grande es el \textbf{inter\'es compuesto sobre 30 a\~nos}: cada peso voluntario se multiplica por 629.52/360 = 1.75x.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Este caso se puede reproducir con:
+\begin{lstlisting}
+# Sin voluntarias
+res_base <- calculate_ley97_pension(
+  saldo_actual = 300000, salario_mensual = 15000,
+  edad_actual = 35, edad_retiro = 65,
+  semanas_actuales = 600, genero = "M",
+  aportacion_voluntaria = 0,
+  afore_nombre = "XXI Banorte", escenario = "base")
+
+# Con $2,000 voluntarias
+res_vol <- calculate_ley97_pension(
+  saldo_actual = 300000, salario_mensual = 15000,
+  edad_actual = 35, edad_retiro = 65,
+  semanas_actuales = 600, genero = "M",
+  aportacion_voluntaria = 2000,
+  afore_nombre = "XXI Banorte", escenario = "base")
+\end{lstlisting}
+\end{tcolorbox}
+
+
+% ############################################################################
+% CAPITULO 4: MATEMATICAS DEL FONDO BIENESTAR
+% ############################################################################
+\chapter{Matem\'aticas del Fondo Bienestar}
+
+El Fondo de Pensiones para el Bienestar (DOF 01/05/2024, vigente 01/07/2024) complementa las pensiones de Ley 97 para trabajadores de ingresos bajos y medios. Este cap\'itulo formaliza su l\'ogica matem\'atica.
+
+% ============================================================================
+\section{Elegibilidad: Cuatro Condiciones Conjuntivas}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Un trabajador es elegible si y solo si se cumplen \textbf{todas} las condiciones:
+\begin{equation}
+\text{elegible} = \bigwedge_{i=1}^{4} C_i
+\label{eq:elegibilidad_fondo}
+\end{equation}
+
+donde:
+\begin{align}
+C_1 &: \text{r\'egimen} = \text{``ley97''} \\
+C_2 &: a \geq 65 \\
+C_3 &: W \geq 1{,}000 \\
+C_4 &: \overline{\text{SBC}}_m \leq U(a\tilde{n}o)
+\end{align}
+
+y $U(a\tilde{n}o)$ es el umbral del Fondo:
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+A\~no & Umbral $U$ \\
+\midrule
+2024 & \$16,777.68 \\
+2025 & \$17,364.00 \\
+2026 & $\approx$\$18,050 (estimado) \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El Fondo Bienestar tiene un dise\~no expl\'icitamente redistributivo:
+\begin{itemize}
+  \item Solo aplica para Ley 97 (Ley 73 ya tiene pensi\'on de beneficio definido).
+  \item Solo a partir de 65 a\~nos (el retiro anticipado no recibe complemento).
+  \item Requiere 1,000 semanas (casi 20 a\~nos de cotizaci\'on).
+  \item El umbral salarial excluye a trabajadores de altos ingresos.
+\end{itemize}
+
+La condici\'on m\'as restrictiva en la pr\'actica es $C_4$ (salario bajo umbral). En 2025, el umbral de \$17,364/mes equivale a aproximadamente 2 veces el salario m\'inimo, cubriendo a la mayor\'ia de los trabajadores formales en M\'exico.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/fondo\_bienestar.R}, l\'ineas 25--92:
+\begin{lstlisting}
+check_fondo_eligibility <- function(regimen, edad, semanas,
+    sbc_promedio_mensual, anio = ANIO_ACTUAL) {
+  umbral <- get_umbral_fondo_bienestar(anio)
+  checks <- list(
+    regimen_valido = list(
+      cumple = (regimen == "ley97")),
+    edad_minima = list(
+      cumple = (edad >= 65)),
+    semanas_minimas = list(
+      cumple = (semanas >= 1000)),
+    salario_bajo_umbral = list(
+      cumple = (sbc_promedio_mensual <= umbral))
+  )
+  elegible <- all(sapply(checks, function(x) x$cumple))
+}
+\end{lstlisting}
+
+Caso 4 (inelegible): salario $= \$50{,}000 > \$17{,}364 \to C_4 = \text{FALSE}$
+
+Caso 5 (inelegible): edad $= 60 < 65 \to C_2 = \text{FALSE}$
+\end{tcolorbox}
+
+% ============================================================================
+\section{C\'alculo del Complemento}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Si el trabajador es elegible, el complemento se calcula como:
+\begin{equation}
+P_{\text{objetivo}} = \min(\overline{\text{SBC}}_m, \; U)
+\label{eq:pension_objetivo}
+\end{equation}
+
+\begin{equation}
+\text{Complemento} = \max(0, \; P_{\text{objetivo}} - P_{\text{AFORE}})
+\label{eq:complemento}
+\end{equation}
+
+\begin{equation}
+P_{\text{total}} = P_{\text{AFORE}} + \text{Complemento}
+\label{eq:pension_total_fondo}
+\end{equation}
+
+donde $P_{\text{AFORE}}$ es la pensi\'on calculada por retiro programado (ecuaci\'on \eqref{eq:pension_final_97}).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El Fondo ``llena la brecha'' entre lo que la AFORE da y lo que el trabajador ganaba:
+\begin{itemize}
+  \item Si la AFORE da \$8,599 y ganabas \$15,000: complemento $= \$6{,}401$
+  \item Si la AFORE da \$14,000 y ganabas \$15,000: complemento $= \$1{,}000$
+  \item Si la AFORE da \$16,000 y ganabas \$15,000: complemento $= \$0$ (ya superas tu salario)
+\end{itemize}
+
+Esto tiene una implicaci\'on matem\'atica importante: \textbf{las aportaciones voluntarias nunca reducen la pensi\'on total}. Si tu aportaci\'on voluntaria aumenta $P_{\text{AFORE}}$, el complemento disminuye exactamente en la misma cantidad, pero la pensi\'on total se mantiene o sube.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/fondo\_bienestar.R}, l\'ineas 107--145:
+\begin{lstlisting}
+calculate_fondo_complement <- function(pension_afore,
+    sbc_promedio_mensual, elegibilidad) {
+  if (!elegibilidad$elegible) {
+    return(list(complemento = 0,
+                pension_total = pension_afore))
+  }
+  umbral <- elegibilidad$umbral_usado
+  pension_objetivo <- min(sbc_promedio_mensual, umbral)
+  complemento <- max(0, pension_objetivo - pension_afore)
+  pension_total <- pension_afore + complemento
+}
+\end{lstlisting}
+
+Caso 3 (elegible, sin voluntarias):
+\begin{align*}
+P_{\text{objetivo}} &= \min(15{,}000, \; 17{,}364) = 15{,}000 \\
+\text{Complemento} &= \max(0, \; 15{,}000 - 8{,}598.65) = 6{,}401.35 \\
+P_{\text{total}} &= 8{,}598.65 + 6{,}401.35 = \$15{,}000.00
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Arquitectura de Tres Escenarios}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+La funci\'on \texttt{calculate\_pension\_with\_fondo} produce tres escenarios:
+
+\textbf{Escenario 1 -- Solo Sistema ($P^{(1)}$):}
+\begin{equation}
+P^{(1)} = \text{Ley97}(S_0, A_{\text{oblig}}, r_n, a_r)
+\end{equation}
+
+\textbf{Escenario 2 -- Con Fondo ($P^{(2)}$):}
+\begin{equation}
+P^{(2)} = P^{(1)} + \text{Complemento}(P^{(1)}, \overline{\text{SBC}}_m, U) \cdot \mathbb{1}_{\text{elegible}}
+\end{equation}
+
+\textbf{Escenario 3 -- Con Acciones ($P^{(3)}$):}
+\begin{equation}
+P^{(3)}_{\text{AFORE}} = \text{Ley97}(S_0, A_{\text{oblig}} + A_{\text{vol}}, r_n, a_r)
+\end{equation}
+\begin{equation}
+P^{(3)} = P^{(3)}_{\text{AFORE}} + \text{Complemento}(P^{(3)}_{\text{AFORE}}, \overline{\text{SBC}}_m, U) \cdot \mathbb{1}_{\text{elegible}}
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Los tres escenarios representan niveles crecientes de acci\'on del trabajador:
+\begin{enumerate}
+  \item \textbf{Solo sistema:} ``No hago nada.'' Pensi\'on que dar\'ia el sistema autom\'aticamente.
+  \item \textbf{Con Fondo:} ``Cuento con el gobierno.'' Se suma el complemento del Fondo (si aplica).
+  \item \textbf{Con acciones:} ``Tomo control.'' Agrego aportaciones voluntarias, que son lo m\'as seguro.
+\end{enumerate}
+
+\textbf{Propiedad clave de monoton\'ia:}
+\begin{equation}
+\frac{\partial P^{(3)}}{\partial A_{\text{vol}}} \geq 0 \quad \forall A_{\text{vol}} \geq 0
+\end{equation}
+
+Es decir, m\'as aportaciones voluntarias \textbf{nunca} reducen la pensi\'on total, aunque s\'i pueden reducir el complemento del Fondo.
+
+Prueba: Si $A_{\text{vol}}$ aumenta, $P^{(3)}_{\text{AFORE}}$ aumenta. El complemento es $\max(0, P_{\text{obj}} - P^{(3)}_{\text{AFORE}})$. Si $P^{(3)}_{\text{AFORE}}$ crece:
+\begin{itemize}
+  \item Caso A: $P^{(3)}_{\text{AFORE}} < P_{\text{obj}}$: complemento baja, pero $P^{(3)}_{\text{AFORE}}$ sube en la misma cantidad $\to$ $P^{(3)}$ constante.
+  \item Caso B: $P^{(3)}_{\text{AFORE}} \geq P_{\text{obj}}$: complemento $= 0$, pero $P^{(3)} = P^{(3)}_{\text{AFORE}}$ que sigue creciendo $\to$ $P^{(3)}$ crece.
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/fondo\_bienestar.R}, l\'ineas 165--304 (estructura simplificada):
+\begin{lstlisting}
+calculate_pension_with_fondo <- function(...) {
+  # Escenario 1
+  pension_solo_sistema <- calculate_ley97_pension(
+    ..., aportacion_voluntaria = 0)
+  # Elegibilidad
+  elegibilidad <- check_fondo_eligibility(...)
+  # Escenario 2
+  complemento_fondo <- calculate_fondo_complement(
+    pension_solo_sistema$pension_mensual, ...)
+  # Escenario 3
+  pension_con_acciones <- calculate_ley97_pension(
+    ..., aportacion_voluntaria = aportacion_voluntaria)
+  complemento_con_acciones <- calculate_fondo_complement(
+    pension_con_acciones$pension_mensual, ...)
+}
+\end{lstlisting}
+
+Caso 3 resumen:
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+& $P_{\text{AFORE}}$ & Complemento & $P_{\text{total}}$ \\
+\midrule
+Solo sistema & \$8,599 & \$6,401 & \$15,000 \\
+Con vol. \$2K & \$14,483 & \$517 & \$15,000 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+N\'otese que la pensi\'on total es id\'entica (\$15,000) porque la suma de AFORE + complemento siempre alcanza el objetivo cuando el trabajador est\'a por debajo del umbral.
+\end{tcolorbox}
+
+% ============================================================================
+\section{Derivada del Complemento respecto a Aportaciones}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Sea $v = A_{\text{vol}}$ la aportaci\'on voluntaria mensual. Definimos:
+\begin{align}
+P_A(v) &= \text{pensi\'on AFORE como funci\'on de } v \\
+C(v) &= \max(0, P_{\text{obj}} - P_A(v)) \\
+P_T(v) &= P_A(v) + C(v)
+\end{align}
+
+\textbf{Caso 1:} $P_A(v) < P_{\text{obj}}$
+\begin{equation}
+P_T(v) = P_A(v) + P_{\text{obj}} - P_A(v) = P_{\text{obj}} = \text{constante}
+\end{equation}
+
+\textbf{Caso 2:} $P_A(v) \geq P_{\text{obj}}$
+\begin{equation}
+P_T(v) = P_A(v) + 0 = P_A(v)
+\end{equation}
+
+Por lo tanto:
+\begin{equation}
+\frac{dP_T}{dv} = \begin{cases}
+0 & \text{si } P_A(v) < P_{\text{obj}} \\
+\frac{dP_A}{dv} > 0 & \text{si } P_A(v) \geq P_{\text{obj}}
+\end{cases}
+\label{eq:derivada_complemento}
+\end{equation}
+
+\textbf{Conclusi\'on:} $\frac{dP_T}{dv} \geq 0$ siempre. La pensi\'on total nunca decrece con mayores aportaciones voluntarias.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Hay un punto de inflexi\'on: el valor de $v^*$ donde $P_A(v^*) = P_{\text{obj}}$. Antes de ese punto, cada peso adicional de aportaci\'on voluntaria simplemente reduce el complemento del Fondo (peso por peso), y la pensi\'on total permanece en $P_{\text{obj}}$.
+
+Despu\'es de $v^*$, cada peso voluntario adicional \textbf{s\'i} aumenta la pensi\'on total, porque ya no hay complemento que compensar.
+
+Entonces, ?`vale la pena aportar voluntariamente si el Fondo ya te lleva a tu salario? \textbf{S\'i}, porque:
+\begin{enumerate}
+  \item El Fondo es un programa gubernamental cuya continuidad no est\'a garantizada.
+  \item Las aportaciones voluntarias son \textbf{tu dinero}, seguro en tu cuenta AFORE.
+  \item Si superas $v^*$, tu pensi\'on real sube por encima de tu salario actual.
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La funci\'on \texttt{analyze\_voluntary\_contributions} en \texttt{R/fondo\_bienestar.R} (l\'ineas 315--356) evalua este comportamiento con m\'ultiples valores de $v$:
+\begin{lstlisting}
+analyze_voluntary_contributions <- function(...,
+    aportaciones_probar = c(0, 500, 1000, 1500, 2000)) {
+  for (aport in aportaciones_probar) {
+    calculo <- calculate_pension_with_fondo(
+      ..., aportacion_voluntaria = aport)
+    # Registra pension_afore, pension_con_fondo, incremento
+  }
+}
+\end{lstlisting}
+
+Para el Caso 3, los resultados muestran el comportamiento de meseta descrito:
+
+\begin{center}
+\small
+\begin{tabular}{rrrrr}
+\toprule
+$A_{\text{vol}}$ & $P_{\text{AFORE}}$ & Complemento & $P_{\text{total}}$ & $\Delta P$ \\
+\midrule
+\$0 & \$8,599 & \$6,401 & \$15,000 & --- \\
+\$500 & \$10,073 & \$4,927 & \$15,000 & \$0 \\
+\$1,000 & \$11,547 & \$3,453 & \$15,000 & \$0 \\
+\$1,500 & \$13,021 & \$1,979 & \$15,000 & \$0 \\
+\$2,000 & \$14,483 & \$517 & \$15,000 & \$0 \\
+\$2,500 & \$15,957 & \$0 & \$15,957 & \$+957 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El punto de inflexi\'on $v^*$ est\'a donde la pensi\'on AFORE alcanza \$15,000.
+\end{tcolorbox}
+
+% ############################################################################
+% CAPITULO 5: MODALIDAD 40 COSTO-BENEFICIO
+% ############################################################################
+\chapter{Modalidad 40: An\'alisis Costo-Beneficio}
+
+La Modalidad 40 (continuaci\'on voluntaria en el r\'egimen obligatorio) permite a trabajadores que dejaron de cotizar seguir acumulando semanas y mejorar su SBC promedio para Ley 73. Este cap\'itulo formaliza el an\'alisis financiero.
+
+% ============================================================================
+\section{Costo de la Modalidad 40}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+La cuota mensual de Modalidad 40 es:
+\begin{equation}
+Q_{\text{M40}} = \hat{S}_d \times 30 \times \tau_{\text{M40}}
+\label{eq:cuota_m40}
+\end{equation}
+
+donde:
+\begin{align}
+\hat{S}_d &= \min(S_{\text{M40}}, \; \text{TOPE\_SBC\_DIARIO}) \quad \text{(SBC elegido, con tope)} \\
+\tau_{\text{M40}} &= 0.10075 \quad (10.075\%)
+\end{align}
+
+\textbf{Meses de cotizaci\'on M40:}
+\begin{equation}
+m_{\text{M40}} = \left\lceil \frac{W_{\text{M40}}}{4.33} \right\rceil
+\label{eq:meses_m40}
+\end{equation}
+
+donde $W_{\text{M40}}$ son las semanas a cotizar via M40 y 4.33 $\approx 52/12$ semanas por mes.
+
+\textbf{Costo total:}
+\begin{equation}
+C_{\text{total}} = Q_{\text{M40}} \times m_{\text{M40}}
+\label{eq:costo_total_m40}
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La Modalidad 40 es como ``comprar'' semanas de cotizaci\'on y elevar tu promedio salarial. El costo es significativo: con el SBC m\'aximo (\$2,828.50/d\'ia):
+\[
+Q_{\text{M40}} = 2{,}828.50 \times 30 \times 0.10075 = \$8{,}549.60 \text{ mensuales}
+\]
+
+Es una inversi\'on fuerte, pero puede ser muy rentable porque Ley 73 es un sistema de beneficio definido: un SBC m\'as alto se traduce en una pensi\'on m\'as alta \textbf{de por vida}.
+
+La tasa del 10.075\% incluye las cuotas de Invalidez y Vida (1.75\%), Retiro (2\%), Cesant\'ia y Vejez (4.275\%), y Guarder\'ias (1\%), m\'as otros conceptos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 421--454:
+\begin{lstlisting}
+tasa_m40 <- 0.10075
+cuota_mensual_m40 <- sbc_m40_real * 30 * tasa_m40
+meses_m40 <- ceiling(semanas_m40 / 4.33)
+costo_total_m40 <- cuota_mensual_m40 * meses_m40
+\end{lstlisting}
+
+Ejemplo: M40 por 5 a\~nos (260 semanas) al 80\% del tope:
+\begin{align*}
+\hat{S}_d &= 0.80 \times 2{,}828.50 = 2{,}262.80 \\
+Q_{\text{M40}} &= 2{,}262.80 \times 30 \times 0.10075 = \$6{,}839.09 \\
+m_{\text{M40}} &= \lceil 260 / 4.33 \rceil = 61 \text{ meses} \\
+C_{\text{total}} &= 6{,}839.09 \times 61 = \$417{,}184.49
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Promedio Salarial con M40 (Ventana de 250 Semanas)}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El SBC promedio para Ley 73 se calcula sobre las \'ultimas 250 semanas cotizadas ($\approx 4.8$ a\~nos).
+
+Si $W_{\text{M40}} \geq 250$:
+\begin{equation}
+\overline{\text{SBC}}_d^{\text{nuevo}} = \hat{S}_d
+\label{eq:sbc_m40_full}
+\end{equation}
+
+Si $W_{\text{M40}} < 250$ (promedio ponderado):
+\begin{equation}
+\overline{\text{SBC}}_d^{\text{nuevo}} = \frac{\hat{S}_d \times W_{\text{M40}} + \overline{\text{SBC}}_d^{\text{viejo}} \times (250 - W_{\text{M40}})}{250}
+\label{eq:sbc_m40_partial}
+\end{equation}
+
+Esto es un promedio ponderado por semanas, donde las semanas M40 ``desplazan'' gradualmente el historial anterior.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La ventana de 250 semanas es la clave de la estrategia M40: si cotizas por al menos 250 semanas (4.8 a\~nos) al SBC m\'aximo, \textbf{todo} tu promedio se reemplaza con el SBC alto, sin importar cu\'anto ganabas antes.
+
+Por eso la recomendaci\'on com\'un es cotizar M40 por al menos 5 a\~nos antes del retiro. Menos de 250 semanas solo reemplaza parcialmente el promedio.
+
+Ejemplo: SBC viejo $= \$300$/d\'ia, SBC M40 $= \$2{,}263$/d\'ia, 150 semanas M40:
+\[
+\overline{\text{SBC}}_d^{\text{nuevo}} = \frac{2{,}263 \times 150 + 300 \times 100}{250} = \frac{339{,}450 + 30{,}000}{250} = \$1{,}477.80
+\]
+
+Versus 260 semanas M40:
+\[
+\overline{\text{SBC}}_d^{\text{nuevo}} = \$2{,}263 \quad \text{(reemplazo total)}
+\]
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 433--441:
+\begin{lstlisting}
+if (semanas_m40 >= 250) {
+  nuevo_sbc_promedio <- sbc_m40_real
+} else {
+  semanas_nuevas <- min(semanas_m40, 250)
+  semanas_viejas <- 250 - semanas_nuevas
+  nuevo_sbc_promedio <- (sbc_m40_real * semanas_nuevas +
+    sbc_actual * semanas_viejas) / 250
+}
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{An\'alisis de Break-Even}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Incremento mensual de pensi\'on:}
+\begin{equation}
+\Delta P = P_{\text{con\_M40}} - P_{\text{sin\_M40}}
+\end{equation}
+
+\textbf{Meses para recuperar la inversi\'on:}
+\begin{equation}
+T_{\text{break}} = \left\lceil \frac{C_{\text{total}}}{\Delta P} \right\rceil
+\label{eq:break_even}
+\end{equation}
+
+\textbf{Criterio de recomendaci\'on:}
+\begin{equation}
+\text{Recomendaci\'on} = \begin{cases}
+\text{``Recomendable''} & \text{si } T_{\text{break}} < 60 \text{ meses (5 a\~nos)} \\
+\text{``Puede ser \'util''} & \text{si } 60 \leq T_{\text{break}} < 120 \\
+\text{``Beneficio limitado''} & \text{si } T_{\text{break}} \geq 120
+\end{cases}
+\end{equation}
+
+\textbf{Nota:} Este an\'alisis no descuenta a valor presente los flujos futuros. Un an\'alisis m\'as riguroso usar\'ia:
+\begin{equation}
+T_{\text{break}}^* : \sum_{t=1}^{T^*} \frac{\Delta P}{(1+r)^{t/12}} = C_{\text{total}}
+\end{equation}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El break-even responde la pregunta: ``?`Cu\'antos meses necesito cobrar pensi\'on para recuperar lo que invert\'i en M40?''
+
+Si $T_{\text{break}} = 48$ meses (4 a\~nos) y la esperanza de vida es 17 a\~nos (204 meses), la ganancia neta es:
+\[
+\text{Ganancia} = \Delta P \times (204 - 48) = \Delta P \times 156 \text{ meses}
+\]
+
+El an\'alisis simplificado (sin valor presente) sobreestima ligeramente el beneficio, porque un peso recibido en 15 a\~nos vale menos que un peso hoy. Sin embargo, como trabajamos en t\'erminos reales y las pensiones se ajustan por inflaci\'on, la aproximaci\'on es razonable.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R}, l\'ineas 456--486:
+\begin{lstlisting}
+incremento_pension <- nueva_pension$pension_mensual -
+                      pension_actual$pension_mensual
+if (incremento_pension > 0) {
+  meses_recuperacion <- ceiling(costo_total_m40 /
+                                incremento_pension)
+} else {
+  meses_recuperacion <- Inf
+}
+
+recomendacion <- if (meses_recuperacion < 60) {
+  "M40 es recomendable: recuperas en menos de 5 anos"
+} else if (meses_recuperacion < 120) {
+  "M40 puede ser util: recuperas en 5-10 anos"
+} else {
+  "M40 tiene beneficio limitado para tu caso"
+}
+\end{lstlisting}
+
+Ejemplo: costo total $= \$417{,}184$, incremento $= \$4{,}000$/mes:
+\[
+T_{\text{break}} = \lceil 417{,}184 / 4{,}000 \rceil = 105 \text{ meses} \approx 8.7 \text{ a\~nos}
+\]
+Recomendaci\'on: ``Puede ser \'util'' ($60 \leq 105 < 120$).
+\end{tcolorbox}
+
+
+% ############################################################################
+% CAPITULO 6: ANALISIS DE SENSIBILIDAD
+% ############################################################################
+\chapter{An\'alisis de Sensibilidad}
+
+El an\'alisis de sensibilidad estudia c\'omo cambia la pensi\'on cuando var\'ian los par\'ametros de entrada. Este cap\'itulo formaliza las derivadas parciales, identifica efectos de acantilado (cliff effects), y define las tres trazas de la gr\'afica del simulador.
+
+% ============================================================================
+\section{Derivadas Parciales: Ley 97}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Para la pensi\'on Ley 97 (cuando no aplica m\'inimo):
+\begin{equation}
+P = \frac{S_0(1+r_n)^n + A \cdot s_{\overline{12n}|r_m}}{\mathring{e}_{a_r} \times 12}
+\end{equation}
+
+\textbf{Sensibilidad al rendimiento:}
+\begin{equation}
+\frac{\partial P}{\partial r} = \frac{1}{\mathring{e}_{a_r} \times 12} \left[ n \cdot S_0(1+r_n)^{n-1} + A \cdot \frac{\partial s_{\overline{m}|r_m}}{\partial r} \right]
+\end{equation}
+
+donde:
+\begin{equation}
+\frac{\partial s_{\overline{m}|r_m}}{\partial r_m} = \frac{m(1+r_m)^{m-1} \cdot r_m - ((1+r_m)^m - 1)}{r_m^2}
+\end{equation}
+
+\textbf{Sensibilidad a las aportaciones voluntarias:}
+\begin{equation}
+\frac{\partial P}{\partial A_{\text{vol}}} = \frac{s_{\overline{12n}|r_m}}{\mathring{e}_{a_r} \times 12}
+\label{eq:sensibilidad_vol}
+\end{equation}
+
+Este t\'ermino es \textbf{constante} (no depende del nivel actual de aportaciones), lo que significa que cada peso adicional de aportaci\'on voluntaria tiene el mismo impacto marginal en la pensi\'on.
+
+\textbf{Sensibilidad a la edad de retiro:}
+\begin{equation}
+\frac{\partial P}{\partial a_r} \approx \frac{P(a_r + 1) - P(a_r)}{1}
+\end{equation}
+
+Esta derivada es compleja porque $a_r$ afecta simult\'aneamente:
+\begin{enumerate}
+  \item A\~nos de acumulaci\'on ($n = a_r - a_0$)
+  \item Esperanza de vida ($\mathring{e}_{a_r}$ decrece con $a_r$)
+  \item Semanas cotizadas ($W_r = W_0 + n \times 52$)
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Las sensibilidades revelan qu\'e variables tienen mayor impacto:
+
+\textbf{Rendimiento:} El impacto crece exponencialmente con el horizonte. Con 30 a\~nos, un punto porcentual adicional de rendimiento puede significar 30-40\% m\'as de saldo final. Pero el trabajador \textbf{no controla} el rendimiento.
+
+\textbf{Aportaciones voluntarias:} El impacto es lineal y predecible. La ecuaci\'on \eqref{eq:sensibilidad_vol} muestra que el ``multiplicador'' de cada peso voluntario es $s_{\overline{m}|r_m} / (\mathring{e} \times 12)$. Con valores t\'ipicos:
+\[
+\frac{629.52}{204} \approx 3.09
+\]
+Cada peso mensual voluntario genera \$3.09 de pensi\'on mensual. El trabajador \textbf{s\'i controla} esta variable.
+
+\textbf{Edad de retiro:} Cada a\~no adicional tiene un efecto doble positivo: m\'as a\~nos de acumulaci\'on \textbf{y} menos a\~nos de desacumulaci\'on.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+El an\'alisis de sensibilidad en el simulador usa evaluaci\'on num\'erica (no derivadas anal\'iticas).
+
+\texttt{R/fondo\_bienestar.R}, l\'ineas 363--408 (\texttt{analyze\_retirement\_age}):
+\begin{lstlisting}
+analyze_retirement_age <- function(...,
+    edades_probar = 60:70) {
+  for (edad in edades_probar) {
+    calculo <- calculate_pension_with_fondo(
+      ..., edad_retiro = edad)
+    # Registra saldo_final, pension, elegible_fondo
+  }
+}
+\end{lstlisting}
+
+Los sliders de sensibilidad en el Step 4 del wizard (app.R) usan debounce de 300ms:
+\begin{lstlisting}
+semanas_debounced <- debounce(
+  reactive(input$semanas_sensitivity), 300)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Efectos de Acantilado (Cliff Effects)}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Un efecto de acantilado ocurre cuando una variable discreta cambia abruptamente el resultado. En el simulador hay tres acantilados principales:
+
+\textbf{1. Umbral de semanas m\'inimas (Ley 73):}
+\begin{equation}
+P(W) = \begin{cases}
+0 & \text{si } W < 500 \\
+\text{calculada} & \text{si } W \geq 500
+\end{cases}
+\end{equation}
+
+\textbf{2. Umbral de semanas m\'inimas (Ley 97):}
+\begin{equation}
+P(W) = \begin{cases}
+0 & \text{si } W_r < 1{,}000 \\
+\text{calculada} & \text{si } W_r \geq 1{,}000
+\end{cases}
+\end{equation}
+
+\textbf{3. Umbral de edad para Fondo Bienestar:}
+\begin{equation}
+\text{Complemento}(a) = \begin{cases}
+0 & \text{si } a < 65 \\
+\max(0, P_{\text{obj}} - P_A) & \text{si } a \geq 65
+\end{cases}
+\end{equation}
+
+\textbf{4. Umbral salarial del Fondo:}
+\begin{equation}
+\text{Complemento}(S_m) = \begin{cases}
+\max(0, S_m - P_A) & \text{si } S_m \leq U \\
+0 & \text{si } S_m > U
+\end{cases}
+\end{equation}
+
+La discontinuidad en el umbral salarial es particularmente abrupta: un peso por encima de $U$ elimina todo el complemento.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Los cliff effects son los puntos donde peque\~nos cambios en la entrada causan grandes cambios en el resultado. Son especialmente importantes para la planificaci\'on:
+
+\begin{itemize}
+  \item Un trabajador con 490 semanas est\'a a 10 semanas de ganar derecho a pensi\'on Ley 73.
+  \item Un trabajador de 64 a\~nos est\'a a 1 a\~no de ganar acceso al Fondo Bienestar.
+  \item Un trabajador que gana \$17,400/mes est\'a cerca del umbral: una promoci\'on podr\'ia eliminarlo del Fondo.
+\end{itemize}
+
+El simulador no modela estos acantilados expl\'icitamente, pero el an\'alisis de edad de retiro (60--70) los captura impl\'icitamente al evaluar m\'ultiples edades.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Ejemplo de cliff effect en la salida del simulador para Caso 3, variando edad:
+
+\begin{center}
+\small
+\begin{tabular}{crrrl}
+\toprule
+Edad retiro & Saldo & $P_{\text{AFORE}}$ & $P_{\text{total}}$ & Fondo? \\
+\midrule
+60 & \$923K & \$3,660 & \$3,660 & No ($a < 65$) \\
+64 & \$1,499K & \$7,052 & \$7,052 & No ($a < 65$) \\
+\textbf{65} & \textbf{\$1,696K} & \textbf{\$8,599} & \textbf{\$15,000} & \textbf{S\'i} \\
+66 & \$1,903K & \$9,864 & \$15,000 & S\'i \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El salto de 64 a 65 a\~nos es un cliff de $+\$7{,}948$/mes (m\'as del doble), causado por la activaci\'on del Fondo Bienestar.
+
+En el c\'odigo:
+\begin{lstlisting}
+# check_fondo_eligibility (linea 45)
+edad_minima = list(cumple = (edad >= 65))
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Derivadas Parciales: Ley 73}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+Para Ley 73 (cuando no aplica m\'inimo):
+\begin{equation}
+P_{73} = \overline{\text{SBC}}_d \times \min(c + \lfloor (W-500)/52 \rfloor \times \delta, \; 1) \times f(a) \times D
+\end{equation}
+
+\textbf{Sensibilidad a semanas cotizadas:}
+\begin{equation}
+\frac{\partial P_{73}}{\partial W} = \begin{cases}
+0 & \text{si } W \bmod 52 \neq 0 \text{ (entre incrementos)} \\
+\overline{\text{SBC}}_d \times \delta \times f(a) \times D & \text{si } W \bmod 52 = 0 \text{ (en el borde)}
+\end{cases}
+\end{equation}
+
+La derivada es escalonada debido a la funci\'on piso: solo cambia en m\'ultiplos de 52 semanas.
+
+\textbf{Sensibilidad al SBC:}
+\begin{equation}
+\frac{\partial P_{73}}{\partial \overline{\text{SBC}}_d} = \pi \times f(a) \times D \quad \text{(directo)}
+\end{equation}
+
+\textit{Pero} $\pi$ tambi\'en depende de $\overline{\text{SBC}}_d$ a trav\'es del grupo salarial, creando una dependencia no lineal compleja.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La sensibilidad de Ley 73 a las semanas es escalonada: nada cambia durante 51 semanas, y luego un incremento $\delta$ se activa en la semana 52. Esto explica por qu\'e el simulador muestra ``saltos'' al ajustar el slider de semanas.
+
+La sensibilidad al SBC es ambigua: un SBC m\'as alto aumenta directamente la pensi\'on ($P \propto \overline{\text{SBC}}_d$), pero tambi\'en puede mover al trabajador a un grupo salarial con menor cuant\'ia b\'asica. En la pr\'actica, el efecto directo domina y la pensi\'on siempre sube con mayor SBC, pero a tasa decreciente para salarios altos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+El slider de semanas en el simulador usa debounce para manejar las actualizaciones frecuentes:
+\begin{lstlisting}
+# app.R - slider de sensibilidad
+semanas_debounced <- debounce(
+  reactive(input$semanas_sensitivity), 300)
+
+# Recalculo en observe
+observeEvent(semanas_debounced(), {
+  resultado <- calculate_ley73_pension(
+    sbc_promedio_diario = sbc,
+    semanas = semanas_debounced(),
+    edad = edad_retiro)
+})
+\end{lstlisting}
+
+Con SBC $= \$500$/d\'ia, el impacto de cada incremento (52 semanas):
+\begin{align*}
+\Delta P &= 500 \times 0.01615 \times 0.75 \times 30.4375 \\
+         &= 500 \times 0.01615 \times 22.828 \\
+         &= \$184.29 \text{ por cada a\~no adicional (a los 60)}
+\end{align*}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Definici\'on de las Tres Trazas del Gr\'afico}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+La gr\'afica del simulador muestra tres trazas de la trayectoria del saldo AFORE $S(t)$ para $t \in [0, n]$ a\~nos:
+
+\textbf{Traza 1 -- L\'inea base (dorada punteada):}
+\begin{equation}
+S_1(t) = S_0^{\text{orig}} \cdot (1 + r_n^{\text{orig}})^t + A_{\text{oblig}}^{\text{orig}} \cdot \frac{(1+r_m^{\text{orig}})^{12t} - 1}{r_m^{\text{orig}}}
+\end{equation}
+Esta traza usa los par\'ametros \textbf{originales} (antes de ajustar sliders).
+
+\textbf{Traza 2 -- Con cambios (teal discontinua):}
+\begin{equation}
+S_2(t) = S_0^{\text{adj}} \cdot (1 + r_n^{\text{adj}})^t + A_{\text{oblig}}^{\text{adj}} \cdot \frac{(1+r_m^{\text{adj}})^{12t} - 1}{r_m^{\text{adj}}}
+\end{equation}
+Usa par\'ametros \textbf{ajustados} por los sliders de sensibilidad, sin aportaciones voluntarias.
+
+\textbf{Traza 3 -- Con aportaciones (teal s\'olida):}
+\begin{equation}
+S_3(t) = S_0^{\text{adj}} \cdot (1 + r_n^{\text{adj}})^t + (A_{\text{oblig}}^{\text{adj}} + A_{\text{vol}}) \cdot \frac{(1+r_m^{\text{adj}})^{12t} - 1}{r_m^{\text{adj}}}
+\end{equation}
+Agrega aportaciones voluntarias sobre los par\'ametros ajustados.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Las tres trazas permiten al usuario ver:
+\begin{enumerate}
+  \item \textbf{Dorada (base):} ``Tu camino actual sin cambios''
+  \item \textbf{Teal discontinua:} ``El efecto de cambiar escenario/AFORE/edad'' (lo que puedes influir parcialmente)
+  \item \textbf{Teal s\'olida:} ``El efecto de agregar aportaciones voluntarias'' (lo que t\'u controlas)
+\end{enumerate}
+
+El \'area entre Traza 1 y Traza 3 representa el \textbf{impacto total de tus decisiones}. La separaci\'on entre Traza 2 y Traza 3 muestra espec\'ificamente el impacto de las aportaciones voluntarias.
+
+Las trazas convergen en $t = 0$ ($S_1(0) = S_2(0) = S_3(0) = S_0$, excepto cuando se cambia la AFORE o rendimiento) y divergen cada vez m\'as con el tiempo, visualizando el poder del inter\'es compuesto.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+En \texttt{app.R}, la gr\'afica se construye con Plotly y usa \texttt{resultados\_originales} como reactiveVal para la traza base:
+\begin{lstlisting}
+# Traza 1 - Baseline (golden, dotted)
+plot_ly() %>%
+  add_trace(x = ~tray_orig$anio,
+            y = ~tray_orig$saldo,
+            line = list(dash = "dot",
+                       color = "#c4a67a"),
+            name = "Linea base")
+
+# Traza 2 - Con cambios (teal, dashed)
+  add_trace(x = ~tray_base$anio,
+            y = ~tray_base$saldo,
+            line = list(dash = "dash",
+                       color = "#0f766e"),
+            name = "Con cambios")
+
+# Traza 3 - Con aportaciones (teal, solid)
+  add_trace(x = ~tray_vol$anio,
+            y = ~tray_vol$saldo,
+            line = list(color = "#0f766e"),
+            name = "Con aportaciones")
+\end{lstlisting}
+\end{tcolorbox}
+
+
+% ############################################################################
+% CAPITULO 7: MARCO DE VALIDACION
+% ############################################################################
+\chapter{Marco de Validaci\'on}
+
+Este cap\'itulo documenta las verificaciones manuales completas y la estructura del suite de pruebas unitarias que validan la correctitud del simulador.
+
+% ============================================================================
+\section{Caso de Validaci\'on 1: Ley 73, Salario Bajo a los 65}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Par\'ametros:} $\overline{\text{SBC}}_d = \$266.67$, $W = 1{,}252$, $a = 65$.
+
+\begin{align}
+G &= 266.67 / 278.80 = 0.9565 \\
+(c, \delta) &= (0.8000, 0.00563) \\
+n_{\text{incr}} &= \lfloor (1252-500)/52 \rfloor = 14 \\
+\pi &= \min(0.80 + 14 \times 0.00563, 1.0) = 0.87882 \\
+f(65) &= 1.0 \\
+P_d &= 266.67 \times 0.87882 = 234.35 \\
+P_m &= 234.35 \times 30.4375 = 7{,}131.35 \\
+P_{\min}^{73} &= 8{,}485.98 \\
+P_{\text{final}} &= \max(7{,}131.35, \; 8{,}485.98) = \boxed{\$8{,}485.98}
+\end{align}
+
+\textbf{Verificaci\'on:} Aplica pensi\'on m\'inima. Tasa de reemplazo $= 8{,}485.98 / (266.67 \times 30.4375) = 104.6\%$.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Este trabajador de salario bajo obtiene m\'as del 100\% de su salario como pensi\'on, gracias al piso de salario m\'inimo. La Ley 73 es particularmente generosa para este perfil.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\begin{lstlisting}
+res <- calculate_ley73_pension(266.67, 1252, 65)
+stopifnot(res$aplico_minimo == TRUE)
+stopifnot(abs(res$pension_mensual - 8485.98) < 1)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Caso de Validaci\'on 2: Ley 73, Salario Medio a los 60}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Par\'ametros:} $\overline{\text{SBC}}_d = \$500$, $W = 1{,}800$, $a = 60$.
+
+\begin{align}
+G &= 500/278.80 = 1.7935 \\
+(c, \delta) &= (0.4267, 0.01615) \\
+n_{\text{incr}} &= \lfloor 1300/52 \rfloor = 25 \\
+\pi &= \min(0.4267 + 0.40375, 1.0) = 0.83045 \\
+f(60) &= 0.75 \\
+P_m &= 500 \times 0.83045 \times 0.75 \times 30.4375 = \boxed{\$9{,}478.80}
+\end{align}
+
+\textbf{Verificaci\'on:} Por encima del m\'inimo. Tasa de reemplazo $= 9{,}478.80 / 15{,}218.75 = 62.3\%$.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El factor de cesant\'ia ($f = 0.75$) reduce significativamente la pensi\'on. A los 65, este mismo trabajador recibir\'ia $\$12{,}638.40$, un 33.3\% m\'as.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\begin{lstlisting}
+res <- calculate_ley73_pension(500, 1800, 60)
+stopifnot(res$elegible == TRUE)
+stopifnot(res$factor_edad == 0.75)
+stopifnot(abs(res$pension_mensual - 9478.80) < 5)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Caso de Validaci\'on 3: Ley 97 con Aportaciones Voluntarias}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Par\'ametros:} $S_0 = \$300{,}000$, salario $= \$15{,}000$, edad $35 \to 65$, $W_0 = 600$, hombre, XXI Banorte, base.
+
+\textbf{Sin voluntarias:}
+\begin{align}
+r_n = 0.0349, \quad r_m = 0.002862, \quad n = 30, \quad m = 360 \\
+A_{\text{oblig}} = \$1{,}365, \quad \FV_{\text{saldo}} = \$836{,}220 \\
+\FV_{\text{aport}} = 1{,}365 \times 629.52 = \$859{,}295 \\
+S_{\text{final}} = \$1{,}695{,}515, \quad P = \$8{,}311.35 < P_{\min}^{97} \\
+P_{\text{final}} = \boxed{\$8{,}598.65 \text{ (m\'inimo)}}
+\end{align}
+
+\textbf{Con \$2,000 voluntarias:}
+\begin{align}
+A_{\text{total}} = 3{,}365, \quad \FV_{\text{aport}} = \$2{,}118{,}335 \\
+S_{\text{final}} = \$2{,}954{,}555, \quad P = \$14{,}483.11 > P_{\min}^{97} \\
+P_{\text{final}} = \boxed{\$14{,}483.11}
+\end{align}
+
+\textbf{Fondo Bienestar (sin voluntarias):}
+\begin{align}
+\text{Elegible:} \quad &\text{ley97} \checkmark, \; 65 \checkmark, \; 2{,}160 \geq 1{,}000 \checkmark, \; 15{,}000 \leq 17{,}364 \checkmark \\
+\text{Complemento} &= \max(0, 15{,}000 - 8{,}598.65) = \$6{,}401.35 \\
+P_{\text{total}} &= \$15{,}000.00
+\end{align}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Este caso demuestra los tres escenarios del simulador:
+\begin{enumerate}
+  \item Sin nada: pensi\'on m\'inima de \$8,599
+  \item Con Fondo: sube a \$15,000 (100\% de reemplazo)
+  \item Con voluntarias: AFORE sola da \$14,483 (casi llega sin el Fondo)
+\end{enumerate}
+
+La lecci\'on: las aportaciones voluntarias dan independencia del programa gubernamental.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\begin{lstlisting}
+res <- calculate_pension_with_fondo(
+  saldo_actual = 300000, salario_mensual = 15000,
+  edad_actual = 35, edad_retiro = 65,
+  semanas_actuales = 600, genero = "M",
+  aportacion_voluntaria = 2000,
+  afore_nombre = "XXI Banorte", escenario = "base")
+
+stopifnot(res$fondo_bienestar$elegible == TRUE)
+stopifnot(res$solo_sistema$aplico_minimo == TRUE)
+stopifnot(res$con_acciones$aplico_minimo == FALSE)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Caso de Validaci\'on 4: Salario Alto, No Elegible para Fondo}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Par\'ametros:} Salario $= \$50{,}000$/mes $> U = \$17{,}364$.
+
+\begin{align}
+C_4: \quad 50{,}000 &\leq 17{,}364 \quad \Rightarrow \quad \text{FALSE} \\
+\text{elegible} &= C_1 \wedge C_2 \wedge C_3 \wedge \underbrace{C_4}_{\text{FALSE}} = \text{FALSE}
+\end{align}
+
+\textbf{Resultado:} Complemento $= \$0$. La pensi\'on depende exclusivamente del saldo AFORE.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Trabajadores de altos ingresos est\'an excluidos del Fondo Bienestar por dise\~no. Su pensi\'on depende \'unicamente de lo que acumulen en su AFORE. Para ellos, las aportaciones voluntarias y la elecci\'on de AFORE son a\'un m\'as cr\'iticas.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\begin{lstlisting}
+elig <- check_fondo_eligibility(
+  regimen = "ley97", edad = 65, semanas = 2000,
+  sbc_promedio_mensual = 50000)
+stopifnot(elig$elegible == FALSE)
+stopifnot(grepl("supera", elig$razon_no_elegible))
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Caso de Validaci\'on 5: Retiro a los 60 (No Elegible por Edad)}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Par\'ametros:} Mismos que Caso 3, pero retiro a los 60 con AFORE Coppel.
+
+\begin{align}
+C_2: \quad 60 &\geq 65 \quad \Rightarrow \quad \text{FALSE} \\
+\text{elegible} &= \text{FALSE}
+\end{align}
+
+El retiro anticipado sacrifica:
+\begin{enumerate}
+  \item Acceso al Fondo Bienestar (requiere 65)
+  \item 5 a\~nos menos de acumulaci\'on
+  \item Mayor esperanza de vida al dividir el saldo ($\mathring{e}_{60,M} = 21.0$ vs $\mathring{e}_{65,M} = 17.0$)
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Retirarse 5 a\~nos antes tiene un impacto triple negativo en Ley 97:
+\begin{itemize}
+  \item Menos a\~nos de ahorro $\to$ menor saldo
+  \item Divides entre m\'as meses $\to$ menor pensi\'on mensual
+  \item Pierdes el Fondo Bienestar $\to$ sin complemento
+\end{itemize}
+
+Para Ley 73, el efecto es ``solo'' el factor de cesant\'ia (25\% menos), pero para Ley 97 el impacto combinado puede ser devastador.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\begin{lstlisting}
+elig <- check_fondo_eligibility(
+  regimen = "ley97", edad = 60, semanas = 2000,
+  sbc_promedio_mensual = 15000)
+stopifnot(elig$elegible == FALSE)
+stopifnot(elig$checks$edad_minima$cumple == FALSE)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Estructura del Suite de Pruebas Unitarias}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+El suite de pruebas (\texttt{tests/testthat/test\_calculations.R}) contiene 103 pruebas organizadas en 14 secciones:
+
+\begin{center}
+\small
+\begin{longtable}{clcl}
+\toprule
+Secci\'on & Funci\'on & Tests & Cobertura \\
+\midrule
+\endhead
+A & \texttt{lookup\_articulo\_167} & 6 & Rangos, bordes, extremos \\
+B & \texttt{calculate\_ley73\_pension} & 10 & Elegibilidad, m\'inimo, cesant\'ia \\
+C & \texttt{project\_afore\_balance} & 7 & FV, trayectoria, r=0 \\
+D & \texttt{calculate\_aportacion\_obligatoria} & 6 & Tasas, tope, a\~nos \\
+E & \texttt{calculate\_retiro\_programado} & 6 & M\'inima, g\'enero \\
+F & \texttt{calculate\_ley97\_pension} & 6 & Pipeline completo \\
+G & \texttt{calculate\_modalidad\_40} & 7 & Costo, promedio, break-even \\
+H & \texttt{check\_fondo\_eligibility} & 8 & 4 condiciones, bordes \\
+I & \texttt{calculate\_fondo\_complement} & 4 & Complemento, tope \\
+J & \texttt{calculate\_pension\_with\_fondo} & 4 & 3 escenarios integrados \\
+K & Funciones auxiliares & 12 & Mortalidad, validaci\'on, UMA \\
+L & Sensibilidad & 8 & Monoton\'ia, convergencia \\
+M & Pipeline completo & 16 & Perfiles reales end-to-end \\
+N & \texttt{validar\_consistencia\_fechas} & 3 & Consistencia edad-fecha \\
+\midrule
+& \textbf{Total} & \textbf{103} & \\
+\bottomrule
+\end{longtable}
+\end{center}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La estructura de pruebas sigue una pir\'amide:
+\begin{enumerate}
+  \item \textbf{Base (A-E):} Funciones at\'omicas individuales
+  \item \textbf{Medio (F-I):} Composiciones de funciones
+  \item \textbf{Cima (J-M):} Pipelines completos end-to-end
+  \item \textbf{Especiales (L, N):} Propiedades matem\'aticas (monoton\'ia, consistencia)
+\end{enumerate}
+
+Las pruebas de monoton\'ia (secci\'on L) son particularmente valiosas: verifican que m\'as aportaciones $\to$ m\'as pensi\'on, m\'as semanas $\to$ m\'as pensi\'on, etc. Estas propiedades deben mantenerse independientemente de los valores espec\'ificos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Ejecutar el suite completo:
+\begin{lstlisting}
+Rscript tests/testthat.R
+\end{lstlisting}
+
+Helper personalizado para ignorar atributos de nombres en vectores R:
+\begin{lstlisting}
+# Definido en test_calculations.R
+expect_num <- function(object, expected, ...) {
+  expect_equal(unname(object), expected, ...)
+}
+\end{lstlisting}
+
+Ejemplo de prueba de monoton\'ia (secci\'on L):
+\begin{lstlisting}
+# Mas semanas -> mayor pension
+res_low <- calculate_ley73_pension(500, 800, 65)
+res_high <- calculate_ley73_pension(500, 1500, 65)
+expect_true(res_high$pension_mensual >=
+            res_low$pension_mensual)
+\end{lstlisting}
+\end{tcolorbox}
+
+% ============================================================================
+\section{Resumen de Constantes Regulatorias 2025}
+% ============================================================================
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\begin{center}
+\begin{longtable}{llrl}
+\toprule
+Constante & Variable R & Valor & Fuente \\
+\midrule
+\endhead
+UMA diaria & \texttt{UMA\_DIARIA\_2025} & \$113.14 & INEGI/DOF \\
+UMA mensual & \texttt{UMA\_MENSUAL\_2025} & \$3,439.46 & Calculado \\
+SM diario & \texttt{SM\_DIARIO\_2025} & \$278.80 & CONASAMI \\
+SM mensual & \texttt{SM\_MENSUAL\_2025} & \$8,474.52 & Calculado \\
+Umbral Fondo & \texttt{UMBRAL\_FONDO\_2025} & \$17,364 & DOF/IMSS \\
+Tope SBC diario & \texttt{TOPE\_SBC\_DIARIO} & \$2,828.50 & 25 $\times$ UMA \\
+D\'ias/mes & \texttt{DIAS\_POR\_MES} & 30.4375 & 365.25/12 \\
+Rend. conservador & \texttt{RENDIMIENTO\_CONSERVADOR} & 3\% & -- \\
+Rend. base & \texttt{RENDIMIENTO\_BASE} & 4\% & -- \\
+Rend. optimista & \texttt{RENDIMIENTO\_OPTIMISTA} & 5\% & -- \\
+Pens. m\'in Ley 73 & -- & \$8,485.98 & SM $\times$ D \\
+Pens. m\'in Ley 97 & -- & \$8,598.65 & 2.5 $\times$ UMA$_m$ \\
+Tasa M40 & -- & 10.075\% & LSS \\
+Tasa total 2025 & -- & 9.10\% & Reforma \\
+\bottomrule
+\end{longtable}
+\end{center}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Dos observaciones importantes sobre las constantes:
+\begin{enumerate}
+  \item La pensi\'on m\'inima de Ley 97 (\$8,598.65) es \textbf{mayor} que la de Ley 73 (\$8,485.98) porque se calcula con UMAs (que crecen m\'as r\'apido que el SM).
+  \item El tope de cotizaci\'on limita las aportaciones para salarios superiores a $\approx$\$85K/mes, pero no limita las aportaciones \textbf{voluntarias}.
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Todas las constantes se definen en \texttt{global.R}, l\'ineas 43--74, usando asignaci\'on global (\texttt{<<-}) para que sean accesibles en el scope de Shiny:
+\begin{lstlisting}
+ANIO_ACTUAL <<- 2025
+UMA_DIARIA_2025 <<- 113.14
+UMA_MENSUAL_2025 <<- 3439.46
+SM_DIARIO_2025 <<- 278.80
+SM_MENSUAL_2025 <<- 8474.52
+UMBRAL_FONDO_BIENESTAR_2025 <<- 17364
+TOPE_SBC_DIARIO <<- UMA_DIARIA_2025 * 25
+RENDIMIENTO_CONSERVADOR <<- 0.03
+RENDIMIENTO_BASE <<- 0.04
+RENDIMIENTO_OPTIMISTA <<- 0.05
+FACTORES_CESANTIA <<- c(
+  "60"=0.75, "61"=0.80, "62"=0.85,
+  "63"=0.90, "64"=0.95, "65"=1.00)
+\end{lstlisting}
+\end{tcolorbox}
+
+\end{document}

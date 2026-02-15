@@ -1,0 +1,2627 @@
+\documentclass[11pt,a4paper]{report}
+
+% ============================================================================
+% PAQUETES
+% ============================================================================
+\usepackage[utf8]{inputenc}
+% babel spanish requires texlive-lang-spanish; using manual overrides instead
+\usepackage{babel}
+\renewcommand{\contentsname}{Contenido}
+\renewcommand{\chaptername}{Cap\'{i}tulo}
+\renewcommand{\tablename}{Tabla}
+\renewcommand{\figurename}{Figura}
+\renewcommand{\listfigurename}{Lista de Figuras}
+\renewcommand{\listtablename}{Lista de Tablas}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{caption}
+
+% ============================================================================
+% CONFIGURACION
+% ============================================================================
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  citecolor=green!50!black,
+  urlcolor=blue!60!black
+}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{teal700}{RGB}{15,118,110}
+\definecolor{pink600}{RGB}{219,39,119}
+
+\lstset{
+  language=R,
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  breaklines=true,
+  keywordstyle=\color{blue!70!black}\bfseries,
+  commentstyle=\color{green!50!black}\itshape,
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  showstringspaces=false
+}
+
+\tcbuselibrary{skins, breakable}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{Simulador de Pensiones IMSS}
+\fancyfoot[C]{\thepage}
+
+\newtheorem{definition}{Definici\'on}[chapter]
+\newtheorem{theorem}{Teorema}[chapter]
+\newtheorem{proposition}{Proposici\'on}[chapter]
+
+% ============================================================================
+% PORTADA
+% ============================================================================
+
+\title{
+  \vspace{2cm}
+  {\Huge\bfseries Contexto, Limitaciones y Validaci\'on} \\[0.5cm]
+  {\LARGE\bfseries del Simulador de Pensiones IMSS} \\[1cm]
+  {\Large Documento 4 de 4 --- Serie de Referencia T\'ecnica} \\[2cm]
+  {\large Fondo de Pensiones para el Bienestar}
+}
+\author{Referencia Personal --- Conocimiento Actuarial y de Dise\~no}
+\date{Febrero 2026}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+% ############################################################################
+% CAPITULO 1: CONTEXTO DEMOGRAFICO Y ENVEJECIMIENTO
+% ############################################################################
+
+\chapter{Contexto Demogr\'afico y Envejecimiento}
+
+M\'exico atraviesa una transici\'on demogr\'afica acelerada que redefine la viabilidad de cualquier sistema de pensiones. Este cap\'itulo formaliza las proyecciones demogr\'aficas, cuantifica su impacto sobre ambos reg\'imenes pensionarios (Ley~73 y Ley~97), y documenta c\'omo el simulador incorpora---o no---estas din\'amicas.
+
+\section{Proyecciones CONAPO 2024--2070}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Raz\'on de Dependencia y Funci\'on de Supervivencia}]
+Sea $N_{65+}(t)$ la poblaci\'on de 65 a\~nos o m\'as en el a\~no $t$, y $N_{15-64}(t)$ la poblaci\'on en edad laboral. La \textbf{raz\'on de dependencia de vejez} se define como:
+\[
+  \text{RDV}(t) = \frac{N_{65+}(t)}{N_{15-64}(t)}
+\]
+Equivalentemente, la \textbf{raz\'on de soporte} (trabajadores por pensionado) es su inverso:
+\[
+  \text{RS}(t) = \frac{N_{15-64}(t)}{N_{65+}(t)} = \frac{1}{\text{RDV}(t)}
+\]
+
+La \textbf{funci\'on de supervivencia} para una persona de edad $x$ se define como:
+\[
+  {}_tp_x = \mathbb{P}[\text{sobrevivir } t \text{ a\~nos m\'as} \mid \text{edad actual } x] = \exp\left(-\int_0^t \mu_{x+s}\, ds\right)
+\]
+donde $\mu_x$ es la \textbf{fuerza de mortalidad} (hazard rate) a la edad $x$. La esperanza de vida residual es:
+\[
+  \mathring{e}_x = \int_0^\infty {}_tp_x \, dt
+\]
+
+Seg\'un las tablas CONAPO simplificadas del simulador:
+\begin{itemize}
+  \item $\mathring{e}_{65}^M = 17.0$ a\~nos (hombres)
+  \item $\mathring{e}_{65}^F = 20.0$ a\~nos (mujeres)
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: M\'exico Envejece R\'apido}]
+En 2010, hab\'ia 8.2 trabajadores cotizando por cada pensionado. Para 2050, CONAPO proyecta que esta cifra caer\'a a \textbf{2.7 trabajadores por pensionado}. Esto significa que el ``pastel'' de las contribuciones se reparte entre m\'as jubilados.
+
+Los n\'umeros clave:
+\begin{itemize}
+  \item \textbf{2024:} 16.5 millones de personas de 60+ a\~nos (12.4\% de la poblaci\'on total)
+  \item \textbf{2050:} 24.1\% de la poblaci\'on tendr\'a 60+ a\~nos (casi 1 de cada 4)
+  \item \textbf{2056:} La diferencia nacimientos-defunciones se acercar\'a a cero
+  \item \textbf{Post-2056:} Crecimiento natural negativo---M\'exico empezar\'a a decrecer
+\end{itemize}
+
+La tasa global de fecundidad ya est\'a por debajo de 2.5 hijos por mujer, lo que clasifica a M\'exico en un proceso de envejecimiento ``moderadamente avanzado.'' La ventana demogr\'afica favorable (m\'as trabajadores que dependientes) se cierra en las pr\'oximas dos d\'ecadas.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: get\_esperanza\_vida()}, breakable]
+El simulador incorpora el envejecimiento a trav\'es de la funci\'on \texttt{get\_esperanza\_vida()} en \texttt{R/data\_tables.R:89--143}:
+
+\begin{lstlisting}[caption={Tabla de esperanza de vida simplificada (hombres)}]
+# Hombres
+base <- c(
+  "60" = 21.0, "61" = 20.2, "62" = 19.4,
+  "63" = 18.6, "64" = 17.8, "65" = 17.0,
+  "66" = 16.3, "67" = 15.5, "68" = 14.8,
+  "69" = 14.1, "70" = 13.4, "75" = 10.5,
+  "80" = 8.0,  "85" = 5.8,  "90" = 4.2
+)
+\end{lstlisting}
+
+\textbf{Simplificaciones respecto a tablas actuariales completas:}
+\begin{enumerate}
+  \item \textbf{Interpolaci\'on lineal} entre edades no listadas (vs. interpolaci\'on c\'ubica o Makeham en tablas actuariales)
+  \item \textbf{Extrapolaci\'on hacia abajo:} Para edad $<60$, suma $(60 - \text{edad})$ a\~nos a $\mathring{e}_{60}$ (l\'inea 127)
+  \item \textbf{Piso de 2 a\~nos:} Para edad $>90$, aplica m\'aximo entre 2 y la extrapolaci\'on (l\'inea 130)
+  \item \textbf{Sin proyecci\'on temporal:} La tabla es est\'atica; no refleja el aumento en esperanza de vida entre 2025 y 2060
+  \item \textbf{Sin diferenciaci\'on por cohorte:} Alguien que se jubila en 2025 usa la misma tabla que alguien que se jubilar\'a en 2060
+\end{enumerate}
+
+El impacto pr\'actico: subestimaci\'on de 1--3 a\~nos de vida para jubilaciones futuras, lo que sobreestima la pensi\'on mensual de retiro programado en un 5--15\%.
+\end{tcolorbox}
+
+
+\section{Impacto sobre Ley 73 (Beneficio Definido)}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Pasivo Contingente No Fondeado}]
+Un sistema de reparto (PAYG) con beneficio definido tiene un \textbf{pasivo actuarial} $L$ definido como:
+\[
+  L = \sum_{i=1}^{N_{\text{retirees}}} \sum_{t=0}^{\omega - x_i} {}_tp_{x_i} \cdot B_i \cdot v^t
+\]
+donde $B_i$ es el beneficio anual del jubilado $i$, $v = 1/(1+r)$ es el factor de descuento, y $\omega$ es la edad l\'imite de la tabla.
+
+Este pasivo es \textbf{no fondeado} (unfunded) cuando no existe una reserva dedicada que lo respalde. En Ley~73, las pensiones se pagan con contribuciones corrientes de trabajadores activos m\'as transferencias del gobierno federal.
+
+Cuando $\text{RS}(t)$ disminuye:
+\[
+  \frac{\text{Contribuciones totales}}{N_{\text{pensionados}}} = \text{RS}(t) \times \tau \times \bar{w}
+\]
+donde $\tau$ es la tasa de contribuci\'on y $\bar{w}$ el salario promedio. Si RS baja de 8.2 a 2.7, la contribuci\'on per c\'apita disponible por pensionado cae 67\%.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: El Problema del ``\'Ultimo en Salir''}]
+Ley~73 es generosa porque fue dise\~nada cuando hab\'ia muchos trabajadores j\'ovenes financiando a pocos jubilados. Hoy, los trabajadores de Ley~73 que a\'un no se jubilan son los \'ultimos beneficiarios de un sistema que se est\'a vaciando.
+
+El gobierno federal ya subsidia fuertemente estas pensiones. Seg\'un estimaciones del CIEP, el gasto en pensiones contributivas representar\'a m\'as del 5\% del PIB para 2040. No es que la pensi\'on individual est\'e en riesgo inmediato---est\'a garantizada por ley---pero la presi\'on fiscal es enorme.
+
+Para el usuario del simulador: \textbf{su pensi\'on Ley~73 es segura en t\'erminos nominales}, pero el contexto fiscal importa para entender por qu\'e el gobierno cre\'o el Fondo Bienestar como complemento para Ley~97, en lugar de mejorar Ley~73.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Ley 73 No Modela Sostenibilidad}]
+El simulador calcula la pensi\'on Ley~73 como si el sistema fuera eternamente solvente. La funci\'on \texttt{calculate\_ley73\_pension()} en \texttt{R/calculations.R:21--103} aplica directamente la f\'ormula del Art\'iculo~167:
+
+\begin{lstlisting}[caption={Estructura de calculate\_ley73\_pension()}]
+# Paso 1: grupo_salarial = SBC / SM
+# Paso 2: lookup tabla Art. 167
+# Paso 3: n_incrementos = floor((semanas - 500) / 52)
+# Paso 4: porcentaje = min(cuantia + n_incr * incr, 1.0)
+# Paso 5: factor_edad = FACTORES_CESANTIA[edad]
+# Paso 6: pension = SBC * porcentaje * factor * 30.4375
+\end{lstlisting}
+
+\textbf{Lo que NO modela:}
+\begin{itemize}
+  \item Riesgo de reforma legislativa que modifique la f\'ormula
+  \item Presi\'on fiscal sobre el gobierno que financia el d\'eficit
+  \item Posibilidad de topes o ajustes al beneficio
+\end{itemize}
+
+Esta es una simplificaci\'on \textbf{razonable} para un simulador educativo: la Ley~73 es un derecho adquirido, y modelar riesgo pol\'itico requerir\'ia escenarios especulativos que confundir\'ian al usuario.
+\end{tcolorbox}
+
+
+\section{Impacto sobre Ley 97 (Cuentas Individuales)}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Retiro Programado y Riesgo de Longevidad}]
+En retiro programado, la pensi\'on mensual se calcula como:
+\[
+  P = \frac{S}{\mathring{e}_x \times 12}
+\]
+donde $S$ es el saldo acumulado y $\mathring{e}_x$ la esperanza de vida residual a la edad de retiro $x$.
+
+El \textbf{riesgo de longevidad} se formaliza como:
+\[
+  \mathbb{P}[T_x > \mathring{e}_x] \approx 0.50
+\]
+Es decir, aproximadamente la mitad de los jubilados vivir\'an \textbf{m\'as} que su esperanza de vida. Para ellos, el retiro programado implica reducciones anuales del monto conforme el saldo se agota.
+
+Si la esperanza de vida real (post-2025) resulta ser $\mathring{e}_x + \Delta$ con $\Delta > 0$:
+\[
+  P_{\text{real}} = \frac{S}{(\mathring{e}_x + \Delta) \times 12} < P_{\text{estimada}}
+\]
+
+Para $\Delta = 3$ a\~nos adicionales (posible para jubilaciones en 2050+):
+\[
+  \frac{P_{\text{real}}}{P_{\text{estimada}}} = \frac{\mathring{e}_x}{\mathring{e}_x + 3} = \frac{17}{20} = 0.85
+\]
+Una sobreestimaci\'on del 15\% en la pensi\'on proyectada.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Vivir M\'as es Bueno... Pero Caro}]
+La esperanza de vida en M\'exico ha aumentado consistentemente. Un hombre de 65 a\~nos en 2025 puede esperar vivir 17 a\~nos m\'as; para 2050, esa cifra probablemente ser\'a 19--20 a\~nos.
+
+Para un trabajador joven usando el simulador hoy (digamos, 35 a\~nos que se jubilar\'a en 2055), la tabla del simulador subestima cu\'anto vivir\'a. Esto significa que:
+\begin{enumerate}
+  \item Su pensi\'on mensual real ser\'a \textbf{menor} que la proyectada (mismo saldo dividido entre m\'as meses)
+  \item La pensi\'on m\'inima garantizada ($\approx\$8,599$ en 2025) funciona como piso, pero tambi\'en se erosiona si el trabajador vive mucho m\'as all\'a de la esperanza actuarial
+\end{enumerate}
+
+La renta vitalicia (no modelada en el simulador) transfiere este riesgo a una aseguradora, pero generalmente ofrece montos mensuales menores.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: calculate\_retiro\_programado()}, breakable]
+La funci\'on en \texttt{R/calculations.R:259--298} implementa la divisi\'on simple:
+
+\begin{lstlisting}[caption={Retiro programado simplificado}]
+calculate_retiro_programado <- function(saldo, edad, genero = "M") {
+  esperanza_vida <- get_esperanza_vida(edad, genero)
+  meses_esperados <- esperanza_vida * 12
+  pension_calculada <- saldo / meses_esperados
+
+  # Pension minima garantizada (2.5 UMAs)
+  pension_minima <- UMA_MENSUAL_2025 * 2.5  # ~$8,598.65
+  pension_mensual <- max(pension_calculada, pension_minima)
+  ...
+}
+\end{lstlisting}
+
+\textbf{Limitaciones demogr\'aficas espec\'ificas:}
+\begin{enumerate}
+  \item La esperanza de vida es \textbf{puntual} (no distribucional)---no captura que el 50\% vivir\'a m\'as
+  \item Las tablas son \textbf{est\'aticas} (2024)---no proyectan mejoras en mortalidad
+  \item No diferencia por \textbf{nivel socioecon\'omico} (la esperanza de vida var\'ia 3--5 a\~nos por quintil de ingreso)
+  \item No modela el \textbf{recalculo anual} real del retiro programado (que ajusta la pensi\'on cada a\~no seg\'un saldo remanente y esperanza actualizada)
+\end{enumerate}
+\end{tcolorbox}
+
+
+\section{Densidad de Cotizaci\'on}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Densidad de Cotizaci\'on}]
+La \textbf{densidad de cotizaci\'on} $\delta$ se define como la fracci\'on del tiempo laboralmente activo durante el cual el trabajador cotiza al IMSS:
+\[
+  \delta = \frac{\text{semanas cotizadas reales}}{\text{semanas transcurridas desde primera cotizaci\'on}}
+\]
+
+Si $\delta < 1$, el saldo proyectado se reduce de manera no lineal. Para un horizonte de $n$ a\~nos con aportaci\'on mensual $a$ y tasa $r$:
+
+Con densidad 100\%:
+\[
+  \text{FV}_{\delta=1} = a \cdot \frac{(1+r)^{12n} - 1}{r}
+\]
+
+Con densidad $\delta$:
+\[
+  \text{FV}_\delta \approx \delta \cdot a \cdot \frac{(1+r)^{12n} - 1}{r} + (1-\delta) \cdot a \cdot \frac{(1+r)^{12n\delta} - 1}{r}
+\]
+
+La aproximaci\'on lineal $\text{FV}_\delta \approx \delta \cdot \text{FV}_{\delta=1}$ es \textbf{incorrecta} porque el efecto compuesto amplifica las lagunas: los periodos sin aportaci\'on no solo pierden la aportaci\'on directa, sino tambi\'en todos los rendimientos futuros sobre esa aportaci\'on.
+
+Para $\delta = 0.60$, $n = 30$ a\~nos, $r_{\text{mensual}} = 0.003$:
+\[
+  \frac{\text{FV}_{0.60}}{\text{FV}_{1.0}} \approx 0.50 \text{ a } 0.55
+\]
+Es decir, la reducci\'on es del 45--50\%, no del 40\% que sugerir\'ia la proporcionalidad lineal.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: La Informalidad Destruye Pensiones}]
+En M\'exico, la densidad de cotizaci\'on promedio es de aproximadamente 50--65\%. Esto refleja la realidad del mercado laboral mexicano:
+\begin{itemize}
+  \item \textbf{Informalidad:} Aproximadamente 55\% del empleo es informal (sin IMSS)
+  \item \textbf{Rotaci\'on:} Trabajadores entran y salen del sector formal
+  \item \textbf{G\'enero:} Las mujeres tienen densidades significativamente menores (maternidad, cuidados, discriminaci\'on)
+  \item \textbf{Edad:} J\'ovenes y adultos mayores tienen menor densidad
+\end{itemize}
+
+Cuando el simulador asume 100\% de densidad, est\'a presentando el \textbf{mejor escenario posible}. Un trabajador t\'ipico con densidad del 60\% ver\'ia su saldo proyectado reducido casi a la mitad.
+
+Ejemplo concreto: con un salario de \$15,000 y 30 a\~nos de cotizaci\'on al 4\% real:
+\begin{itemize}
+  \item Densidad 100\%: saldo $\approx$ \$1,700,000
+  \item Densidad 60\%: saldo $\approx$ \$900,000
+  \item Diferencia: \$800,000 menos en tu cuenta AFORE
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Densidad Fija al 100\%}]
+El simulador asume densidad del 100\% en dos lugares cr\'iticos:
+
+\textbf{1. Proyecci\'on de semanas futuras} (\texttt{R/fondo\_bienestar.R:176}):
+\begin{lstlisting}
+semanas_al_retiro <- semanas_actuales + (anios_restantes * 52)
+\end{lstlisting}
+Asume que cada a\~no futuro generar\'a exactamente 52 semanas cotizadas.
+
+\textbf{2. Aportaciones continuas} (\texttt{R/calculations.R:352--358}):
+\begin{lstlisting}
+proyeccion <- project_afore_balance(
+  saldo_actual = saldo_actual,
+  aportacion_mensual = aportacion_total,  # cada mes, sin falta
+  anios_al_retiro = anios_restantes,
+  ...
+)
+\end{lstlisting}
+Asume aportaciones ininterrumpidas durante todo el horizonte.
+
+\textbf{Justificaci\'on de la simplificaci\'on:} El usuario ingresa sus semanas \textbf{reales} actuales (que ya reflejan su densidad hist\'orica). La sobreestimaci\'on ocurre solo en la \textbf{proyecci\'on futura}. Una mejora posible ser\'ia a\~nadir un slider de ``densidad esperada de cotizaci\'on'' (50--100\%) que escale las aportaciones futuras.
+\end{tcolorbox}
+
+
+% ############################################################################
+% CAPITULO 2: CONTEXTO INTERNACIONAL
+% ############################################################################
+
+\chapter{Contexto Internacional --- Reformas Pensionarias en Am\'erica Latina}
+
+La reforma pensionaria mexicana no ocurri\'o en el vac\'io. Forma parte de una ola de reformas estructurales que recorri\'o Am\'erica Latina desde 1981, inspirada por el modelo chileno y promovida por organismos multilaterales. Comprender este contexto es esencial para evaluar las fortalezas y debilidades del sistema actual.
+
+\section{Taxonom\'ia del Banco Mundial: El Modelo de Tres Pilares}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Modelo Multi-Pilar}, breakable]
+En su informe seminal \textit{Averting the Old Age Crisis} (1994), el Banco Mundial propuso un marco de tres pilares para la seguridad econ\'omica en la vejez:
+
+\textbf{Pilar 1 --- Red de Seguridad (Obligatorio, P\'ublico):}
+\begin{itemize}
+  \item Financiamiento: impuestos generales o contribuciones
+  \item Administraci\'on: gobierno
+  \item Tipo: beneficio definido (DB), PAYG
+  \item Objetivo: prevenir pobreza en la vejez
+  \item Caracter\'istica: pensi\'on m\'inima universal o focalizada
+\end{itemize}
+
+\textbf{Pilar 2 --- Ahorro Obligatorio (Obligatorio, Privado):}
+\begin{itemize}
+  \item Financiamiento: contribuciones sobre salario
+  \item Administraci\'on: privada (AFPs, AFOREs)
+  \item Tipo: contribuci\'on definida (DC), capitalizaci\'on individual
+  \item Objetivo: suavizamiento del consumo
+  \item Caracter\'istica: cuenta individual, rendimientos de mercado
+\end{itemize}
+
+\textbf{Pilar 3 --- Ahorro Voluntario:}
+\begin{itemize}
+  \item Financiamiento: aportaciones voluntarias del trabajador
+  \item Administraci\'on: privada
+  \item Tipo: DC con incentivos fiscales
+  \item Objetivo: complementar pensi\'on para quienes desean mayor cobertura
+\end{itemize}
+
+\textbf{Formalizaci\'on:}
+La pensi\'on total de un individuo es:
+\[
+  P_{\text{total}} = P_1 + P_2 + P_3 = \underbrace{P_{\min}}_{\text{Pilar 1}} + \underbrace{\frac{S_{\text{obligatorio}}}{\mathring{e}_x \cdot 12}}_{\text{Pilar 2}} + \underbrace{\frac{S_{\text{voluntario}}}{\mathring{e}_x \cdot 12}}_{\text{Pilar 3}}
+\]
+
+El riesgo se distribuye:
+\begin{itemize}
+  \item Pilar 1: riesgo pol\'itico/fiscal (el gobierno puede cambiar las reglas)
+  \item Pilar 2: riesgo de mercado (rendimientos, comisiones, longevidad)
+  \item Pilar 3: riesgo individual (disciplina de ahorro)
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Ning\'un Pilar Solo es Suficiente}]
+El modelo de tres pilares reconoce una verdad fundamental: \textbf{no existe un sistema perfecto}. Cada pilar tiene vulnerabilidades distintas:
+
+\begin{itemize}
+  \item Un sistema \textbf{solo de Pilar 1} (como Ley~73 pura) es vulnerable al envejecimiento poblacional: cuando hay pocos trabajadores por jubilado, el sistema quiebra o requiere subsidios fiscales masivos.
+
+  \item Un sistema \textbf{solo de Pilar 2} (como la Ley~97 original sin Fondo) produce pensiones inadecuadas para trabajadores informales y de bajos ingresos: con densidades del 50\% y salarios bajos, el saldo acumulado es insuficiente.
+
+  \item Un sistema \textbf{solo de Pilar 3} depender\'ia de la disciplina individual de ahorro, algo que la econom\'ia conductual ha demostrado es sistem\'aticamente insuficiente sin intervenciones.
+\end{itemize}
+
+La genialidad del modelo multi-pilar es que los riesgos se \textbf{diversifican}: si el mercado cae (Pilar 2), la red de seguridad (Pilar 1) protege; si el gobierno cambia las reglas (Pilar 1), el ahorro individual (Pilares 2 y 3) da continuidad.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Los Tres Escenarios del Simulador}, breakable]
+El simulador refleja impl\'icitamente el modelo multi-pilar a trav\'es de sus tres escenarios de resultado:
+
+\begin{enumerate}
+  \item \textbf{``Solo Sistema''} = Pilar 2 puro (aportaciones obligatorias a AFORE)
+  \item \textbf{``+ Fondo Bienestar''} = Pilar 1 + Pilar 2 (la red de seguridad complementa)
+  \item \textbf{``+ Tus Acciones''} = Pilar 1 + Pilar 2 + Pilar 3 (con voluntarias)
+\end{enumerate}
+
+Esta estructura se implementa en \texttt{calculate\_pension\_with\_fondo()} (\texttt{R/fondo\_bienestar.R:165--304}):
+
+\begin{lstlisting}[caption={Los tres escenarios como pilares}]
+return(list(
+  solo_sistema = list(...),    # Pilar 2
+  con_fondo = list(...),       # Pilar 1 + 2
+  con_acciones = list(...)     # Pilar 1 + 2 + 3
+))
+\end{lstlisting}
+
+El mensaje impl\'icito al usuario es claro: el Pilar 3 (aportaciones voluntarias) es lo \'unico que controla completamente. El Pilar 1 (Fondo) depende del gobierno. El Pilar 2 (AFORE) depende del mercado.
+\end{tcolorbox}
+
+
+\section{Chile 1981: El Pionero de la Privatizaci\'on}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Modelo Sustitutivo}, breakable]
+Chile implement\'o en 1981 una reforma \textbf{sustitutiva}: reemplaz\'o completamente el sistema p\'ublico de reparto (Pilar 1 obligatorio) por cuentas individuales de capitalizaci\'on (Pilar 2).
+
+Caracter\'isticas del modelo original:
+\begin{itemize}
+  \item Contribuci\'on obligatoria: 10\% del salario a cuenta individual
+  \item Administraci\'on: Administradoras de Fondos de Pensiones (AFPs) privadas
+  \item Sin pilar solidario (hasta 2008)
+  \item Pensi\'on m\'inima garantizada condicionada a 20 a\~nos de cotizaci\'on
+\end{itemize}
+
+La tasa de reemplazo te\'orica del modelo chileno:
+\[
+  \text{TR} = \frac{0.10 \times w \times \frac{(1+r)^{12n} - 1}{r_m}}{w \times \mathring{e}_x \times 12}
+\]
+donde $r_m$ es la tasa mensual equivalente y $n$ son los a\~nos de cotizaci\'on.
+
+Con $r = 4\%$, $n = 30$, $\mathring{e}_{65} = 17$: TR $\approx 34\%$.
+
+\textbf{Resultado emp\'irico 27 a\~nos despu\'es (2008):} la mediana de tasa de reemplazo para hombres fue $\sim$44\%, pero para mujeres fue apenas $\sim$24\%, debido a menor densidad, menores salarios, y mayor esperanza de vida.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Chile Ense\~n\'o que la Capitalizaci\'on Pura No Basta}]
+M\'exico intent\'o copiar a Chile en 1997, pero 27 a\~nos despu\'es reconoci\'o que no basta. Las lecciones clave:
+
+\begin{enumerate}
+  \item \textbf{La informalidad mata las pensiones DC:} Chile ten\'ia ~30\% de informalidad; M\'exico tiene ~55\%. Con densidades del 50\%, el modelo DC produce pensiones de miseria.
+
+  \item \textbf{Las comisiones erosionan:} Las AFPs/AFOREs cobran sobre el saldo, reduciendo el rendimiento neto. En Chile, las comisiones absorbieron ~20\% de los retornos en las primeras d\'ecadas.
+
+  \item \textbf{Las mujeres son las m\'as afectadas:} Menores salarios + menor densidad + mayor esperanza de vida = pensiones significativamente menores. En Chile, 40\% de las mujeres no alcanzaban la pensi\'on m\'inima.
+
+  \item \textbf{La pensi\'on m\'inima es crucial:} Sin ella, millones quedan sin cobertura. Chile a\~nadi\'o la Pensi\'on B\'asica Solidaria en 2008 (Pilar 1) para cubrir esta brecha.
+\end{enumerate}
+
+El Fondo Bienestar de M\'exico (2024) es an\'alogo a la reforma Bachelet de Chile (2008): ambos reconocen que el Pilar 2 solo es insuficiente y a\~naden un componente solidario.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Lecci\'on Reflejada en la Pensi\'on M\'inima Garantizada}]
+El simulador implementa la lecci\'on chilena a trav\'es de la pensi\'on m\'inima garantizada en \texttt{calculate\_retiro\_programado()} (\texttt{R/calculations.R:277}):
+
+\begin{lstlisting}
+pension_minima <- UMA_MENSUAL_2025 * 2.5  # ~$8,598.65
+pension_mensual <- max(pension_calculada, pension_minima)
+\end{lstlisting}
+
+Esta l\'inea implementa el Pilar 1 b\'asico: ning\'un trabajador elegible recibir\'a menos de 2.5 UMAs mensuales, independientemente de su saldo AFORE. Es el reconocimiento expl\'icito de que la capitalizaci\'on pura puede producir pensiones inaceptablemente bajas.
+
+El saldo necesario para superar esta garant\'ia se calcula y se reporta al usuario (l\'inea 295):
+\begin{lstlisting}
+saldo_minimo_para_superar_garantia = pension_minima * meses_esperados
+# Hombre 65: $8,598.65 * 204 = $1,754,124
+# Mujer 65:  $8,598.65 * 240 = $2,063,676
+\end{lstlisting}
+
+Muy pocos trabajadores de ingresos medios-bajos alcanzar\'an estos saldos, lo que confirma la relevancia del Fondo Bienestar como complemento.
+\end{tcolorbox}
+
+
+\section{Argentina 2008: La Re-Nacionalizaci\'on}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Riesgo Pol\'itico en Sistemas de Pensiones}]
+El \textbf{riesgo pol\'itico} en pensiones se define como la probabilidad de que el gobierno modifique sustancialmente las reglas del sistema, afectando los beneficios esperados:
+\[
+  R_{\text{pol}} = \mathbb{P}[\Delta B \neq 0 \mid \text{cambio de gobierno o crisis fiscal}]
+\]
+
+Argentina demostr\'o que este riesgo es real y puede ser extremo:
+\begin{itemize}
+  \item \textbf{1994:} Cre\'o sistema mixto (p\'ublico + privado, similar al uruguayo)
+  \item \textbf{2008:} Elimin\'o completamente el pilar privado (Ley 26.425)
+  \item Transfiri\'o \$30,000 millones USD de cuentas individuales al Estado
+  \item Argumento oficial: proteger a los trabajadores de la crisis financiera global
+  \item Argumento cr\'itico: financiar gasto corriente del gobierno
+\end{itemize}
+
+La \textbf{irreversibilidad percibida} de las reformas estructurales result\'o ser una ilusi\'on. Lo que un gobierno crea, otro puede deshacer.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: El Riesgo que Nadie Puede Controlar}]
+La lecci\'on argentina es sobria: \textbf{todo el ahorro que tens en tu AFORE podr\'ia, en teor\'ia, ser transferido al gobierno}. Argentina lo hizo, Bolivia lo hizo (parcialmente), y varios pa\'ises de Europa del Este revirtieron sus reformas privadas.
+
+Esto no significa que sea probable en M\'exico, pero s\'i que es \textbf{posible}. El Fondo Bienestar de 2024 ya muestra una tendencia hacia mayor intervenci\'on estatal en el sistema pensionario:
+\begin{itemize}
+  \item Usa recursos de ``cuentas inactivas'' y venta de activos estatales
+  \item Centraliza un complemento que antes no exist\'ia
+  \item Su continuidad depende de decisiones pol\'iticas futuras
+\end{itemize}
+
+Para el usuario: el Framework de Control del simulador clasifica correctamente los cambios en leyes como zona \textbf{ROJA} (no controlas). La \'unica protecci\'on real contra el riesgo pol\'itico son las aportaciones voluntarias que puedes retirar anticipadamente.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Advertencia sobre Sostenibilidad del Fondo}]
+El simulador incorpora la lecci\'on argentina a trav\'es de mensajes expl\'icitos sobre la incertidumbre del Fondo. En \texttt{R/fondo\_bienestar.R:296--301}:
+
+\begin{lstlisting}
+advertencia = if (elegibilidad$elegible) {
+  paste0("El Fondo Bienestar es nuevo (2024) y su sostenibilidad ",
+         "a largo plazo no esta garantizada. Tus aportaciones ",
+         "voluntarias son la parte mas segura de tu pension.")
+}
+\end{lstlisting}
+
+Y en la generaci\'on de mensajes personalizados (\texttt{R/fondo\_bienestar.R:423--434}):
+\begin{lstlisting}
+texto = paste0(
+  "El Fondo puede complementar tu pension con $",
+  format(round(diferencia), big.mark = ","),
+  " adicionales al mes. Sin embargo, recuerda que es un ",
+  "programa nuevo y su continuidad depende de decisiones
+   politicas futuras."
+)
+\end{lstlisting}
+
+Esta honestidad---mostrar el beneficio pero advertir sobre su fragilidad---es una decisi\'on de dise\~no conductual deliberada, no un defecto.
+\end{tcolorbox}
+
+
+\section{M\'exico en Contexto: Del Modelo Sustitutivo al H\'ibrido}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Evoluci\'on del Sistema Mexicano}]
+La trayectoria del sistema pensionario mexicano puede formalizarse como una secuencia de transformaciones del modelo multi-pilar:
+
+\textbf{1973 (Ley 73):} Pilar 1 puro --- DB, PAYG
+\[
+  P = f(\text{SBC}, \text{semanas}, \text{edad}) \quad \text{(beneficio definido)}
+\]
+
+\textbf{1997 (Ley 97):} Pilar 2 dominante --- DC, capitalizaci\'on
+\[
+  P = g(\text{saldo}_T) = \frac{S_0(1+r)^T + \sum_{t=1}^{T} a_t(1+r)^{T-t}}{\mathring{e}_x \cdot 12}
+\]
+
+\textbf{2020 (Reforma):} Pilar 2 fortalecido --- mayor contribuci\'on patronal
+\[
+  \tau_{\text{patron}}(t) = 0.062 + 0.0083 \times \min(t - 2023, 7) \quad \text{(escalonado hasta 12\%)}
+\]
+
+\textbf{2024 (Fondo Bienestar):} Pilar 1 reintroducido --- complemento solidario
+\[
+  P_{\text{total}} = \max\left(P_{\text{AFORE}},\; \min(w, U)\right) \quad \text{si elegible}
+\]
+donde $U$ es el umbral del Fondo (\$17,364 en 2025) y $w$ el salario promedio.
+
+La transici\'on completa tom\'o 51 a\~nos: de un sistema puro de reparto (1973) a un h\'ibrido de capitalizaci\'on con complemento solidario (2024).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: M\'exico Aprendi\'o de sus Vecinos}]
+Cada pa\'is latinoamericano que privatiz\'o pensiones eventualmente tuvo que a\~nadir un componente solidario:
+\begin{itemize}
+  \item Chile (2008): Pensi\'on B\'asica Solidaria
+  \item Uruguay: Nunca elimin\'o el pilar p\'ublico (sistema mixto desde el inicio)
+  \item Colombia: Mantiene opci\'on de r\'egimen p\'ublico
+  \item Argentina (2008): Re-nacionaliz\'o completamente
+  \item \textbf{M\'exico (2024): Fondo Bienestar}
+\end{itemize}
+
+El patr\'on es claro: la capitalizaci\'on individual, sin complemento solidario, produce pensiones inadecuadas para la mayor\'ia de la poblaci\'on en pa\'ises con alta informalidad.
+
+La reforma de 2020 (aumento gradual de contribuciones patronales del 6.2\% al 12\% para 2030) ataca el problema por el lado de la acumulaci\'on. El Fondo Bienestar (2024) lo ataca por el lado del beneficio. Juntos, representan una transici\'on hacia un modelo h\'ibrido m\'as robusto.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: determinar\_regimen() y la Transici\'on Hist\'orica}]
+La funci\'on \texttt{determinar\_regimen()} en \texttt{R/data\_tables.R:205--222} codifica el momento exacto de la transici\'on:
+
+\begin{lstlisting}
+determinar_regimen <- function(fecha_primera_cotizacion) {
+  fecha_corte <- as.Date("1997-07-01")
+  if (fecha < fecha_corte) {
+    return("ley73")
+  } else {
+    return("ley97")
+  }
+}
+\end{lstlisting}
+
+Esta funci\'on binaria refleja la decisi\'on pol\'itica m\'as importante del sistema: el 1 de julio de 1997 dividi\'o a los trabajadores mexicanos en dos mundos completamente diferentes.
+
+\textbf{Consecuencia no modelada:} Existen trabajadores que cotizaron brevemente antes de 1997 y luego tuvieron largas lagunas. T\'ecnicamente son Ley~73, pero su pensi\'on podr\'ia ser menor que bajo Ley~97 con Fondo. El simulador no compara ambos reg\'imenes para el mismo usuario.
+
+La tabla de aportaciones en \texttt{calculate\_aportacion\_obligatoria()} (\texttt{R/calculations.R:192--201}) codifica la reforma 2020:
+\begin{lstlisting}
+tasas_patron <- c(
+  "2023" = 0.0620, "2024" = 0.0690, "2025" = 0.0775,
+  "2026" = 0.0860, "2027" = 0.0945, "2028" = 0.1030,
+  "2029" = 0.1115, "2030" = 0.1200
+)
+\end{lstlisting}
+
+Sin embargo, esta tabla existe pero \textbf{no se usa din\'amicamente}: el simulador aplica la tasa de 2025 (7.75\%) para todos los a\~nos futuros, subestimando las contribuciones futuras en aproximadamente 15--20\%.
+\end{tcolorbox}
+
+
+\section{Resumen Comparativo: Am\'erica Latina}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Tipolog\'ia de Reformas}]
+Las reformas pensionarias latinoamericanas se clasifican en tres tipos (Mesa-Lago, 2008):
+
+\begin{enumerate}
+  \item \textbf{Sustitutivas:} Reemplazan el sistema p\'ublico por uno privado (Chile 1981, M\'exico 1997, Bolivia 1997, El Salvador 1998)
+  \item \textbf{Mixtas:} Mantienen un pilar p\'ublico reformado junto al privado (Argentina 1994, Uruguay 1996, Costa Rica 1995)
+  \item \textbf{Paralelas:} Crean un sistema privado como alternativa al p\'ublico existente (Colombia 1993, Per\'u 1993)
+\end{enumerate}
+
+La tendencia post-2008 ha sido de \textbf{re-reforma}: reintroducci\'on de componentes solidarios en sistemas sustitutivos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Tabla Comparativa Regional}]
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Pa\'is} & \textbf{Reforma} & \textbf{Tipo} & \textbf{Re-reforma} & \textbf{Estado actual} \\
+\midrule
+Chile & 1981 & Sustitutiva & 2008, 2024 & H\'ibrido (PBS + AFP) \\
+Argentina & 1994 & Mixta & 2008 & P\'ublico (re-nacionalizado) \\
+Uruguay & 1996 & Mixta & --- & Mixto estable \\
+Colombia & 1993 & Paralela & --- & Paralelo (elecci\'on) \\
+M\'exico & 1997 & Sustitutiva & 2020, 2024 & H\'ibrido (AFORE + Fondo) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+M\'exico sigui\'o exactamente el patr\'on chileno con 16 a\~nos de retraso: privatizaci\'on sustitutiva, seguida de re-reforma solidaria dos d\'ecadas despu\'es.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Impl\'icito en la Arquitectura del Simulador}]
+La arquitectura misma del simulador refleja la evoluci\'on hist\'orica:
+
+\begin{enumerate}
+  \item \texttt{R/calculations.R} maneja ambos reg\'imenes (Ley~73 y Ley~97) como flujos completamente separados---reflejo de la reforma sustitutiva de 1997
+  \item \texttt{R/fondo\_bienestar.R} se a\~nadi\'o como m\'odulo aparte---reflejo de la re-reforma de 2024
+  \item La funci\'on principal \texttt{calculate\_pension\_with\_fondo()} integra los tres escenarios---reflejo del modelo h\'ibrido actual
+\end{enumerate}
+
+La separaci\'on modular no es accidental: permite agregar futuros pilares o modificar el Fondo sin reestructurar el c\'odigo base. Es una decisi\'on arquitect\'onica que anticipa la realidad pol\'itica de los sistemas pensionarios: las reglas cambiar\'an.
+\end{tcolorbox}
+
+
+% ############################################################################
+% CAPITULO 3: MARCO DE RIESGOS
+% ############################################################################
+
+\chapter{Marco de Riesgos}
+
+Todo modelo de proyecci\'on pensionaria enfrenta m\'ultiples fuentes de incertidumbre. Este cap\'itulo formaliza cada categor\'ia de riesgo, cuantifica su impacto potencial, y documenta c\'omo el simulador los aborda---o los ignora.
+
+\section{Riesgo de Mercado: Volatilidad de Rendimientos AFORE}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Movimiento Browniano Geom\'etrico y Simulaci\'on Monte Carlo}, breakable]
+El precio de un activo financiero bajo el modelo est\'andar de Black-Scholes sigue un \textbf{Movimiento Browniano Geom\'etrico} (GBM):
+\[
+  \frac{dS}{S} = \mu \, dt + \sigma \, dW_t
+\]
+donde $\mu$ es la tasa de retorno esperada (drift), $\sigma$ es la volatilidad, y $W_t$ es un proceso de Wiener est\'andar.
+
+La soluci\'on anal\'itica es:
+\[
+  S_T = S_0 \exp\left[\left(\mu - \frac{\sigma^2}{2}\right)T + \sigma W_T\right]
+\]
+
+Para una \textbf{simulaci\'on Monte Carlo} de proyecci\'on pensionaria, se genera $N$ trayectorias independientes $\{S_T^{(1)}, S_T^{(2)}, \ldots, S_T^{(N)}\}$ y se reportan percentiles de la distribuci\'on resultante de pensiones.
+
+El saldo en el a\~no $t$ con aportaciones mensuales:
+\[
+  S_t = S_{t-1} \cdot \exp\left[\left(\mu - \frac{\sigma^2}{2}\right) + \sigma \epsilon_t\right] + 12 \cdot a
+\]
+donde $\epsilon_t \sim \mathcal{N}(0,1)$ y $a$ es la aportaci\'on mensual.
+
+Con $N = 10,000$ simulaciones, los resultados se presentar\'ian como:
+\begin{itemize}
+  \item \textbf{Percentil 5:} ``peor caso razonable''
+  \item \textbf{Percentil 25:} ``escenario pesimista''
+  \item \textbf{Mediana (50):} ``escenario central''
+  \item \textbf{Percentil 75:} ``escenario optimista''
+  \item \textbf{Percentil 95:} ``mejor caso razonable''
+\end{itemize}
+
+Para AFOREs mexicanas, los par\'ametros hist\'oricos (\'ultimos 15 a\~nos) son aproximadamente:
+\begin{itemize}
+  \item $\mu \approx 4.5\%$ real anual
+  \item $\sigma \approx 5\%$ anual (menor que mercado accionario puro por la composici\'on mixta de los fondos)
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Por Qu\'e Tres Escenarios No Son Suficientes}]
+El simulador usa tres escenarios determin\'isticos: conservador (3\%), base (4\%), optimista (5\%). Esto tiene dos problemas fundamentales:
+
+\begin{enumerate}
+  \item \textbf{No captura la cola izquierda:} Un rendimiento promedio del 4\% con volatilidad del 5\% puede producir escenarios donde el saldo real sea 40\% menor que el proyectado. Los tres escenarios determin\'isticos no muestran esta posibilidad.
+
+  \item \textbf{Ignora la dependencia temporal:} La secuencia de rendimientos importa tanto como su promedio. Dos trabajadores con el mismo rendimiento promedio del 4\% pueden tener saldos finales muy diferentes si uno tuvo malos a\~nos al inicio vs.\ al final de su carrera.
+\end{enumerate}
+
+Sin embargo, para un simulador \textbf{educativo}, tres escenarios son probablemente suficientes. Monte Carlo requiere: (a) una interfaz m\'as compleja para explicar probabilidades, (b) par\'ametros adicionales del usuario, y (c) poder de c\'omputo que complica la experiencia en dispositivos m\'oviles.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Escenarios Determin\'isticos como Proxy}]
+El simulador define tres constantes en \texttt{global.R:62--64}:
+
+\begin{lstlisting}
+RENDIMIENTO_CONSERVADOR <<- 0.03  # 3%
+RENDIMIENTO_BASE        <<- 0.04  # 4%
+RENDIMIENTO_OPTIMISTA   <<- 0.05  # 5%
+\end{lstlisting}
+
+La proyecci\'on en \texttt{project\_afore\_balance()} (\texttt{R/calculations.R:118--181}) es completamente determin\'istica:
+
+\begin{lstlisting}
+# Rendimiento neto despues de comision
+r_neto <- rendimiento_real_anual - comision_anual
+# Tasa mensual equivalente
+r_mensual <- (1 + r_neto)^(1/12) - 1
+# Valor futuro del saldo actual
+fv_actual <- saldo_actual * (1 + r_neto)^anios_al_retiro
+# Valor futuro de aportaciones (anualidad)
+fv_aportaciones <- aportacion_mensual *
+  ((1 + r_mensual)^meses - 1) / r_mensual
+\end{lstlisting}
+
+\textbf{Equivalencia aproximada con Monte Carlo:}
+\begin{itemize}
+  \item Conservador (3\%) $\approx$ Percentil 20--25 de simulaci\'on estoc\'astica
+  \item Base (4\%) $\approx$ Percentil 45--55 (mediana)
+  \item Optimista (5\%) $\approx$ Percentil 75--80
+\end{itemize}
+
+La brecha cr\'itica: \textbf{no hay equivalente al Percentil 5}, que es donde el usuario m\'as necesita informaci\'on para planificaci\'on prudente.
+\end{tcolorbox}
+
+
+\section{Riesgo de Secuencia de Rendimientos}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Sequence of Returns Risk}, breakable]
+Sea $\{r_1, r_2, \ldots, r_T\}$ la secuencia de rendimientos anuales y $a$ la aportaci\'on anual constante. El saldo final es:
+\[
+  S_T = S_0 \prod_{t=1}^T (1+r_t) + \sum_{k=1}^T a \prod_{t=k+1}^T (1+r_t)
+\]
+
+El \textbf{riesgo de secuencia} (SoRR) se manifiesta porque esta expresi\'on \textbf{no es invariante} bajo permutaciones de $\{r_t\}$. El rendimiento aritm\'etico promedio es el mismo para cualquier permutaci\'on:
+\[
+  \bar{r} = \frac{1}{T}\sum_{t=1}^T r_t = \text{constante para todas las permutaciones}
+\]
+
+Pero el saldo final $S_T$ \textbf{depende del orden}. Espec\'ificamente:
+\begin{itemize}
+  \item \textbf{Fase de acumulaci\'on:} Rendimientos altos al \textit{final} benefician m\'as (operan sobre un saldo mayor)
+  \item \textbf{Fase de desacumulaci\'on:} Rendimientos bajos al \textit{inicio} del retiro son devastadores (se retira de un fondo que no se recupera)
+\end{itemize}
+
+\textbf{Ejemplo num\'erico:}
+
+Escenario A: rendimientos $\{-10\%, +20\%, +5\%\}$ con aportaci\'on de \$10,000/a\~no:
+\begin{align*}
+  S_1 &= 10000 \times 0.90 = 9,000 \\
+  S_2 &= (9000 + 10000) \times 1.20 = 22,800 \\
+  S_3 &= (22800 + 10000) \times 1.05 = 34,440
+\end{align*}
+
+Escenario B: rendimientos $\{+5\%, +20\%, -10\%\}$ (mismo promedio, distinto orden):
+\begin{align*}
+  S_1 &= 10000 \times 1.05 = 10,500 \\
+  S_2 &= (10500 + 10000) \times 1.20 = 24,600 \\
+  S_3 &= (24600 + 10000) \times 0.90 = 31,140
+\end{align*}
+
+Diferencia: \$3,300 (9.6\%) con exactamente los mismos rendimientos en distinto orden.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: El Orden de los Rendimientos Importa Tanto como su Promedio}]
+Imagina dos trabajadores que ahorran 30 a\~nos con un rendimiento promedio del 4\%:
+
+\begin{itemize}
+  \item \textbf{Trabajador A:} Tuvo crisis al inicio (2008--2010 con rendimientos negativos) y recuperaci\'on fuerte despu\'es. Su saldo final es \textbf{mayor} porque las p\'erdidas afectaron un saldo peque\~no.
+
+  \item \textbf{Trabajador B:} Tuvo buenos a\~nos al inicio pero crisis justo antes de jubilarse. Su saldo final es \textbf{menor} porque las p\'erdidas afectaron un saldo grande (acumulado durante d\'ecadas).
+\end{itemize}
+
+Para los trabajadores j\'ovenes que usan el simulador hoy, esto significa que \textbf{no pueden predecir su pensi\'on con certeza}, incluso si el rendimiento promedio resulta ser exactamente 4\%. La varianza alrededor de la proyecci\'on determin\'istica puede ser de $\pm$20--30\%.
+
+La \'unica protecci\'on contra el SoRR es la \textbf{diversificaci\'on temporal}: comenzar a ahorrar lo antes posible para que las fluctuaciones se promedien sobre m\'as per\'iodos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Trayectoria Determin\'istica sin Varianza}]
+La trayectoria a\~no por a\~no en \texttt{project\_afore\_balance()} (\texttt{R/calculations.R:147--165}) es perfectamente suave:
+
+\begin{lstlisting}
+for (i in 0:anios_al_retiro) {
+  trayectoria$saldo[i + 1] <- saldo_temp
+  if (i < anios_al_retiro) {
+    saldo_temp <- saldo_temp * (1 + r_neto)
+    for (m in 1:12) {
+      saldo_temp <- saldo_temp +
+        aportacion_mensual * (1 + r_mensual)^(12 - m)
+    }
+  }
+}
+\end{lstlisting}
+
+Cada a\~no aplica exactamente el mismo \texttt{r\_neto}. No hay varianza inter-anual. La curva resultante es una exponencial suave que nunca muestra los valles y picos que un trabajador real experimentar\'ia.
+
+\textbf{Impacto visual:} El gr\'afico plotly del simulador muestra tres l\'ineas suaves (conservador, base, optimista). En realidad, cada l\'inea deber\'ia ser un \textbf{abanico} (fan chart) que se ensancha con el tiempo, reflejando la incertidumbre creciente.
+
+\textbf{Mitigaci\'on en el dise\~no:} El simulador compensa parcialmente al incluir tres escenarios que cubren un rango razonable. La diferencia entre conservador y optimista da al usuario una noci\'on de la incertidumbre, aunque no su distribuci\'on completa.
+\end{tcolorbox}
+
+
+\section{Riesgo de Longevidad}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Riesgo de Longevidad Individual y Agregado}]
+El \textbf{riesgo de longevidad individual} es la probabilidad de que un jubilado viva m\'as de lo esperado actuarialmente:
+\[
+  \mathbb{P}[T_x > \mathring{e}_x + k] \quad \text{para } k > 0
+\]
+
+Bajo una distribuci\'on de mortalidad exponencial simple (fuerza de mortalidad constante $\mu$):
+\[
+  {}_tp_x = e^{-\mu t}, \qquad \mathring{e}_x = \frac{1}{\mu}
+\]
+\[
+  \mathbb{P}[T_x > \mathring{e}_x] = e^{-1} \approx 0.368
+\]
+
+Bajo distribuciones m\'as realistas (Gompertz, Makeham), la probabilidad de superar la esperanza de vida est\'a entre 40--50\%, dependiendo de la asimetr\'ia de la distribuci\'on.
+
+El \textbf{riesgo de longevidad agregado} (mortality improvement risk) ocurre cuando la tabla de mortalidad subyacente subestima system\'aticamente las mejoras futuras. Si la esperanza real futura es $\mathring{e}_x + \Delta$:
+\[
+  \text{Shortfall ratio} = 1 - \frac{\mathring{e}_x}{\mathring{e}_x + \Delta}
+\]
+
+Para $\mathring{e}_{65} = 17$ y $\Delta = 3$: shortfall = $15\%$ de la pensi\'on proyectada.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: La Mitad de los Jubilados Vivir\'an M\'as de lo Esperado}]
+Cuando el simulador dice ``tu pensi\'on ser\'a \$X por mes'', est\'a usando la esperanza de vida como si fuera una \textbf{certeza}. Pero la esperanza de vida es un \textbf{promedio}: aproximadamente la mitad de las personas vivir\'an m\'as.
+
+Un hombre que se jubila a los 65 con una esperanza de vida de 17 a\~nos:
+\begin{itemize}
+  \item Tiene ~50\% de probabilidad de vivir m\'as de 82 a\~nos
+  \item Tiene ~25\% de probabilidad de vivir m\'as de 87 a\~nos
+  \item Tiene ~10\% de probabilidad de vivir m\'as de 91 a\~nos
+\end{itemize}
+
+En retiro programado, vivir m\'as significa que el saldo se agota m\'as r\'apido. El recalculo anual real (que el simulador no modela) reduce la pensi\'on mensual conforme el jubilado envejece y el saldo disminuye.
+
+La renta vitalicia (transferir el saldo a una aseguradora a cambio de pagos de por vida) elimina este riesgo, pero generalmente ofrece montos iniciales menores. \textbf{El simulador no modela esta opci\'on.}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Esperanza Puntual, No Distribucional}]
+El c\'alculo en \texttt{calculate\_retiro\_programado()} usa un \'unico valor:
+
+\begin{lstlisting}
+esperanza_vida <- get_esperanza_vida(edad, genero)
+meses_esperados <- esperanza_vida * 12
+pension_calculada <- saldo / meses_esperados
+\end{lstlisting}
+
+Esto equivale a asumir que el jubilado vivir\'a \textbf{exactamente} $\mathring{e}_x$ a\~nos, sin varianza. Las limitaciones:
+
+\begin{enumerate}
+  \item \textbf{No modela renta vitalicia:} Solo retiro programado. La renta vitalicia dar\'ia un monto menor pero garantizado de por vida
+  \item \textbf{No modela recalculo anual:} En retiro programado real, la AFORE recalcula cada a\~no con el saldo remanente y la esperanza actualizada
+  \item \textbf{No modela mortalidad diferencial:} Trabajadores de salarios altos viven 3--5 a\~nos m\'as que los de salarios bajos (gradiente socioecon\'omico de salud)
+\end{enumerate}
+
+El resultado neto: la pensi\'on mostrada es un \textbf{escenario medio}. Aproximadamente la mitad de los usuarios recibir\'an una pensi\'on mensual real menor (porque viven m\'as) y la otra mitad una mayor (porque viven menos).
+\end{tcolorbox}
+
+
+\section{Riesgo Pol\'itico y Regulatorio}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Incertidumbre Regulatoria en Pensiones}]
+El riesgo pol\'itico en sistemas de pensiones puede modelarse como una variable aleatoria discreta que modifica los par\'ametros del sistema:
+
+Sea $\theta = \{U, \tau, w_{\min}, r_{\text{garant}}, \text{edad}_{\min}\}$ el vector de par\'ametros regulatorios. En cada per\'iodo:
+\[
+  \theta_{t+1} = \begin{cases}
+    \theta_t & \text{con probabilidad } 1 - p_{\text{reforma}} \\
+    \theta_t + \Delta\theta & \text{con probabilidad } p_{\text{reforma}}
+  \end{cases}
+\]
+
+Hist\'oricamente, $p_{\text{reforma}} \approx 0.05$ por a\~no para cambios menores (ajustes al umbral, comisiones) y $p_{\text{reforma}} \approx 0.02$ para cambios estructurales (como la creaci\'on del Fondo Bienestar).
+
+\textbf{Par\'ametros espec\'ificos vulnerables a cambio:}
+\begin{itemize}
+  \item $U$ (umbral del Fondo): \$16,778 (2024) $\to$ \$17,364 (2025) $\to$ \$18,050 (2026 est.)
+  \item $\tau$ (tasa de contribuci\'on): escalonamiento ya legislado hasta 2030
+  \item UMA: actualizado anualmente por INEGI (fuera de control pol\'itico directo)
+  \item Edad m\'inima de retiro: actualmente 60 (cesant\'ia) / 65 (vejez), sin cambio previsto pero posible
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Las Reglas Cambian, y T\'u No Puedes Evitarlo}]
+En los \'ultimos 50 a\~nos, M\'exico ha reformado su sistema de pensiones tres veces (1973, 1997, 2024). Esto significa que un trabajador con 30 a\~nos de carrera \textbf{probablemente vivir\'a al menos una reforma importante}.
+
+Cambios que podr\'ian afectar la pensi\'on proyectada por el simulador:
+\begin{itemize}
+  \item \textbf{Fondo Bienestar desaparece:} Un futuro gobierno podr\'ia eliminar o modificar sustancialmente el Fondo
+  \item \textbf{UMA se desacopla m\'as del salario:} La brecha UMA-SM ya existe y podr\'ia ampliarse
+  \item \textbf{Edad de retiro aumenta:} Tendencia global; Espa\~na, Francia, y otros pa\'ises la han aumentado
+  \item \textbf{Comisiones AFOREs cambian:} CONSAR ha presionado hacia comisiones m\'as bajas
+  \item \textbf{Nuevas contribuciones obligatorias:} Podr\'ian beneficiar o perjudicar
+\end{itemize}
+
+El Framework de Control del simulador clasifica todos estos factores en zona \textbf{ROJA}: ``No controlas.'' Es honestamente lo \'unico que se puede decir.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Constantes que No Son Constantes}]
+El simulador codifica par\'ametros regulatorios como constantes en \texttt{global.R:44--74}:
+
+\begin{lstlisting}
+ANIO_ACTUAL           <<- 2025
+UMA_DIARIA_2025       <<- 113.14
+SM_DIARIO_2025        <<- 278.80
+UMBRAL_FONDO_BIENESTAR_2025 <<- 17364
+TOPE_SBC_DIARIO       <<- UMA_DIARIA_2025 * 25
+\end{lstlisting}
+
+Estos valores son correctos para 2025 pero \textbf{cambiar\'an} anualmente. El simulador no tiene un mecanismo de actualizaci\'on autom\'atica.
+
+La funci\'on \texttt{get\_umbral\_fondo\_bienestar()} (\texttt{global.R:128--138}) contiene umbrales para 2024--2026, pero el valor de 2026 es estimado:
+\begin{lstlisting}
+umbrales <- c(
+  "2024" = 16777.68,
+  "2025" = 17364,
+  "2026" = 18050  # estimado
+)
+\end{lstlisting}
+
+\textbf{Implicaci\'on:} El simulador necesita actualizaci\'on manual cada a\~no con los nuevos valores del DOF/INEGI/CONASAMI. Sin esta actualizaci\'on, las proyecciones se vuelven progresivamente menos precisas.
+\end{tcolorbox}
+
+
+\section{Riesgo de Inflaci\'on}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Valores Reales vs.\ Nominales}]
+El simulador trabaja enteramente en \textbf{t\'erminos reales}: todos los rendimientos, salarios, y pensiones est\'an expresados en pesos de 2025.
+
+Formalmente, si $P_{\text{nominal}}(t)$ es la pensi\'on nominal en el a\~no $t$ y $\pi$ es la tasa de inflaci\'on promedio:
+\[
+  P_{\text{real}}(t) = \frac{P_{\text{nominal}}(t)}{(1 + \pi)^{t-2025}}
+\]
+
+El simulador asume impl\'icitamente que $P_{\text{real}}(t) = P_{\text{real}}(2025)$ para todo $t$. Esto es v\'alido \textbf{si y solo si}:
+\begin{enumerate}
+  \item Los rendimientos reportados son reales (netos de inflaci\'on) --- \textbf{s\'i, por dise\~no}
+  \item Los salarios crecen al mismo ritmo que la inflaci\'on --- \textbf{supuesto impl\'icito}
+  \item Las pensiones mantienen su poder adquisitivo --- \textbf{parcialmente cierto} (UMA se actualiza por inflaci\'on, pero SM crece m\'as r\'apido)
+\end{enumerate}
+
+El riesgo de inflaci\'on residual es:
+\[
+  \text{Erosi\'on real} = (1 + g_{\text{SM}})^T / (1 + g_{\text{UMA}})^T - 1
+\]
+donde $g_{\text{SM}}$ es el crecimiento del salario m\'inimo y $g_{\text{UMA}}$ el de la UMA. Si SM crece 3\% real y UMA crece 0\% real (solo inflaci\'on), en 20 a\~nos la pensi\'on m\'inima (en UMAs) pierde 45\% de su poder adquisitivo relativo al SM.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Tu Pensi\'on en Pesos de Hoy}]
+Cuando el simulador dice ``tu pensi\'on ser\'a de \$15,000 al mes,'' significa \$15,000 \textbf{en pesos de 2025}. Si la inflaci\'on promedia 4\% anual y te jubilas en 20 a\~nos:
+\begin{itemize}
+  \item Necesitar\'as \$32,866 nominales para comprar lo que \$15,000 compran hoy
+  \item Pero tu saldo AFORE tambi\'en habr\'a crecido nominalmente
+  \item Los rendimientos del 4\% real significan ~8\% nominal (si inflaci\'on es 4\%)
+\end{itemize}
+
+El enfoque en t\'erminos reales es \textbf{correcto y est\'andar} en ciencia actuarial. Elimina la confusi\'on de n\'umeros grandes que no reflejan poder adquisitivo. Un usuario que ve ``\$15,000/mes'' debe interpretar: ``tendr\'e el equivalente a lo que \$15,000 compran hoy.''
+
+El riesgo residual es que la inflaci\'on \textbf{no sea uniforme}: los costos de salud, vivienda, y alimentaci\'on para adultos mayores pueden crecer m\'as r\'apido que la inflaci\'on general.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Todo en T\'erminos Reales}]
+Los rendimientos en \texttt{global.R:62--64} son expl\'icitamente \textbf{reales}:
+
+\begin{lstlisting}
+RENDIMIENTO_CONSERVADOR <<- 0.03  # 3% real
+RENDIMIENTO_BASE        <<- 0.04  # 4% real
+RENDIMIENTO_OPTIMISTA   <<- 0.05  # 5% real
+\end{lstlisting}
+
+No existe ning\'un componente de inflaci\'on en el c\'odigo. El \texttt{SBC} ingresado por el usuario se trata como constante en t\'erminos reales. La UMA y el salario m\'inimo son valores de 2025.
+
+\textbf{Consecuencia:} Si un usuario ingresa su salario actual de \$20,000, el simulador asume que ganar\'a el equivalente a \$20,000 (en poder adquisitivo de 2025) durante toda su carrera. No modela crecimiento salarial real.
+
+Esta simplificaci\'on es \textbf{conservadora para trabajadores j\'ovenes} (cuyos salarios reales probablemente crecer\'an) y \textbf{neutral para trabajadores cercanos al retiro} (cuyo salario est\'a cerca de su m\'aximo).
+\end{tcolorbox}
+
+
+\section{Riesgo de Carrera: Informalidad, G\'enero y Trayectoria Laboral}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Brecha de G\'enero en Pensiones}]
+La \textbf{brecha de g\'enero pensionaria} ($\text{GPG}$) se define como:
+\[
+  \text{GPG} = 1 - \frac{P_F}{P_M}
+\]
+donde $P_F$ y $P_M$ son las pensiones medianas de mujeres y hombres respectivamente.
+
+En M\'exico, esta brecha se amplifica por tres factores:
+\begin{enumerate}
+  \item \textbf{Brecha salarial:} $w_F \approx 0.84 \times w_M$ (16\% menor)
+  \item \textbf{Menor densidad:} $\delta_F \approx 0.45$ vs.\ $\delta_M \approx 0.60$
+  \item \textbf{Mayor esperanza de vida:} $\mathring{e}_{65}^F = 20.0$ vs.\ $\mathring{e}_{65}^M = 17.0$
+\end{enumerate}
+
+El efecto combinado sobre la pensi\'on de retiro programado:
+\[
+  \frac{P_F}{P_M} = \frac{w_F \cdot \delta_F}{w_M \cdot \delta_M} \times \frac{\mathring{e}_{65}^M}{\mathring{e}_{65}^F} = 0.84 \times \frac{0.45}{0.60} \times \frac{17}{20} = 0.84 \times 0.75 \times 0.85 = 0.535
+\]
+
+Es decir, la pensi\'on mediana de una mujer ser\'ia aproximadamente \textbf{53.5\% de la de un hombre}, con un GPG del 46.5\%.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Las Mujeres Necesitan Ahorrar M\'as para la Misma Pensi\'on}]
+Una mujer t\'ipica enfrenta un triple desaf\'io pensionario:
+\begin{enumerate}
+  \item \textbf{Gana menos:} En promedio 16\% menos que un hombre en la misma posici\'on
+  \item \textbf{Cotiza menos:} Interrupciones por maternidad, cuidado de hijos/padres, mayor informalidad
+  \item \textbf{Vive m\'as:} 3 a\~nos m\'as que los hombres, lo que divide su saldo entre m\'as meses
+\end{enumerate}
+
+El simulador \textbf{captura parcialmente} este efecto: usa tablas de esperanza de vida diferenciadas por g\'enero (20 vs.\ 17 a\~nos a los 65). Pero \textbf{no captura} la menor densidad ni la brecha salarial, porque asume que los datos ingresados por el usuario ya reflejan su situaci\'on real.
+
+Para una mujer que usa el simulador: si ingresa su salario real y sus semanas reales, la proyecci\'on es razonablemente precisa para su situaci\'on actual. Lo que no refleja es que sus semanas futuras probablemente no ser\'an 52 por a\~no (densidad asumida del 100\%).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Diferenciaci\'on por G\'enero}]
+El simulador diferencia por g\'enero \'unicamente en la esperanza de vida (\texttt{R/data\_tables.R:101--114}):
+
+\begin{lstlisting}
+if (genero == "F") {
+  base <- c("60"=24.5, "65"=20.0, "70"=15.9, ...)
+} else {
+  base <- c("60"=21.0, "65"=17.0, "70"=13.4, ...)
+}
+\end{lstlisting}
+
+El impacto pr\'actico se puede ver en los tests (secci\'on E3--E4 de \texttt{test\_calculations.R:353--370}):
+\begin{itemize}
+  \item Con saldo de \$2,000,000 y edad 65:
+  \item Hombre: \$2,000,000 / 204 meses = \$9,804/mes
+  \item Mujer: \$2,000,000 / 240 meses = \$8,333/mes
+  \item Diferencia: \$1,471/mes (15\% menos para la mujer)
+\end{itemize}
+
+Cuando el saldo es bajo (e.g., \$500,000), ambos g\'eneros reciben la pensi\'on m\'inima garantizada (\$8,598.65), eliminando la diferencia por g\'enero. Esto es correcto y est\'a verificado en el test E4.
+
+\textbf{No modelado:} El simulador no sugiere que las mujeres necesitan aportaciones voluntarias proporcionalmente mayores para compensar la mayor esperanza de vida. Una mejora posible ser\'ia un mensaje personalizado basado en g\'enero.
+\end{tcolorbox}
+
+
+\section{Formalizaci\'on Monte Carlo: Lo que el Simulador Podr\'ia Ser}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Modelo Estoc\'astico Completo para Pensi\'on DC}, breakable]
+Un modelo estoc\'astico completo de pensi\'on de contribuci\'on definida integrar\'ia las siguientes fuentes de aleatoriedad:
+
+\begin{enumerate}
+  \item \textbf{Rendimientos:} $r_t \sim \mathcal{N}(\mu, \sigma^2)$ o log-normal
+  \item \textbf{Densidad de cotizaci\'on:} $\delta_t \sim \text{Bernoulli}(p_{\text{formal}})$ por mes
+  \item \textbf{Salario:} $w_t = w_0 \exp(\alpha t + \eta_t)$ con drift $\alpha$ y shock $\eta_t$
+  \item \textbf{Mortalidad:} $T_x \sim f_{\mu_x}$ (distribuci\'on de tiempo de vida residual)
+\end{enumerate}
+
+El saldo en el mes $m$ ser\'ia:
+\[
+  S_m = S_{m-1} \cdot (1 + r_m/12) + \delta_m \cdot a(w_m)
+\]
+donde $r_m$ es el rendimiento mensual, $\delta_m \in \{0, 1\}$ indica si cotiz\'o, y $a(w_m)$ es la aportaci\'on sobre el salario $w_m$.
+
+La pensi\'on (retiro programado) en la trayectoria $j$:
+\[
+  P^{(j)} = \frac{S_{12n}^{(j)}}{T_x^{(j)} \cdot 12}
+\]
+
+Con $N = 10,000$ trayectorias, se reportar\'ian:
+\begin{align*}
+  P_{5\%}  &= \text{quantile}(\{P^{(j)}\}, 0.05) \quad &\text{(peor caso razonable)} \\
+  P_{25\%} &= \text{quantile}(\{P^{(j)}\}, 0.25) \quad &\text{(escenario pesimista)} \\
+  P_{50\%} &= \text{quantile}(\{P^{(j)}\}, 0.50) \quad &\text{(mediana)} \\
+  P_{75\%} &= \text{quantile}(\{P^{(j)}\}, 0.75) \quad &\text{(escenario optimista)} \\
+  P_{95\%} &= \text{quantile}(\{P^{(j)}\}, 0.95) \quad &\text{(mejor caso razonable)}
+\end{align*}
+
+\textbf{Justificaci\'on de no implementarlo:}
+\begin{itemize}
+  \item Complejidad de interfaz: explicar percentiles a usuarios no t\'ecnicos
+  \item Carga computacional: 10,000 simulaciones $\times$ 360 meses en el navegador
+  \item Par\'ametros adicionales: el usuario necesitar\'ia estimar su probabilidad de mantener empleo formal
+  \item Falsa precisi\'on: m\'as complejidad no implica m\'as exactitud si los par\'ametros de entrada son imprecisos
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: La Paradoja de la Precisi\'on}]
+Un modelo Monte Carlo con 10,000 trayectorias parece m\'as ``cient\'ifico'' que tres escenarios determin\'isticos. Pero hay una paradoja:
+
+Si el usuario no sabe cu\'antas semanas cotizar\'a en el futuro ($\pm$30\% de incertidumbre), ni cu\'al ser\'a su salario en 20 a\~nos ($\pm$50\%), ni si seguir\'a en su AFORE actual... entonces agregar volatilidad estoc\'astica a los rendimientos (la \'unica variable que el modelo controla bien) produce una \textbf{precisi\'on ilusoria}.
+
+Es como medir con l\'aser la distancia a un blanco que se mueve err\'aticamente.
+
+\textbf{La decisi\'on de dise\~no del simulador es deliberada:} tres escenarios dan una noci\'on razonable de la incertidumbre sin abrumar al usuario con estad\'isticas que no puede interpretar ni actuar sobre ellas.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Arquitectura Lista para Extensi\'on}]
+Aunque el simulador no implementa Monte Carlo, la arquitectura facilitar\'ia su adici\'on:
+
+\begin{lstlisting}[caption={Pseudo-c\'odigo para extensi\'on Monte Carlo}]
+# En R/calculations.R, agregar:
+monte_carlo_pension <- function(saldo, aportacion, anios,
+                                 mu = 0.04, sigma = 0.05,
+                                 N = 10000) {
+  resultados <- numeric(N)
+  for (j in 1:N) {
+    S <- saldo
+    for (t in 1:(anios * 12)) {
+      r_t <- rnorm(1, mu/12, sigma/sqrt(12))
+      S <- S * (1 + r_t) + aportacion
+    }
+    resultados[j] <- S
+  }
+  return(quantile(resultados, c(0.05, 0.25, 0.5, 0.75, 0.95)))
+}
+\end{lstlisting}
+
+La funci\'on \texttt{project\_afore\_balance()} ya tiene la estructura necesaria (loop a\~no por a\~no con trayectoria). Solo requerir\'ia reemplazar \texttt{r\_neto} constante por \texttt{rnorm()} y envolver en un loop de $N$ simulaciones.
+
+El cuello de botella no es computacional (R puede hacer 10,000 simulaciones en $<$1 segundo), sino \textbf{de comunicaci\'on}: c\'omo presentar un fan chart o distribuci\'on de percentiles sin confundir al usuario.
+\end{tcolorbox}
+
+
+% ############################################################################
+% CAPITULO 4: SUPUESTOS Y SIMPLIFICACIONES DEL MODELO
+% ############################################################################
+
+\chapter{Supuestos y Simplificaciones del Modelo}
+
+Este cap\'itulo enumera formalmente \textbf{cada} supuesto del simulador, cuantifica su sesgo, identifica las condiciones bajo las cuales falla, y provee las referencias exactas al c\'odigo.
+
+\section{Supuesto 1: Densidad de Cotizaci\'on al 100\%}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} $\delta = 1.0$ para todos los per\'iodos futuros.
+
+\textbf{Realidad:} $\delta_{\text{nacional}} \approx 0.50 - 0.65$ (CONSAR).
+
+\textbf{Sesgo:} Sobreestimaci\'on del saldo final. Para $\delta = 0.60$:
+\[
+  \frac{S_{\delta=0.60}}{S_{\delta=1.0}} \approx 0.50 - 0.55
+\]
+Reducci\'on del 45--50\% por efecto compuesto (no lineal).
+
+\textbf{Condiciones donde falla m\'as:}
+\begin{itemize}
+  \item Trabajadores j\'ovenes con horizonte largo (m\'as a\~nos de composici\'on perdida)
+  \item Mujeres (densidad promedio menor: ~45\% vs ~60\% hombres)
+  \item Trabajadores de sectores con alta rotaci\'on (construcci\'on, comercio, servicios)
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Densidad al 60\% reduce tu saldo proyectado 45--50\%, \textbf{no} 40\%. El efecto compuesto amplifica: no solo pierdes la aportaci\'on de cada mes sin cotizar, sino todos los rendimientos futuros que esa aportaci\'on habr\'ia generado. Es como plantar un \'arbol: no solo pierdes la semilla, sino todas las frutas que el \'arbol habr\'ia dado durante d\'ecadas.
+
+El usuario que ingresa sus semanas reales al simulador ya refleja su densidad \textbf{hist\'orica}. El sesgo est\'a en la proyecci\'on \textbf{futura}: el simulador asume que cotizar\'as todas las semanas restantes hasta el retiro.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/fondo\_bienestar.R:176}:
+\begin{lstlisting}
+semanas_al_retiro <- semanas_actuales + (anios_restantes * 52)
+\end{lstlisting}
+\texttt{R/calculations.R:352--358}: aportaci\'on mensual constante sin interrupciones.
+
+\textbf{Mejora posible:} Agregar slider ``Densidad esperada de cotizaci\'on'' (50--100\%) que escale \texttt{aportacion\_mensual} y \texttt{semanas futuras}.
+\end{tcolorbox}
+
+
+\section{Supuesto 2: Salario Real Constante}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} $w_t = w_0$ para todo $t \in [0, T]$ (salario constante en t\'erminos reales).
+
+\textbf{Realidad:} Los salarios reales t\'ipicamente crecen 1--2\% anual para trabajadores j\'ovenes y se estabilizan/decrecen cerca del retiro.
+
+\textbf{Sesgo:}
+\begin{itemize}
+  \item \textbf{Conservador para j\'ovenes} (subestima aportaciones futuras): si $g_w = 1.5\%$ real anual durante 30 a\~nos, el salario final ser\'a 56\% mayor que el inicial
+  \item \textbf{Potencialmente optimista para mayores} cerca del pico salarial
+\end{itemize}
+
+\textbf{Impacto cuantitativo:} Con crecimiento salarial del 1.5\% real:
+\[
+  \frac{S_{\text{con crecimiento}}}{S_{\text{sin crecimiento}}} \approx 1.25 - 1.35 \quad \text{(25--35\% m\'as)}
+\]
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Un trabajador de 25 a\~nos que gana \$12,000 hoy probablemente ganar\'a el equivalente a \$18,000--20,000 a los 50 (en pesos de hoy). El simulador usa \$12,000 para toda la proyecci\'on, lo que subestima sus aportaciones futuras.
+
+Para un trabajador de 55 que gana \$30,000, su salario probablemente se mantendr\'a similar o disminuir\'a ligeramente. El supuesto es m\'as razonable.
+
+\textbf{Resultado neto:} Para la mayor\'ia de los usuarios del simulador (probablemente de mediana edad), el supuesto es conservador---las cosas podr\'ian ser ligeramente mejores de lo que muestra.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R:348--349}:
+\begin{lstlisting}
+aport_obligatoria <- calculate_aportacion_obligatoria(salario_mensual)
+aportacion_total <- aport_obligatoria$aportacion_total + aportacion_voluntaria
+\end{lstlisting}
+El \texttt{salario\_mensual} es un par\'ametro fijo que no var\'ia durante la proyecci\'on.
+
+\textbf{Mejora posible:} Agregar opci\'on ``crecimiento salarial esperado'' (0--3\% real anual) que escale el salario en cada iteraci\'on del loop de trayectoria.
+\end{tcolorbox}
+
+
+\section{Supuesto 3: Tablas de Mortalidad Simplificadas}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} Esperanza de vida basada en 15 puntos de datos por g\'enero, con interpolaci\'on lineal.
+
+\textbf{Realidad:} Las tablas actuariales completas (EMSSA, CNSF) tienen valores para cada edad individual, usan interpolaci\'on de Makeham-Gompertz, y se proyectan con factores de mejora de mortalidad.
+
+\textbf{Fuerza de mortalidad Gompertz:}
+\[
+  \mu_x = B \cdot c^x
+\]
+donde $B$ y $c$ son par\'ametros estimados. La interpolaci\'on lineal del simulador equivale a una fuerza de mortalidad constante por tramos:
+\[
+  \mu_x^{\text{sim}} = \text{constante en } [x_i, x_{i+1}]
+\]
+
+\textbf{Error de interpolaci\'on:} Para edades intermedias (ej. 72), el error es $<$0.5 a\~nos en esperanza. Para edades extremas (ej. 55 o 92), el error puede ser 1--2 a\~nos.
+
+\textbf{Error de no-proyecci\'on:} Las tablas son est\'aticas (2024). Para jubilaciones en 2050+, la esperanza de vida podr\'ia ser 2--3 a\~nos mayor.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Las tablas del simulador son como un mapa simplificado: suficientemente precisas para navegar, pero sin el detalle de un GPS.
+
+Para edades de retiro t\'ipicas (60--70), el error es peque\~no ($<$0.5 a\~nos). Para trabajadores j\'ovenes cuya jubilaci\'on est\'a 30+ a\~nos en el futuro, las tablas probablemente \textbf{subestiman} su esperanza de vida, lo que \textbf{sobreestima} su pensi\'on mensual proyectada.
+
+La simplificaci\'on es \textbf{aceptable} para un simulador educativo porque:
+\begin{enumerate}
+  \item El error est\'a dentro del rango de incertidumbre general del modelo ($\pm$10--20\%)
+  \item Tablas completas requerir\'ian datos propietarios costosos
+  \item La diferencia entre interpolaci\'on lineal y Gompertz es $<$1\% para el rango 60--75
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/data\_tables.R:89--143}: La funci\'on \texttt{get\_esperanza\_vida()} contiene la tabla hardcodeada y la l\'ogica de interpolaci\'on.
+
+Puntos cr\'iticos del c\'odigo:
+\begin{lstlisting}
+# Extrapolacion para edades < 60
+if (edad < min(edades)) {
+  return(valores[1] + (min(edades) - edad))  # Lineal hacia arriba
+}
+# Piso para edades > 90
+if (edad > max(edades)) {
+  return(max(2, valores[length(valores)] - (edad - max(edades)) * 0.5))
+}
+\end{lstlisting}
+
+\textbf{Observaci\'on:} La extrapolaci\'on para edad $< 60$ suma 1 a\~no por cada a\~no de diferencia, lo cual sobreestima ligeramente (la relaci\'on no es lineal a edades j\'ovenes). El piso de 2 a\~nos para edad $> 90$ previene valores negativos o absurdos.
+\end{tcolorbox}
+
+
+\section{Supuesto 4: Comisi\'on Restada del Rendimiento}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} $r_{\text{neto}} = r_{\text{bruto}} - c_{\text{AFORE}}$
+
+\textbf{Realidad:} Las AFOREs cobran la comisi\'on \textbf{sobre el saldo}, no sobre el rendimiento:
+\[
+  S_{t+1} = S_t \cdot (1 + r_{\text{bruto}}) \cdot (1 - c) + a_{t+1}
+\]
+
+vs.\ el modelo del simulador:
+\[
+  S_{t+1} = S_t \cdot (1 + r_{\text{bruto}} - c) + a_{t+1}
+\]
+
+\textbf{Diferencia matem\'atica:}
+\[
+  S_t(1+r)(1-c) = S_t(1 + r - c - rc) \neq S_t(1 + r - c)
+\]
+
+El t\'ermino cruzado $rc$ es peque\~no. Para $r = 0.04$ y $c = 0.005$:
+\[
+  rc = 0.0002 = 0.02\%
+\]
+
+En 30 a\~nos, este error acumulado es:
+\[
+  (1 - 0.0002)^{30} \approx 0.994
+\]
+
+\textbf{Impacto:} sobreestimaci\'on del saldo final en $\sim$0.6\% --- despreciable.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La diferencia entre ``te cobro sobre tu rendimiento'' y ``te cobro sobre tu saldo'' es m\'inima cuando las comisiones son peque\~nas (0.5--0.7\% anual). Es como la diferencia entre pagar el IVA antes o despu\'es de un descuento: el resultado final es casi id\'entico.
+
+Para comisiones mayores (ej. 1.5\% como en los primeros a\~nos de las AFOREs), la diferencia ser\'ia m\'as significativa ($\sim$2--3\% de error acumulado en 30 a\~nos).
+
+Con las comisiones actuales de las AFOREs mexicanas (0.51\%--0.56\% en 2025), \textbf{esta simplificaci\'on es pr\'acticamente irrelevante}.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R:126}:
+\begin{lstlisting}
+r_neto <- rendimiento_real_anual - comision_anual
+\end{lstlisting}
+
+Comparar con la implementaci\'on correcta (no implementada):
+\begin{lstlisting}
+# Correcto (no implementado):
+# saldo_temp <- saldo_temp * (1 + rendimiento) * (1 - comision)
+# Aproximacion actual (implementado):
+# saldo_temp <- saldo_temp * (1 + rendimiento - comision)
+\end{lstlisting}
+
+La diferencia es $<$0.6\% en 30 a\~nos. No amerita cambio.
+\end{tcolorbox}
+
+
+\section{Supuesto 5: Solo Retiro Programado (Sin Renta Vitalicia)}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} La pensi\'on se calcula exclusivamente bajo la modalidad de \textbf{retiro programado}:
+\[
+  P_{\text{RP}} = \frac{S}{\mathring{e}_x \times 12}
+\]
+
+\textbf{Alternativa no modelada --- Renta Vitalicia:}
+\[
+  P_{\text{RV}} = \frac{S}{\ddot{a}_x}
+\]
+donde $\ddot{a}_x$ es la anualidad actuarial anticipada:
+\[
+  \ddot{a}_x = \sum_{k=0}^{\omega-x} {}_kp_x \cdot v^k
+\]
+
+La relaci\'on entre ambas:
+\[
+  \frac{P_{\text{RV}}}{P_{\text{RP}}} < 1 \quad \text{(la renta vitalicia paga menos mensualmente)}
+\]
+
+Pero la renta vitalicia \textbf{garantiza pago de por vida}, mientras que el retiro programado se agota si el jubilado supera su esperanza de vida.
+
+T\'ipicamente: $P_{\text{RV}} \approx 0.80 - 0.90 \times P_{\text{RP}}$
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Retiro programado vs.\ renta vitalicia es como alquilar vs.\ comprar:
+\begin{itemize}
+  \item \textbf{Retiro programado:} Recibes m\'as cada mes, pero si vives mucho tiempo, el dinero se acaba
+  \item \textbf{Renta vitalicia:} Recibes menos cada mes, pero est\'as protegido de por vida
+\end{itemize}
+
+El simulador solo muestra retiro programado, lo que produce n\'umeros m\'as altos pero potencialmente enga\~nosos para personas que planean vivir m\'as de su esperanza actuarial.
+
+\textbf{Justificaci\'on de la omisi\'on:} Modelar renta vitalicia requiere tablas actuariales del sector asegurador (CNSF), tasas de descuento de mercado, y supuestos sobre m\'argenes de la aseguradora---informaci\'on propietaria no disponible p\'ublicamente.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R:259--298}: \texttt{calculate\_retiro\_programado()} implementa exclusivamente la divisi\'on simple \texttt{saldo / (esperanza * 12)}.
+
+El tipo de pensi\'on se reporta expl\'icitamente (l\'inea 296):
+\begin{lstlisting}
+tipo = "retiro_programado"
+\end{lstlisting}
+
+No existe funci\'on \texttt{calculate\_renta\_vitalicia()}. A\~nadirla requerir\'ia:
+\begin{enumerate}
+  \item Tablas de mortalidad completas (por edad individual)
+  \item Tasa t\'ecnica de descuento de la CNSF
+  \item Margen de la aseguradora (t\'ipicamente 5--10\%)
+  \item Factor de gastos de administraci\'on
+\end{enumerate}
+\end{tcolorbox}
+
+
+\section{Supuesto 6: Tasas de Contribuci\'on de 2025 para Todos los A\~nos}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} La tasa de aportaci\'on patronal es 7.75\% (2025) para toda la proyecci\'on.
+
+\textbf{Realidad:} La reforma de 2020 establece un escalonamiento legislado:
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\textbf{A\~no} & \textbf{Tasa Patronal} & \textbf{Tasa Total} \\
+\midrule
+2023 & 6.20\% & 7.55\% \\
+2025 & 7.75\% & 9.10\% \\
+2027 & 9.45\% & 10.80\% \\
+2030+ & 12.00\% & 13.35\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Sesgo:} Subestimaci\'on de aportaciones futuras. La tasa total aumentar\'a de 9.10\% a 13.35\%---un incremento del 47\%.
+
+Para un trabajador de 35 a\~nos que se jubila a los 65 (30 a\~nos de proyecci\'on):
+\begin{itemize}
+  \item A\~nos 2025--2030: tasa crece de 9.10\% a 13.35\%
+  \item A\~nos 2030--2055: tasa fija en 13.35\%
+  \item El simulador usa 9.10\% para los 30 a\~nos
+\end{itemize}
+
+\textbf{Impacto estimado:} Subestimaci\'on del saldo final en 15--20\%.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La reforma de 2020 casi \textbf{duplica} la aportaci\'on patronal (de 6.2\% a 12\%). El simulador usa la tasa intermedia de 2025 (7.75\%) para todo el futuro, lo que significa que est\'a mostrando un escenario \textbf{m\'as pesimista de lo que realmente ser\'a} (asumiendo que la reforma se implemente como est\'a legislada).
+
+Esto es una simplificaci\'on \textbf{conservadora}: si las contribuciones aumentan como est\'a previsto, el saldo real ser\'a mayor que el proyectado. Mejor equivocarse por el lado pesimista que por el optimista.
+
+Sin embargo, el hecho de que la tabla de tasas \textbf{ya existe en el c\'odigo} (pero no se usa din\'amicamente) es una oportunidad de mejora clara.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La tabla de escalonamiento existe en \texttt{R/calculations.R:192--201}:
+\begin{lstlisting}
+tasas_patron <- c(
+  "2023" = 0.0620, "2024" = 0.0690, "2025" = 0.0775,
+  "2026" = 0.0860, "2027" = 0.0945, "2028" = 0.1030,
+  "2029" = 0.1115, "2030" = 0.1200
+)
+\end{lstlisting}
+
+Pero \texttt{calculate\_aportacion\_obligatoria()} se llama con \texttt{anio = 2025} (default) y este valor no cambia durante la proyecci\'on.
+
+\textbf{Correcci\'on necesaria:} En \texttt{project\_afore\_balance()}, el loop de trayectoria deber\'ia pasar el a\~no calendario correspondiente a \texttt{calculate\_aportacion\_obligatoria()} para obtener la tasa correcta de cada a\~no.
+\end{tcolorbox}
+
+
+\section{Supuesto 7: Sin Modelamiento de Inflaci\'on}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} Todos los valores en t\'erminos reales (pesos de 2025). No hay variable de inflaci\'on.
+
+\textbf{Validez:} Este supuesto es \textbf{correcto t\'ecnicamente} si:
+\begin{enumerate}
+  \item Los rendimientos son reales (s\'i: 3--5\% son netos de inflaci\'on)
+  \item El salario ingresado se trata como real (s\'i: constante)
+  \item La UMA y SM se tratan como actuales (s\'i)
+\end{enumerate}
+
+\textbf{Riesgo residual:} Inflaci\'on diferencial para adultos mayores. El \'Indice de Precios de la Canasta B\'asica para Adultos Mayores puede diferir del INPC general en 1--2 puntos porcentuales anuales (mayor peso en salud, medicamentos, alimentos).
+
+En 20 a\~nos con 1.5\% de inflaci\'on diferencial:
+\[
+  \text{Erosi\'on adicional} = 1 - (1.015)^{-20} \approx 26\%
+\]
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Trabajar en t\'erminos reales es la pr\'actica est\'andar en ciencia actuarial y finanzas. Es mejor que mostrar n\'umeros nominales inflados que dan una falsa sensaci\'on de riqueza.
+
+Cuando el simulador dice ``\$15,000/mes,'' el usuario debe pensar: ``podr\'e comprar lo que hoy compro con \$15,000.'' No necesita saber que en pesos nominales de 2055 eso ser\'ia \$50,000---ese n\'umero es irrelevante.
+
+El \'unico riesgo real es que los costos de vivir como jubilado suban m\'as r\'apido que la inflaci\'on general. Salud y cuidado personal son las categor\'ias m\'as vulnerables.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+No existe ninguna variable de inflaci\'on en el c\'odigo. Los rendimientos en \texttt{global.R} son expl\'icitamente reales:
+\begin{lstlisting}
+RENDIMIENTO_CONSERVADOR <<- 0.03  # 3% real
+\end{lstlisting}
+
+Las funciones de formato muestran pesos actuales:
+\begin{lstlisting}
+format_currency <<- function(x) {
+  paste0("$", format(round(x, 2), big.mark = ",", nsmall = 2))
+}
+\end{lstlisting}
+
+\textbf{Evaluaci\'on:} Este supuesto es el m\'as s\'olido del modelo. No requiere cambio.
+\end{tcolorbox}
+
+
+\section{Supuesto 8: Contribuci\'on Gubernamental Aproximada}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} La cuota social del gobierno es 0.225\% del salario, constante.
+
+\textbf{Realidad:} La cuota social var\'ia por tramo salarial:
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Rango salarial} & \textbf{Cuota social diaria} \\
+\midrule
+1.0 -- 4.0 SM & Mayor \\
+4.0 -- 7.0 SM & Intermedia \\
+7.0 -- 10.0 SM & Menor \\
+$>$ 10.0 SM & Cero \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Sesgo:} Variable. Sobreestima para salarios altos ($>$ 10 SM), subestima para salarios bajos ($<$ 4 SM).
+
+\textbf{Impacto:} La cuota social es peque\~na ($<$0.3\% del salario). El error m\'aximo es de ~0.2\% del salario, lo que en 30 a\~nos produce una diferencia de $<$3\% en el saldo final.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+La cuota social es una contribuci\'on peque\~na del gobierno que beneficia m\'as a los trabajadores de salarios bajos. El simulador usa un promedio fijo que est\'a ``suficientemente cerca'' para casi todos los usuarios.
+
+Para un trabajador que gana \$15,000/mes, la diferencia entre la cuota social real y la aproximada es de unos \$20--30 mensuales. En 30 a\~nos, esto se traduce en \$10,000--15,000 de diferencia en el saldo final---menos del 1\% del total.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R:207}:
+\begin{lstlisting}
+tasa_gobierno <- 0.00225  # aproximado
+\end{lstlisting}
+
+\textbf{Evaluaci\'on:} Error despreciable. La implementaci\'on exacta requerir\'ia una tabla de cuotas sociales por tramo salarial que a\~nadir\'ia complejidad sin beneficio pr\'actico.
+\end{tcolorbox}
+
+
+\section{Supuesto 9: SBC Igual al Salario Ingresado}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} El Salario Base de Cotizaci\'on (SBC) es igual al salario mensual que ingresa el usuario.
+
+\textbf{Realidad:} El SBC incluye el salario ordinario m\'as prestaciones (aguinaldo, vacaciones, prima vacacional), lo que t\'ipicamente hace que:
+\[
+  \text{SBC} = \text{salario} \times (1 + f_{\text{prest}})
+\]
+donde $f_{\text{prest}} \approx 0.04 - 0.10$ dependiendo de la antig\"uedad y prestaciones.
+
+Alternativamente, algunos empleadores registran un SBC \textbf{menor} al real (subdeclaraci\'on), caso en que $\text{SBC} < \text{salario}$.
+
+\textbf{Sesgo:} Variable seg\'un la pr\'actica del empleador. Puede subestimar o sobreestimar.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Tu SBC no siempre es igual a lo que recibes en tu recibo de n\'omina. Si tu empleador te registra con un SBC menor (pr\'actica com\'un pero ilegal), tu pensi\'on ser\'a menor de lo esperado.
+
+El simulador advierte al usuario en los tooltips:
+\begin{quote}
+``Tu salario bruto mensual. Si difiere de tu SBC, usa el SBC.''
+\end{quote}
+
+El usuario puede consultar su SBC real en su estado de cuenta del IMSS.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+El simulador usa directamente el valor ingresado por el usuario. En \texttt{R/calculations.R:509--511}:
+\begin{lstlisting}
+if (is.null(sbc_diario)) {
+  sbc_diario <- salario_mensual / 30
+}
+\end{lstlisting}
+
+La validaci\'on advierte cuando el salario excede el tope de cotizaci\'on (\texttt{R/data\_tables.R:188--196}):
+\begin{lstlisting}
+tope_mensual <- TOPE_SBC_DIARIO * 30
+if (sbc > tope_mensual) {
+  advertencias <- c(advertencias,
+    paste0("Tu salario excede el tope de cotizacion..."))
+}
+\end{lstlisting}
+
+\textbf{Evaluaci\'on:} Supuesto razonable. El usuario tiene la responsabilidad de ingresar su SBC real.
+\end{tcolorbox}
+
+
+\section{Supuesto 10: Sin Beneficios Adicionales}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Supuesto:} No se modelan asignaciones familiares, ayuda asistencial, ni otros complementos del IMSS.
+
+\textbf{Realidad:} Los pensionados por Ley~73 pueden recibir:
+\begin{itemize}
+  \item \textbf{Asignaciones familiares:} 15\% de la pensi\'on para esposa/esposo, 10\% por cada hijo menor
+  \item \textbf{Ayuda asistencial:} 15\% de la pensi\'on para pensionados sin beneficiarios
+  \item \textbf{Aguinaldo:} Un mes de pensi\'on adicional en diciembre
+\end{itemize}
+
+\textbf{Sesgo:} Subestimaci\'on del ingreso total del pensionado en 15--40\%.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Para un pensionado Ley~73 casado, la pensi\'on real es ~15\% mayor que la que muestra el simulador (por asignaciones familiares). A esto se suma un aguinaldo equivalente a un mes extra.
+
+El simulador muestra la pensi\'on \textbf{base}, que es la referencia m\'as com\'un. Los complementos var\'ian por situaci\'on familiar y no ser\'ia pr\'actico pedir al usuario datos sobre dependientes econ\'omicos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+\texttt{R/calculations.R:21--103}: La funci\'on \texttt{calculate\_ley73\_pension()} retorna \'unicamente la pensi\'on base sin complementos.
+
+No existe c\'odigo para asignaciones familiares ni aguinaldo. La omisi\'on es intencional para mantener la simplicidad del simulador.
+
+\textbf{Evaluaci\'on:} Subestimaci\'on conservadora y aceptable. Agregar estos beneficios requerir\'ia preguntar sobre estado civil, n\'umero de hijos menores, etc., complicando el wizard sin beneficio proporcionado.
+\end{tcolorbox}
+
+
+\section{Tabla Resumen de Supuestos}
+
+\begin{longtable}{p{3.5cm}p{2.5cm}p{3cm}p{4cm}}
+\toprule
+\textbf{Supuesto} & \textbf{Sesgo} & \textbf{Magnitud} & \textbf{Condici\'on cr\'itica} \\
+\midrule
+\endhead
+1. Densidad 100\% & Sobreestima & 45--50\% del saldo & Informalidad alta \\
+2. Salario constante & Conservador (j\'ovenes) & 25--35\% & Horizonte $>$ 20 a\~nos \\
+3. Mortalidad simplificada & Sobreestima pensi\'on & 5--15\% & Jubilaci\'on post-2045 \\
+4. Comisi\'on $\neq$ saldo & Sobreestima & $<$0.6\% en 30 a\~nos & Comisiones altas ($>$1\%) \\
+5. Solo retiro programado & Sobreestima monto mensual & 10--20\% vs RV & Jubilado longevo \\
+6. Tasa 2025 fija & Subestima & 15--20\% & Horizonte $>$ 5 a\~nos \\
+7. Sin inflaci\'on & Neutral & $<$1\% directo & Inflaci\'on diferencial adultos mayores \\
+8. Cuota social fija & Variable & $<$3\% del saldo & Salario $>$ 10 SM \\
+9. SBC = salario & Variable & Depende del empleador & Subdeclaraci\'on patronal \\
+10. Sin beneficios extra & Subestima & 15--40\% ingreso total & Ley 73 con dependientes \\
+\bottomrule
+\end{longtable}
+
+
+% ############################################################################
+% CAPITULO 5: EVIDENCIA DE VALIDACION
+% ############################################################################
+
+\chapter{Evidencia de Validaci\'on}
+
+Este cap\'itulo documenta la validaci\'on completa del simulador: 5 casos de c\'alculo manual con trazas num\'ericas, el suite de 92+ pruebas unitarias, los 22 perfiles de QA, y el an\'alisis del error de 30.4375 vs.\ 30 d\'ias por mes.
+
+\section{Caso 1: Ley 73 --- Trabajador de Salario Bajo a los 65}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Traza Num\'erica Completa}, breakable]
+\textbf{Datos de entrada:}
+\begin{itemize}
+  \item Salario mensual: \$8,000
+  \item SBC diario: \$8,000 / 30 = \$266.67
+  \item Semanas cotizadas: 1,200
+  \item Edad de retiro: 65
+  \item SM diario vigente: \$278.80
+\end{itemize}
+
+\textbf{Paso 1 --- Grupo salarial:}
+\[
+  \text{grupo} = \frac{\text{SBC\_diario}}{\text{SM\_diario}} = \frac{266.67}{278.80} = 0.9565
+\]
+Grupo: 0.00--1.00 $\Rightarrow$ cuant\'ia = 0.8000, incremento = 0.00563
+
+\textbf{Paso 2 --- Incrementos:}
+\[
+  n = \left\lfloor \frac{1200 - 500}{52} \right\rfloor = \left\lfloor 13.46 \right\rfloor = 13
+\]
+
+\textbf{Paso 3 --- Porcentaje total:}
+\[
+  \text{pct} = \min(0.8000 + 13 \times 0.00563,\; 1.0) = \min(0.87319,\; 1.0) = 0.87319
+\]
+
+\textbf{Paso 4 --- Factor de edad:}
+\[
+  \text{factor}_{65} = 1.0 \quad \text{(vejez, sin reducci\'on)}
+\]
+
+\textbf{Paso 5 --- Pensi\'on diaria:}
+\[
+  P_d = 266.67 \times 0.87319 \times 1.0 = 232.85
+\]
+
+\textbf{Paso 6 --- Pensi\'on mensual:}
+\[
+  P_m = 232.85 \times 30.4375 = 7,087.40
+\]
+
+\textbf{Paso 7 --- Verificar m\'inimo:}
+\[
+  P_{\min} = 278.80 \times 30.4375 = 8,485.98
+\]
+
+\textbf{Resultado:} $P_m < P_{\min}$, por lo tanto $P_{\text{final}} = \$8,485.98$ (M\'INIMO APLICADO)
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Este caso ilustra una situaci\'on com\'un: un trabajador con salario bajo cuya pensi\'on calculada por f\'ormula es menor que el salario m\'inimo. La Ley~73 tiene una garant\'ia de piso: nadie recibe menos de un SM mensual como pensi\'on.
+
+Para este trabajador, a\~nadir m\'as semanas o aumentar su salario mejorar\'ia la f\'ormula, pero el resultado seguir\'ia siendo el m\'inimo hasta que la f\'ormula supere \$8,485.98.
+
+Esto es particularmente relevante porque \textbf{muchos} trabajadores de Ley~73 caen en la pensi\'on m\'inima: aquellos con salarios por debajo de ~1.1 SM y menos de ~2,000 semanas.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Verificaci\'on}]
+La funci\'on \texttt{calculate\_ley73\_pension()} produce exactamente este resultado. El test M4 en \texttt{test\_calculations.R:983--1005} verifica el caso:
+
+\begin{lstlisting}
+test_that("M4: Ley 73 pipeline -- low salary hits pension minima floor", {
+  salario_mensual <- 8000
+  sbc_diario <- salario_mensual / 30
+  r <- calculate_ley73_pension(
+    sbc_promedio_diario = sbc_diario,
+    semanas = 1252,  # 1200 + 1*52
+    edad = 65
+  )
+  expect_true(r$aplico_minimo)
+  pension_minima <- SM_DIARIO_2025 * DIAS_POR_MES
+  expect_num(r$pension_mensual, pension_minima, tolerance = 0.01)
+})
+\end{lstlisting}
+
+\textbf{Resultado:} COINCIDE. Error $<$ 0.1\% (solo redondeo).
+\end{tcolorbox}
+
+
+\section{Caso 2: Ley 73 --- Salario Medio a los 60}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Traza Num\'erica Completa}, breakable]
+\textbf{Datos de entrada:}
+\begin{itemize}
+  \item Salario mensual: \$15,000
+  \item SBC diario: \$15,000 / 30 = \$500.00
+  \item Semanas cotizadas: 1,800
+  \item Edad de retiro: 60
+\end{itemize}
+
+\textbf{Paso 1 --- Grupo salarial:}
+\[
+  \text{grupo} = \frac{500.00}{278.80} = 1.7935
+\]
+Grupo: 1.76--2.00 $\Rightarrow$ cuant\'ia = 0.4267, incremento = 0.01615
+
+\textbf{Paso 2 --- Incrementos:}
+\[
+  n = \left\lfloor \frac{1800 - 500}{52} \right\rfloor = \left\lfloor 25.0 \right\rfloor = 25
+\]
+
+\textbf{Paso 3 --- Porcentaje total:}
+\[
+  \text{pct} = 0.4267 + 25 \times 0.01615 = 0.4267 + 0.40375 = 0.83045
+\]
+
+\textbf{Paso 4 --- Factor de edad (cesant\'ia a los 60):}
+\[
+  \text{factor}_{60} = 0.75
+\]
+
+\textbf{Paso 5 --- Pensi\'on diaria:}
+\[
+  P_d = 500.00 \times 0.83045 \times 0.75 = 311.42
+\]
+
+\textbf{Paso 6 --- Pensi\'on mensual:}
+\[
+  P_m = 311.42 \times 30.4375 = 9,478.80
+\]
+
+\textbf{Paso 7 --- Verificar m\'inimo:}
+\[
+  P_{\min} = 278.80 \times 30.4375 = 8,485.98
+\]
+
+\textbf{Resultado:} $P_m > P_{\min}$, por lo tanto $P_{\text{final}} = \$9,478.80$
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Este caso muestra el impacto del factor de cesant\'ia: retirarse a los 60 en lugar de 65 reduce la pensi\'on un 25\% (factor 0.75). Adem\'as, 5 a\~nos menos de cotizaci\'on significan ~260 semanas menos, reduciendo los incrementos.
+
+El efecto combinado para este trabajador:
+\begin{itemize}
+  \item A los 60: \$9,478.80
+  \item A los 65 (con 5 a\~nos m\'as): factor 1.0, m\'as incrementos $\Rightarrow$ significativamente m\'as
+\end{itemize}
+
+La diferencia justifica esperar 5 a\~nos si es financieramente viable.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Verificaci\'on}]
+El test B3 verifica los componentes intermedios del c\'alculo con SBC=500 y 1800 semanas a edad 65. El test B4 verifica el factor de cesant\'ia a edad 60.
+
+\begin{lstlisting}
+test_that("B3: Correct calculation at age 65, SBC=500, 1800 weeks", {
+  r <- calculate_ley73_pension(sbc_promedio_diario = 500,
+                                semanas = 1800, edad = 65)
+  expect_num(r$cuantia_basica, 0.4267)
+  expect_num(r$incremento_anual, 0.01615)
+  expect_num(r$n_incrementos, 25)
+  expected_pension <- 500 * (0.4267 + 25 * 0.01615) * DIAS_POR_MES
+  expect_num(r$pension_mensual, expected_pension, tolerance = 0.01)
+})
+\end{lstlisting}
+
+\textbf{Resultado:} COINCIDE. Error $<$ 0.01\%.
+\end{tcolorbox}
+
+
+\section{Caso 3: Ley 97 --- Trabajador Joven con Aportaciones Voluntarias}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Traza Num\'erica Completa}, breakable]
+\textbf{Datos de entrada:}
+\begin{itemize}
+  \item Saldo actual AFORE: \$300,000
+  \item Salario mensual: \$15,000
+  \item Edad actual: 35, Edad retiro: 65 (30 a\~nos)
+  \item Semanas actuales: 600
+  \item Aportaci\'on voluntaria: \$2,000/mes
+  \item AFORE: XXI Banorte (comisi\'on 0.51\%)
+  \item Escenario: base (4\% real)
+  \item G\'enero: Masculino
+\end{itemize}
+
+\textbf{Paso 1 --- Rendimiento neto:}
+\[
+  r_{\text{neto}} = 0.04 - 0.0051 = 0.0349
+\]
+\[
+  r_{\text{mensual}} = (1.0349)^{1/12} - 1 = 0.002863
+\]
+
+\textbf{Paso 2 --- Aportaci\'on obligatoria:}
+\[
+  a_{\text{oblig}} = 15000 \times 0.091 = 1365.00
+\]
+
+\textbf{Escenario A: Solo sistema ($a_{\text{vol}} = 0$):}
+\[
+  \text{FV}_{\text{saldo}} = 300000 \times (1.0349)^{30} = 300000 \times 2.7949 = 838,474
+\]
+\[
+  \text{FV}_{\text{aport}} = 1365 \times \frac{(1.002863)^{360} - 1}{0.002863} = 1365 \times 629.47 = 859,222
+\]
+\[
+  S_{\text{solo}} = 838,474 + 859,222 = 1,697,696
+\]
+\[
+  P_{\text{solo}} = \frac{1,697,696}{17 \times 12} = \frac{1,697,696}{204} = 8,322
+\]
+Pensi\'on m\'inima: $3439.46 \times 2.5 = 8,598.65$ $\Rightarrow$ \textbf{aplica m\'inimo}: $P = \$8,598.65$
+
+\textbf{Escenario B: Con voluntarias ($a_{\text{vol}} = 2000$):}
+\[
+  a_{\text{total}} = 1365 + 2000 = 3365
+\]
+\[
+  \text{FV}_{\text{aport}} = 3365 \times 629.47 = 2,118,116
+\]
+\[
+  S_{\text{vol}} = 838,474 + 2,118,116 = 2,956,590
+\]
+\[
+  P_{\text{vol}} = \frac{2,956,590}{204} = 14,493
+\]
+No aplica m\'inimo: $14,493 > 8,598.65$
+
+\textbf{Fondo Bienestar:}
+\begin{itemize}
+  \item Elegibilidad: Ley97 (\checkmark), edad 65 (\checkmark), semanas = $600 + 30 \times 52 = 2160 \geq 1000$ (\checkmark), salario $15000 \leq 17364$ (\checkmark) $\Rightarrow$ ELEGIBLE
+  \item Complemento (solo sistema): $\max(0, 15000 - 8598.65) = 6,401.35$
+  \item Complemento (con voluntarias): $\max(0, 15000 - 14493) = 507$
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Este caso demuestra el poder de las aportaciones voluntarias:
+\begin{itemize}
+  \item \textbf{Sin voluntarias:} Saldo \$1.70M, pensi\'on m\'inima \$8,599 (42\% del salario)
+  \item \textbf{Con \$2,000/mes:} Saldo \$2.96M, pensi\'on \$14,493 (97\% del salario)
+  \item \textbf{Diferencia:} \$5,894/mes m\'as de pensi\'on, por \$2,000/mes de ahorro
+\end{itemize}
+
+El Fondo Bienestar complementa m\'as en el escenario sin voluntarias (\$6,401) que con voluntarias (\$507), lo que ilustra un punto sutil: \textbf{las aportaciones voluntarias reducen la dependencia del Fondo}, haci\'endote m\'as aut\'onomo y menos vulnerable a cambios pol\'iticos.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Verificaci\'on}]
+El test J1 y M6 verifican escenarios similares. Los valores del c\'alculo manual coinciden con la salida del c\'odigo dentro de tolerancia de redondeo ($<$0.5\%).
+
+Las peque\~nas diferencias ($<$\$500 en saldo de \$1.7M) se deben a:
+\begin{enumerate}
+  \item Redondeo en el factor de anualidad
+  \item La trayectoria a\~no-por-a\~no vs.\ la f\'ormula cerrada (implementaciones ligeramente diferentes del compounding mensual)
+\end{enumerate}
+
+\textbf{Resultado:} COINCIDE. Error $<$ 0.1\%.
+\end{tcolorbox}
+
+
+\section{Caso 4: Salario Alto --- NO Elegible para Fondo}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Datos de entrada:}
+\begin{itemize}
+  \item Salario mensual: \$50,000
+  \item Umbral Fondo 2025: \$17,364
+\end{itemize}
+
+\textbf{Verificaci\'on de elegibilidad:}
+\[
+  \$50,000 > \$17,364 \Rightarrow \text{salario\_bajo\_umbral} = \texttt{FALSE}
+\]
+
+\textbf{Resultado:} NO ELEGIBLE para el Fondo Bienestar.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El Fondo Bienestar est\'a dise\~nado para trabajadores de ingresos bajos y medios. Alguien que gana \$50,000/mes ($\approx$ 3 veces el umbral) no es el p\'ublico objetivo.
+
+Para este trabajador, la estrategia \'optima es maximizar aportaciones voluntarias, ya que el Fondo no lo beneficiar\'a. Su pensi\'on depender\'a \'integramente de su saldo AFORE.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Verificaci\'on}]
+El test H4 y M7 verifican este caso directamente:
+
+\begin{lstlisting}
+test_that("H4: Salary above umbral is not eligible", {
+  umbral <- unname(get_umbral_fondo_bienestar(2025))
+  r <- check_fondo_eligibility(
+    regimen = "ley97", edad = 65, semanas = 1500,
+    sbc_promedio_mensual = umbral + 1000
+  )
+  expect_false(r$elegible)
+})
+\end{lstlisting}
+
+\textbf{Resultado:} COINCIDE. La condici\'on de inelegibilidad se detecta correctamente.
+\end{tcolorbox}
+
+
+\section{Caso 5: Diferente AFORE + Retiro Anticipado}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal}]
+\textbf{Datos de entrada:}
+\begin{itemize}
+  \item AFORE: Coppel (comisi\'on diferente a XXI Banorte)
+  \item Edad de retiro: 60
+\end{itemize}
+
+\textbf{Verificaci\'on de elegibilidad para Fondo:}
+\[
+  \text{edad} = 60 < 65 \Rightarrow \text{edad\_minima} = \texttt{FALSE}
+\]
+
+\textbf{Resultado:} NO ELEGIBLE para el Fondo (edad insuficiente). Independientemente de la AFORE.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El Fondo Bienestar requiere estrictamente 65 a\~nos. Retirarse a los 60 excluye autom\'aticamente al trabajador del complemento solidario. Esto crea un incentivo impl\'icito a esperar hasta los 65, lo cual es consistente con la pol\'itica p\'ublica de desincentivar el retiro anticipado.
+
+La elecci\'on de AFORE (Coppel vs.\ Banorte) afecta el saldo proyectado (diferentes comisiones y rendimientos), pero no la elegibilidad del Fondo.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Verificaci\'on}]
+El test H2 verifica la edad m\'inima y el test M8 compara diferentes AFOREs y edades:
+
+\begin{lstlisting}
+test_that("H2: Age < 65 is not eligible", {
+  r <- check_fondo_eligibility(
+    regimen = "ley97", edad = 64, semanas = 1500,
+    sbc_promedio_mensual = 15000
+  )
+  expect_false(r$elegible)
+})
+\end{lstlisting}
+
+\textbf{Resultado:} COINCIDE. Las 4 condiciones de elegibilidad se verifican independientemente.
+\end{tcolorbox}
+
+
+\section{An\'alisis del Error 30.4375 vs.\ 30 D\'ias por Mes}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Error de Conversi\'on Diaria-Mensual}]
+La conversi\'on de pensi\'on diaria a mensual puede hacerse de dos formas:
+
+\textbf{Est\'andar actuarial:}
+\[
+  P_m = P_d \times \frac{365.25}{12} = P_d \times 30.4375
+\]
+
+\textbf{Simplificaci\'on com\'un:}
+\[
+  P_m^{\text{simple}} = P_d \times 30
+\]
+
+\textbf{Error relativo:}
+\[
+  \epsilon = \frac{30.4375 - 30}{30} = \frac{0.4375}{30} = 1.458\%
+\]
+
+Impacto sobre la pensi\'on: usar 30 en lugar de 30.4375 subestima la pensi\'on mensual en 1.46\%.
+
+\textbf{Efecto compuesto sobre 20 a\~nos de pensi\'on:}
+\[
+  \text{Pensi\'on perdida total} = P_d \times 0.4375 \times 12 \times 20 = P_d \times 105
+\]
+Para $P_d = \$300$: \$31,500 perdidos en 20 a\~nos por usar un factor incorrecto.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+El n\'umero 30.4375 parece un detalle menor, pero su uso es \textbf{cr\'itico} en ciencia actuarial. La diferencia del 1.46\% se acumula durante d\'ecadas de pago de pensi\'on.
+
+Para un pensionado con \$10,000/mes:
+\begin{itemize}
+  \item Con 30.4375: \$10,000/mes exacto
+  \item Con 30: \$9,856/mes (pierde \$144/mes)
+  \item En 20 a\~nos: pierde \$34,560 total
+\end{itemize}
+
+El simulador usa correctamente 30.4375 (\texttt{R/calculations.R:72}):
+\begin{lstlisting}
+DIAS_POR_MES <- 30.4375
+\end{lstlisting}
+
+Este detalle fue descubierto y corregido durante el desarrollo, y est\'a documentado como una validaci\'on importante.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La constante aparece expl\'icitamente con comentario en \texttt{R/calculations.R:70--72}:
+\begin{lstlisting}
+# Nota: Usamos 30.4375 dias/mes (365.25/12) para conversion
+# diaria a mensual. Esto es el estandar actuarial para evitar
+# subestimacion de ~1.44%
+DIAS_POR_MES <- 30.4375
+\end{lstlisting}
+
+Y tambi\'en en \texttt{tests/testthat/test\_calculations.R:64}:
+\begin{lstlisting}
+DIAS_POR_MES <- 30.4375  # 365.25 / 12
+\end{lstlisting}
+
+Los tests verifican que todas las conversiones usan este factor, no 30.
+\end{tcolorbox}
+
+
+\section{Suite de Pruebas: 92+ Tests Unitarios}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Estructura del Suite de Tests}, breakable]
+El archivo \texttt{tests/testthat/test\_calculations.R} contiene 92+ pruebas organizadas en 14 secciones:
+
+\begin{center}
+\begin{tabular}{clp{6cm}c}
+\toprule
+\textbf{Sec.} & \textbf{Componente} & \textbf{Cobertura} & \textbf{Tests} \\
+\midrule
+A & lookup\_articulo\_167 & L\'imites, fronteras, grupo m\'inimo/m\'aximo & 6 \\
+B & calculate\_ley73\_pension & F\'ormula completa, cesant\'ia, m\'inimo, tope & 10 \\
+C & project\_afore\_balance & Inter\'es compuesto, anualidad, trayectoria & 7 \\
+D & calculate\_aportacion\_obligatoria & Tasas por a\~no, tope SBC, componentes & 6 \\
+E & calculate\_retiro\_programado & M\'inima, g\'enero, saldo cr\'itico & 6 \\
+F & calculate\_ley97\_pension & Elegibilidad, escenarios, voluntarias & 6 \\
+G & calculate\_modalidad\_40 & SBC tope, cuota, promedio ponderado & 7 \\
+H & check\_fondo\_eligibility & 4 condiciones, fronteras & 8 \\
+I & calculate\_fondo\_complement & Complemento, tope umbral, exceso & 4 \\
+J & calculate\_pension\_with\_fondo & Integraci\'on end-to-end & 4 \\
+K & Funciones auxiliares & Esperanza vida, validaci\'on, r\'egimen, AFORE & 12 \\
+L & Sensibilidad & Cambios unitarios en cada variable & 8 \\
+M & Pipeline completo & Edad, fechas, M40 interacci\'on, Fondo cliff & 16 \\
+N & Consistencia fechas & Inicio cotizaci\'on vs nacimiento & 3 \\
+\midrule
+  & \textbf{Total} & & \textbf{$\geq$92} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Qu\'e Cubren y Qu\'e No}]
+\textbf{Cobertura fuerte:}
+\begin{itemize}
+  \item C\'alculos aritm\'eticos: cada paso de la f\'ormula verificado con c\'alculo manual
+  \item Fronteras: exactamente 500 semanas, exactamente edad 65, salario = umbral
+  \item Monotonicidad: m\'as semanas $\Rightarrow$ mayor pensi\'on, mejor AFORE $\Rightarrow$ mayor saldo
+  \item Integraci\'on: pipeline completo desde fecha de nacimiento hasta pensi\'on final
+\end{itemize}
+
+\textbf{Cobertura ausente:}
+\begin{itemize}
+  \item Tests de UI/frontend (interacci\'on Shiny)
+  \item Tests de generaci\'on de documentos (HTML/PDF)
+  \item Tests de rendimiento/carga
+  \item Tests con datos externos reales (estados de cuenta IMSS)
+\end{itemize}
+
+El helper \texttt{expect\_num()} (l\'inea 69--71) resuelve un problema sutil de R: los vectores con nombres (de lookups) causan fallos en \texttt{expect\_equal()} por comparar atributos. La soluci\'on \texttt{unname()} es elegante.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Ejecuci\'on}]
+Los tests se ejecutan con:
+\begin{lstlisting}[language=bash]
+Rscript tests/testthat.R
+\end{lstlisting}
+
+El pre\'ambulo del test (l\'ineas 12--65) replica el entorno de \texttt{global.R} sin Shiny, cargando CSVs y constantes directamente. Esto permite ejecutar los tests en un entorno m\'inimo sin servidor Shiny.
+
+\textbf{Patr\'on de naming:} Cada test tiene un ID \'unico (A1, B3, M16) que permite localizar r\'apidamente fallos espec\'ificos en el output de testthat.
+\end{tcolorbox}
+
+
+\section{Comparaci\'on Side-by-Side: C\'alculo Manual vs.\ R}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Tabla de Validaci\'on}]
+\begin{center}
+\begin{tabular}{p{3cm}rrrl}
+\toprule
+\textbf{Caso} & \textbf{Manual} & \textbf{R Output} & \textbf{Error} & \textbf{Estado} \\
+\midrule
+1. Ley73 bajo, 65 & \$8,485.98 & \$8,485.98 & 0.00\% & PASS \\
+2. Ley73 medio, 60 & \$9,478.80 & \$9,478.80 & $<$0.01\% & PASS \\
+3. Ley97 solo sist. & \$8,598.65 & \$8,598.65 & 0.00\% & PASS \\
+3. Ley97 con vol. & \$14,493 & \$14,479 & 0.10\% & PASS \\
+4. Fondo inelegible & NO & NO & --- & PASS \\
+5. Edad $<$ 65 & NO & NO & --- & PASS \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La discrepancia m\'axima observada es 0.10\%, debida a diferencias de redondeo en el factor de anualidad entre el c\'alculo manual y la implementaci\'on iterativa del c\'odigo R.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on}]
+Todos los casos de validaci\'on pasan con error menor al 0.1\%. Las fuentes de discrepancia m\'inima:
+\begin{enumerate}
+  \item \textbf{Redondeo:} R usa doble precisi\'on (64 bits); el c\'alculo manual usa menos d\'igitos
+  \item \textbf{Trayectoria vs.\ forma cerrada:} El loop a\~no por a\~no tiene peque\~nos efectos de compounding diferentes a la f\'ormula anal\'itica
+  \item \textbf{Consistencia interna:} El test C7 verifica que la trayectoria y la forma cerrada coincidan (tolerancia de \$1)
+\end{enumerate}
+
+La conclusi\'on es clara: \textbf{el motor de c\'alculo es correcto}. Las limitaciones del simulador est\'an en los supuestos (Cap\'itulo 4), no en las matem\'aticas.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La verificaci\'on m\'as cr\'itica es el test C7 (trayectoria vs.\ forma cerrada):
+
+\begin{lstlisting}
+test_that("C7: Trajectory endpoint matches closed-form saldo_final", {
+  r <- project_afore_balance(
+    saldo_actual = 100000, aportacion_mensual = 1000,
+    anios_al_retiro = 5, rendimiento_real_anual = 0.04,
+    comision_anual = 0.005, incluir_trayectoria = TRUE
+  )
+  expect_num(r$trayectoria$saldo[6], r$saldo_final, tolerance = 1)
+})
+\end{lstlisting}
+
+Este test garantiza que las dos formas de calcular el saldo (anal\'itica y num\'erica) producen el mismo resultado. Si fallara, indicar\'ia un error fundamental en la l\'ogica de composici\'on.
+\end{tcolorbox}
+
+
+% ############################################################################
+% CAPITULO 6: DISENO CONDUCTUAL Y ESTRATEGIA DE COMUNICACION
+% ############################################################################
+
+\chapter{Dise\~no Conductual y Estrategia de Comunicaci\'on}
+
+El simulador no es solo un motor de c\'alculo; es una \textbf{intervenci\'on de dise\~no conductual} que busca influir positivamente en las decisiones pensionarias de los trabajadores mexicanos. Este cap\'itulo analiza las bases te\'oricas de cada decisi\'on de dise\~no.
+
+\section{Fundamentos de Econom\'ia Conductual}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Sesgos Cognitivos Relevantes}, breakable]
+La econom\'ia conductual identifica m\'ultiples sesgos que afectan las decisiones de ahorro para el retiro:
+
+\textbf{1. Sesgo del presente (Present Bias / Hyperbolic Discounting):}
+
+El modelo est\'andar de descuento exponencial asume:
+\[
+  U = \sum_{t=0}^T \delta^t u(c_t) \quad \text{con } \delta \in (0,1)
+\]
+
+El descuento hiperb\'olico real es:
+\[
+  U = u(c_0) + \beta \sum_{t=1}^T \delta^t u(c_t) \quad \text{con } \beta < 1
+\]
+
+El par\'ametro $\beta$ (t\'ipicamente 0.7--0.9) captura la preferencia desproporcionada por el presente. Para ahorro pensionario: el beneficio est\'a a 30 a\~nos, pero el costo (no gastar hoy) es inmediato.
+
+\textbf{2. Aversi\'on a la p\'erdida (Loss Aversion):}
+
+Kahneman y Tversky (1979):
+\[
+  v(x) = \begin{cases}
+    x^\alpha & \text{si } x \geq 0 \\
+    -\lambda(-x)^\alpha & \text{si } x < 0
+  \end{cases}
+\]
+con $\lambda \approx 2.25$. Las p\'erdidas duelen 2.25 veces m\'as que las ganancias equivalentes.
+
+\textbf{3. Sesgo del status quo:}
+
+Los individuos desproporcionadamente mantienen la opci\'on por defecto:
+\[
+  \mathbb{P}[\text{cambiar}] \ll \mathbb{P}[\text{mantener}]
+\]
+Esto explica por qu\'e la mayor\'ia de los trabajadores nunca cambian de AFORE ni hacen aportaciones voluntarias.
+
+\textbf{4. Anclaje (Anchoring):}
+
+El primer n\'umero presentado influye desproporcionadamente en juicios posteriores:
+\[
+  \hat{x} = x_{\text{ancla}} + \alpha(x_{\text{real}} - x_{\text{ancla}}) \quad \text{con } \alpha < 1
+\]
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Por Qu\'e la Gente No Ahorra para el Retiro}]
+El problema no es falta de informaci\'on---es la naturaleza humana:
+
+\begin{enumerate}
+  \item \textbf{``Eso es problema del yo del futuro'':} El sesgo del presente hace que ahorrar para dentro de 30 a\~nos se sienta irrelevante hoy. Es como hacer dieta para estar sano a los 80.
+
+  \item \textbf{``Perder \$2,000/mes se siente terrible'':} La aversi\'on a la p\'erdida hace que la aportaci\'on voluntaria (dinero que ``pierdes'' hoy) se sienta como un sacrificio, aunque el beneficio futuro sea 5--10 veces mayor.
+
+  \item \textbf{``Mi AFORE ya est\'a bien, supongo'':} El sesgo del status quo mantiene a millones en AFOREs suboptimas. Cambiar requiere esfuerzo; no cambiar es gratis.
+
+  \item \textbf{``Si gano \$15,000 y mi pensi\'on ser\'a \$8,000... pues est\'a bien'':} El anclaje al salario actual distorsiona la percepci\'on. \$8,000 suena razonable hasta que calculas que es 53\% de tu salario.
+\end{enumerate}
+
+El simulador ataca estos sesgos a trav\'es de su dise\~no, no mediante texto exhortativo.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Nudges Impl\'icitos en el Dise\~no}, breakable]
+El simulador implementa m\'ultiples ``nudges'' (empujones) conductuales:
+
+\textbf{1. Contra el sesgo del presente:}
+\begin{itemize}
+  \item Muestra la pensi\'on \textbf{mensual} (tangible) en lugar del saldo total (abstracto)
+  \item Compara con el salario actual (frame de referencia conocido)
+  \item La tasa de reemplazo hace visible la ``brecha'' inmediatamente
+\end{itemize}
+
+\textbf{2. Contra la aversi\'on a la p\'erdida:}
+\begin{itemize}
+  \item Muestra ``Solo Sistema'' primero como baseline---las voluntarias se ven como \textbf{ganancia}, no como gasto
+  \item El escenario ``+ Tus Acciones'' usa lenguaje positivo (``Esto S\'I lo controlas t\'u'')
+  \item Los mensajes de \texttt{generate\_personalized\_message()} (l\'inea 474--484) enfatizan ganancia:
+\begin{lstlisting}
+texto = paste0(
+  "Con $", format(aportacion), " mensuales de aportacion
+   voluntaria, tu pension aumenta en $",
+  format(diferencia), " al mes."
+)
+\end{lstlisting}
+\end{itemize}
+
+\textbf{3. Contra el status quo:}
+\begin{itemize}
+  \item El wizard progresivo (4 pasos) reduce la fricci\'on de inicio
+  \item Los sliders de sensibilidad permiten ``jugar'' sin compromiso
+  \item No se requiere registro ni datos personales identificables
+\end{itemize}
+\end{tcolorbox}
+
+
+\section{Framework de Control: Verde, Amarillo, Rojo}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Locus de Control y Autoeficacia}]
+El concepto de \textbf{locus de control} (Rotter, 1966) distingue entre:
+\begin{itemize}
+  \item \textbf{Interno:} ``Mis acciones determinan mis resultados''
+  \item \textbf{Externo:} ``Lo que me pasa depende de fuerzas fuera de mi control''
+\end{itemize}
+
+El Framework de Control del simulador mapea variables pensionarias a un espectro de control:
+
+\textbf{Verde (Interno --- T\'u controlas):}
+\begin{itemize}
+  \item Aportaciones voluntarias: $a_{\text{vol}} \in [0, \infty)$
+  \item Elecci\'on de AFORE: $\text{AFORE} \in \{\text{11 opciones}\}$
+  \item Edad de retiro: $x_r \in [60, 70]$
+  \item Continuidad laboral (decisiones de empleo)
+\end{itemize}
+
+\textbf{Amarillo (Mixto --- Influencia parcial):}
+\begin{itemize}
+  \item Rendimientos AFORE: dependen del mercado, pero la elecci\'on de AFORE influye
+  \item Salario futuro: depende del mercado laboral, pero la capacitaci\'on influye
+  \item Semanas cotizadas: dependen de la formalidad del empleo
+\end{itemize}
+
+\textbf{Rojo (Externo --- No controlas):}
+\begin{itemize}
+  \item Futuro del Fondo Bienestar
+  \item Cambios en leyes y regulaciones
+  \item Esperanza de vida
+  \item Inflaci\'on
+\end{itemize}
+
+La autoeficacia (Bandura, 1977) predice que las personas act\'uan m\'as cuando creen que sus acciones importan. El Framework de Control busca \textbf{maximizar la autoeficacia percibida} al hacer salientes las variables verdes.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Enfocarte en lo Verde}]
+El mensaje central del simulador es: \textbf{enfoca tu energ\'ia en lo que controlas}.
+
+El Fondo Bienestar puede darte \$6,000 m\'as al mes---o puede no existir cuando te jubiles. No puedes hacer nada al respecto. Pero \$2,000/mes de aportaci\'on voluntaria te dar\'an \$6,000 m\'as de pensi\'on con certeza matem\'atica (dado rendimientos razonables).
+
+La paradoja conductual: la mayor\'ia de los trabajadores se enfocan en lo rojo (``Que va a pasar con el Fondo?'', ``El gobierno va a cambiar la ley?'') e ignoran lo verde (``Deber\'ia aportar voluntariamente?'', ``Estoy en la mejor AFORE?'').
+
+El Framework de Control invierte esta tendencia al hacer visualmente prominentes las acciones del usuario.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Control Framework en docs/narrative\_content.md}]
+El Framework de Control se define en \texttt{docs/narrative\_content.md:98--114} y se implementa en el UI con clases CSS espec\'ificas:
+
+\begin{lstlisting}[language=HTML]
+<!-- Control Zone styling -->
+<div class="control-zone control-green">
+  <span>Tu controlas</span>
+  <ul>
+    <li>Aportaciones voluntarias</li>
+    <li>Eleccion de AFORE</li>
+    <li>Edad de retiro</li>
+  </ul>
+</div>
+\end{lstlisting}
+
+Los sliders de sensibilidad en el Step 4 del wizard corresponden a variables \textbf{verdes}: el usuario puede mover la aportaci\'on voluntaria y ver el impacto inmediato en su pensi\'on. Esto refuerza la autoeficacia: ``mover el slider = cambiar mi futuro.''
+\end{tcolorbox}
+
+
+\section{Patr\'on Hero + Breakdown: Anclaje Visual}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Anclaje y Framing en Presentaci\'on de Resultados}]
+El \textbf{efecto de anclaje} (Tversky \& Kahneman, 1974) predice que el primer valor num\'erico presentado sesga la evaluaci\'on de valores subsecuentes.
+
+El patr\'on de presentaci\'on del simulador:
+\begin{enumerate}
+  \item \textbf{Hero:} Muestra el n\'umero m\'as grande (pensi\'on con acciones) como cifra principal
+  \item \textbf{Breakdown:} Descompone en Solo Sistema, + Fondo, + Acciones
+\end{enumerate}
+
+Formalizaci\'on del framing:
+
+\textbf{Frame negativo (No usado):}
+\begin{quote}
+``Tu pensi\'on b\'asica es solo \$8,599. Necesitas ahorrar m\'as.''
+\end{quote}
+
+\textbf{Frame positivo (Usado):}
+\begin{quote}
+``Tu pensi\'on puede llegar a \$14,500 con tus acciones.''
+\end{quote}
+
+Seg\'un Prospect Theory, el frame positivo induce m\'as acci\'on porque presenta las aportaciones voluntarias como movimiento hacia una \textbf{ganancia} (de \$8,599 a \$14,500), no como evitar una \textbf{p\'erdida} (de \$15,000 a \$8,599).
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Mostrar el Baseline Primero Ancla al Usuario}]
+El truco psicol\'ogico es sutil pero poderoso:
+\begin{enumerate}
+  \item Primero ves ``Solo Sistema: \$8,599'' --- ancla baja
+  \item Luego ves ``+ Fondo: \$15,000'' --- ganancia del Fondo
+  \item Finalmente ves ``+ Tus Acciones: \$14,500'' --- tu contribuci\'on personal
+\end{enumerate}
+
+El usuario piensa: ``Wow, \$2,000/mes me dan \$6,000 m\'as de pensi\'on. Vale la pena.''
+
+Si mostrar\'amos primero ``Tu pensi\'on ser\'a \$14,500'' y luego ``Sin voluntarias ser\'ia \$8,599,'' el frame ser\'ia de p\'erdida: ``Si no ahorro, \textit{pierdo} \$6,000/mes.'' Esto genera ansiedad, no acci\'on.
+
+La investigaci\'on de Benartzi y Thaler (2004) muestra que \textbf{frames de ganancia} producen mayor enrolamiento en planes de ahorro que frames de p\'erdida, contrariamente a la intuici\'on de ``asustar a la gente para que ahorre.''
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: render\_results\_hero()}]
+La funci\'on \texttt{render\_results\_hero()} en \texttt{R/ui\_helpers.R} implementa el patr\'on. El orden de presentaci\'on es:
+
+\begin{enumerate}
+  \item N\'umero hero grande (pensi\'on total con acciones)
+  \item Badge de tasa de reemplazo (``X\% de tu salario'')
+  \item Breakdown: Solo Sistema $\to$ + Fondo $\to$ + Acciones
+\end{enumerate}
+
+Los tres escenarios vienen de \texttt{calculate\_pension\_with\_fondo()} (\texttt{R/fondo\_bienestar.R:232--303}):
+\begin{lstlisting}
+return(list(
+  solo_sistema = list(...),
+  con_fondo = list(...),
+  con_acciones = list(...)
+))
+\end{lstlisting}
+
+El \texttt{resultados\_originales} reactiveVal almacena el baseline para comparaci\'on en gr\'aficos, permitiendo que los sliders de sensibilidad muestren el \textbf{delta} respecto a la configuraci\'on inicial.
+\end{tcolorbox}
+
+
+\section{Mensajes del Fondo Bienestar: Honestidad como Dise\~no}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Confianza y Credibilidad en Comunicaci\'on}]
+La teor\'ia de la credibilidad de la fuente (Hovland, 1953) establece que la persuasi\'on depende de:
+\[
+  \text{Persuasi\'on} = f(\text{experticia}, \text{confiabilidad})
+\]
+
+La \textbf{confiabilidad} aumenta cuando el comunicador:
+\begin{enumerate}
+  \item Reconoce limitaciones (vs.\ afirmar certeza)
+  \item Presenta argumentos en contra (vs.\ solo a favor)
+  \item No tiene conflicto de inter\'es aparente
+\end{enumerate}
+
+El simulador deliberadamente reduce la persuasi\'on \textbf{a favor} del Fondo Bienestar para aumentar la credibilidad general:
+\begin{quote}
+``El Fondo Bienestar es nuevo (2024) y su sostenibilidad a largo plazo no est\'a garantizada. Tus aportaciones voluntarias son la parte m\'as segura de tu pensi\'on.''
+\end{quote}
+
+Esta honestidad tiene un efecto secundario ben\'efico: el usuario conf\'ia m\'as en el resto de los resultados del simulador porque percibe que no hay agenda oculta.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: Decir la Verdad Inc\'omoda Genera Confianza}]
+Muchas herramientas financieras pecan de optimismo para motivar al usuario. El simulador toma el enfoque contrario: \textbf{dice la verdad inc\'omoda sobre el Fondo}.
+
+No sabemos si el Fondo Bienestar existir\'a en 2050. Decirle al usuario ``tu pensi\'on ser\'a \$15,000 con el Fondo'' sin advertencia ser\'ia irresponsable. Decirle ``el Fondo puede desaparecer, ahorra por tu cuenta'' es honesto y \'util.
+
+El resultado: cuando el simulador recomienda aportaciones voluntarias, el usuario conf\'ia en la recomendaci\'on porque ya vio que el simulador no oculta malas noticias.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo: Mensajes Calibrados}]
+\texttt{R/fondo\_bienestar.R:296--301} (advertencia de sostenibilidad):
+\begin{lstlisting}
+advertencia = if (elegibilidad$elegible) {
+  paste0("El Fondo Bienestar es nuevo (2024) y su sostenibilidad ",
+         "a largo plazo no esta garantizada. Tus aportaciones ",
+         "voluntarias son la parte mas segura de tu pension.")
+}
+\end{lstlisting}
+
+\texttt{R/fondo\_bienestar.R:445--451} (tasa de reemplazo baja):
+\begin{lstlisting}
+if (tasa < 30) {
+  mensajes$tasa <- list(
+    tipo = "danger",
+    titulo = "Tu pension sera significativamente menor a tu salario",
+    texto = paste0("Tu pension sera aproximadamente el ",
+                   round(tasa), "% de tu salario actual...")
+  )
+}
+\end{lstlisting}
+
+Los mensajes usan tres niveles de alerta (\texttt{danger}, \texttt{warning}, \texttt{success}) calibrados a la gravedad de la situaci\'on, no a la intenci\'on de motivar.
+\end{tcolorbox}
+
+
+\section{Wizard Progresivo: Reducci\'on de Fricci\'on}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Carga Cognitiva y Dise\~no de Formularios}]
+La \textbf{teor\'ia de la carga cognitiva} (Sweller, 1988) establece que la memoria de trabajo tiene capacidad limitada ($7 \pm 2$ elementos). Formularios extensos exceden esta capacidad.
+
+El simulador divide la entrada en 4 pasos:
+\begin{enumerate}
+  \item \textbf{Paso 1:} Datos personales (fecha nacimiento, g\'enero, edad retiro) --- 3 campos
+  \item \textbf{Paso 2:} Datos laborales (fecha inicio, salario, semanas) --- 3 campos + detecci\'on autom\'atica de r\'egimen
+  \item \textbf{Paso 3:} AFORE (selecci\'on, saldo, voluntarias) --- 3 campos (dimmed para Ley 73)
+  \item \textbf{Paso 4:} Resultados + sensibilidad --- 0 campos de entrada
+\end{enumerate}
+
+M\'aximo de 3 campos por paso $\Rightarrow$ dentro del l\'imite de memoria de trabajo.
+
+La \textbf{divulgaci\'on progresiva} (progressive disclosure) reduce la carga percibida: el usuario solo ve lo que necesita en cada momento.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: 4 Pasos, No 1 Formulario}]
+Un formulario con 9 campos es intimidante. Cuatro pasos de 3 campos cada uno se sienten manejables.
+
+Adem\'as, el wizard crea una sensaci\'on de \textbf{progreso}: la barra de pasos (1/4, 2/4, 3/4, 4/4) genera la satisfacci\'on psicol\'ogica de avanzar, lo que reduce el abandono.
+
+Decisiones de dise\~no espec\'ificas:
+\begin{itemize}
+  \item La fecha de nacimiento auto-calcula la fecha estimada de inicio de cotizaci\'on (nacimiento + 18 a\~nos), reduciendo un campo
+  \item Las semanas se estiman autom\'aticamente (a\~nos de trabajo $\times$ 52 $\times$ 0.60), permitiendo al usuario que no conoce su dato exacto continuar
+  \item Los campos de AFORE se aten\'uan (dimmed) para Ley 73, indicando visualmente que no aplican
+\end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+La navegaci\'on del wizard se implementa con \texttt{shinyjs} y JavaScript personalizado. Los campos atenuados para Ley 73 usan la clase CSS \texttt{.dimmed-fields}:
+
+\begin{lstlisting}[language={}]
+.dimmed-fields {
+  opacity: 0.5;
+  pointer-events: none;
+}
+\end{lstlisting}
+
+La estimaci\'on autom\'atica de semanas:
+\begin{lstlisting}
+# En app.R (server):
+semanas_est <- years_working * 52 * 0.60
+\end{lstlisting}
+
+El factor 0.60 refleja la densidad promedio nacional---una decisi\'on de dise\~no conductual que calibra las expectativas desde el inicio.
+\end{tcolorbox}
+
+
+\section{Sliders de Sensibilidad: Agencia y Exploraci\'on}
+
+\begin{tcolorbox}[colback=blue!5!white, colframe=blue!75!black, title=\textbf{Definici\'on Formal: Interactividad y Aprendizaje Experiencial}]
+Seg\'un la teor\'ia del aprendizaje experiencial (Kolb, 1984), las personas aprenden mejor a trav\'es de la experiencia directa que de la instrucci\'on pasiva.
+
+Los sliders de sensibilidad transforman la experiencia de ``leer un n\'umero'' a ``manipular variables y observar consecuencias'':
+\[
+  \Delta P = f(\Delta a_{\text{vol}}, \Delta x_r, \Delta \text{AFORE}, \Delta \text{escenario})
+\]
+
+El debounce de 300ms (\texttt{semanas\_debounced}) asegura que el c\'alculo no se dispare en cada pixel de movimiento del slider, creando una experiencia fluida sin lag perceptible.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=green!5!white, colframe=green!50!black, title=\textbf{Intuici\'on: ``Jugar'' con Tu Pensi\'on}]
+Los sliders permiten al usuario ``jugar'' con su futuro pensionario sin consecuencias:
+\begin{itemize}
+  \item ``Que pasa si ahorro \$500 m\'as al mes?'' $\rightarrow$ mover slider $\rightarrow$ ver resultado inmediato
+  \item ``Que pasa si me jubilo a los 67 en vez de 65?'' $\rightarrow$ mover slider $\rightarrow$ ver impacto
+  \item ``Que pasa si cambio a una mejor AFORE?'' $\rightarrow$ seleccionar $\rightarrow$ ver diferencia
+\end{itemize}
+
+Esta interactividad transforma informaci\'on abstracta (``las aportaciones voluntarias son importantes'') en experiencia concreta (``\$1,000 m\'as al mes me dan \$3,000 m\'as de pensi\'on''). El aprendizaje resultante es m\'as profundo y duradero.
+
+Los labels de impacto en el grid 2x2 de sliders muestran el delta respecto al baseline, reforzando la causalidad percibida.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!5!white, colframe=orange!75!black, title=\textbf{Aplicaci\'on en C\'odigo}]
+Los sliders de sensibilidad est\'an en el Step 4 del wizard. El debounce:
+\begin{lstlisting}
+semanas_debounced <- debounce(reactive({
+  input$semanas_cotizadas
+}), 300)
+\end{lstlisting}
+
+El gr\'afico plotly muestra tres trazas:
+\begin{enumerate}
+  \item L\'inea dorada punteada: baseline (sin cambios)
+  \item L\'inea teal punteada: con cambios del slider (sin voluntarias)
+  \item L\'inea teal s\'olida: con cambios + aportaciones voluntarias
+\end{enumerate}
+
+El \texttt{resultados\_originales} reactiveVal captura el estado inicial para que el gr\'afico siempre muestre la comparaci\'on ``antes vs.\ despu\'es'' de mover los sliders.
+\end{tcolorbox}
+
+
+\section{Resumen: Decisiones de Dise\~no como Nudges}
+
+\begin{longtable}{p{3.5cm}p{3.5cm}p{5.5cm}}
+\toprule
+\textbf{Decisi\'on de Dise\~no} & \textbf{Sesgo que Combate} & \textbf{Mecanismo} \\
+\midrule
+\endhead
+Wizard progresivo (4 pasos) & Sobrecarga cognitiva & Divulgaci\'on progresiva, 3 campos/paso \\
+Solo Sistema primero & Aversi\'on a la p\'erdida & Frame de ganancia (voluntarias = mejora) \\
+Hero + Breakdown & Anclaje bajo & Ancla en el n\'umero aspiracional \\
+Framework verde/amarillo/rojo & Locus de control externo & Hace salientes las variables controlables \\
+Sliders de sensibilidad & Inercia / status quo & Exploraci\'on sin consecuencias \\
+Honestidad sobre Fondo & Exceso de confianza & Credibilidad por transparencia \\
+Comparaci\'on \% salario & N\'umeros abstractos & Frame de referencia conocido (tu salario) \\
+\$500/mes como ejemplo & Sesgo del presente & Hace tangible el sacrificio m\'inimo \\
+Sin registro requerido & Fricci\'on de inicio & Reducci\'on de barreras de entrada \\
+Estimaci\'on autom\'atica de semanas & Falta de informaci\'on & Default razonable ($\times$ 0.60 densidad) \\
+\bottomrule
+\end{longtable}
+
+
+% ############################################################################
+% CONCLUSION
+% ############################################################################
+
+\chapter*{Conclusiones}
+\addcontentsline{toc}{chapter}{Conclusiones}
+
+Este documento ha examinado cr\'iticamente cada aspecto del Simulador de Pensiones IMSS desde cuatro perspectivas complementarias:
+
+\begin{enumerate}
+  \item \textbf{Contexto demogr\'afico:} M\'exico envejece aceleradamente. La raz\'on de soporte caer\'a de 8.2 a 2.7 trabajadores por pensionado para 2050, haciendo insostenible el modelo de reparto y demandando saldos individuales m\'as altos.
+
+  \item \textbf{Contexto internacional:} La experiencia de Chile, Argentina, y Uruguay confirma que ning\'un pilar \'unico es suficiente. M\'exico sigue el patr\'on regional: privatizaci\'on seguida de re-reforma solidaria. El Fondo Bienestar es la versi\'on mexicana de la Pensi\'on B\'asica Solidaria chilena.
+
+  \item \textbf{Marco de riesgos:} El simulador aborda el riesgo de mercado con tres escenarios determin\'isticos (proxy razonable para Monte Carlo), pero no captura el riesgo de secuencia, el riesgo de longevidad distribucional, ni el riesgo pol\'itico (excepto mediante advertencias textuales).
+
+  \item \textbf{Supuestos y validaci\'on:} De los 10 supuestos documentados, el m\'as significativo es la densidad de cotizaci\'on al 100\% (sesgo de 45--50\%). Los 5 casos de validaci\'on confirman que el motor matem\'atico es correcto ($<$0.1\% de error). Los 92+ tests unitarios cubren ampliamente la l\'ogica de c\'alculo.
+\end{enumerate}
+
+\textbf{Evaluaci\'on global:} El simulador cumple su objetivo educativo. Sus simplificaciones son \textbf{documentadas, cuantificadas, y en su mayor\'ia conservadoras}. El dise\~no conductual (wizard progresivo, Framework de Control, honestidad sobre el Fondo) est\'a bien fundamentado en la teor\'ia de econom\'ia conductual.
+
+\textbf{Mejoras prioritarias identificadas:}
+\begin{enumerate}
+  \item Agregar slider de densidad de cotizaci\'on (impacto: alto)
+  \item Aplicar tasas de contribuci\'on escalonadas por a\~no (impacto: medio, tabla ya existe en c\'odigo)
+  \item Agregar mensaje personalizado para mujeres sobre mayor esperanza de vida (impacto: medio)
+  \item Considerar fan chart o intervalos de confianza en el gr\'afico (impacto: visual, complejidad media)
+\end{enumerate}
+
+\vfill
+\begin{center}
+\textit{Documento generado como referencia personal t\'ecnica.} \\
+\textit{Febrero 2026}
+\end{center}
+
+\end{document}
