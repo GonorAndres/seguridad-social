@@ -47,7 +47,7 @@ get_afore_comision <- function(afore_nombre, anio = 2025) {
   row <- afore_data[afore_data$afore == afore_nombre, ]
   if (nrow(row) == 0) {
     # Retornar promedio si no se encuentra
-    return(mean(afore_data$comision_2025))
+    return(mean(afore_data$comision_2025) / 100)
   }
 
   if (anio == 2024) {
@@ -63,7 +63,7 @@ get_afore_comision <- function(afore_nombre, anio = 2025) {
 get_afore_irn <- function(afore_nombre) {
   row <- afore_data[afore_data$afore == afore_nombre, ]
   if (nrow(row) == 0) {
-    return(mean(afore_data$irn_2024))
+    return(mean(afore_data$irn_2024) / 100)
   }
   return(row$irn_2024 / 100)
 }
@@ -219,4 +219,26 @@ determinar_regimen <- function(fecha_primera_cotizacion) {
   } else {
     return("ley97")
   }
+}
+
+#' Validate consistency between birth date and start-of-contribution date
+#' @param fecha_nacimiento Date of birth
+#' @param fecha_primera_cotizacion Date of first IMSS contribution
+#' @return List with is_consistent (logical) and message (character or NULL)
+validar_consistencia_fechas <- function(fecha_nacimiento, fecha_primera_cotizacion) {
+  if (is.null(fecha_nacimiento) || is.null(fecha_primera_cotizacion)) {
+    return(list(is_consistent = TRUE, message = NULL))
+  }
+  edad_inicio <- as.numeric(difftime(fecha_primera_cotizacion, fecha_nacimiento, units = "days")) / 365.25
+  if (edad_inicio < 15) {
+    return(list(is_consistent = FALSE,
+      message = paste0("Tu fecha sugiere que empezaste a cotizar a los ", round(edad_inicio),
+                       " anos. Verifica que sea correcta.")))
+  }
+  if (edad_inicio > 35) {
+    return(list(is_consistent = FALSE,
+      message = paste0("Tu fecha sugiere que empezaste a cotizar a los ", round(edad_inicio),
+                       " anos, lo cual es inusual. Verifica la fecha.")))
+  }
+  return(list(is_consistent = TRUE, message = NULL))
 }

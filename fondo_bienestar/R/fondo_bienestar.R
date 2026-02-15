@@ -43,28 +43,27 @@ check_fondo_eligibility <- function(regimen,
     edad_minima = list(
       cumple = (edad >= 65),
       mensaje = if (edad >= 65) {
-        paste0("Edad (", edad, "): Cumple con minimo de 65 anos")
+        paste0("Cumples con la edad minima de 65 anos")
       } else {
-        paste0("Edad (", edad, "): NO cumple. Requiere 65 anos minimo")
+        paste0("Necesitas tener al menos 65 anos para acceder al Fondo. Hoy tienes ", edad, ".")
       }
     ),
     semanas_minimas = list(
       cumple = (semanas >= 1000),
       mensaje = if (semanas >= 1000) {
-        paste0("Semanas (", round(semanas), "): Cumple con minimo de 1,000")
+        paste0("Cumples con las 1,000 semanas minimas cotizadas")
       } else {
-        paste0("Semanas (", round(semanas), "): NO cumple. Requiere 1,000 minimo")
+        paste0("Necesitas al menos 1,000 semanas cotizadas. Hoy llevas ", format(round(semanas), big.mark = ","), ".")
       }
     ),
     salario_bajo_umbral = list(
       cumple = (sbc_promedio_mensual <= umbral),
       mensaje = if (sbc_promedio_mensual <= umbral) {
-        paste0("Salario ($", format(round(sbc_promedio_mensual), big.mark = ","),
-               "): Bajo umbral de $", format(round(umbral), big.mark = ","))
+        paste0("Tu salario esta dentro del limite del Fondo")
       } else {
-        paste0("Salario ($", format(round(sbc_promedio_mensual), big.mark = ","),
-               "): EXCEDE umbral de $", format(round(umbral), big.mark = ","),
-               " - NO elegible")
+        paste0("El Fondo Bienestar es para salarios menores a $",
+               format(round(umbral), big.mark = ","),
+               "/mes. Tu salario actual lo supera.")
       }
     )
   )

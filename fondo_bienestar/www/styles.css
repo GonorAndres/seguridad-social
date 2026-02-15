@@ -1592,6 +1592,17 @@ input[type="range"]::-moz-range-thumb {
   position: relative;
 }
 
+.result-hero-tag.m40-tag {
+  background: rgba(255, 255, 255, 0.25);
+  font-weight: 600;
+}
+
+.result-hero-base-pension {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  margin-top: var(--space-1);
+}
+
 /* Breakdown Panel */
 .result-breakdown {
   background: var(--surface-base);
@@ -1758,6 +1769,49 @@ input[type="range"]::-moz-range-thumb {
   .result-hero-badge {
     font-size: 0.8rem;
   }
+}
+
+/* -----------------------------------------------------------------------------
+   Regime Badge (Auto-detection)
+   ----------------------------------------------------------------------------- */
+.regime-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.regime-badge.ley73 {
+  background: var(--color-success-light);
+  color: #065f46;
+  border: 1px solid var(--color-success);
+}
+
+.regime-badge.ley97 {
+  background: #dbeafe;
+  color: var(--color-primary-800);
+  border: 1px solid var(--color-primary-600);
+}
+
+.regime-badge .regime-desc {
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+/* -----------------------------------------------------------------------------
+   Dimmed Fields (Ley 73 AFORE)
+   ----------------------------------------------------------------------------- */
+.dimmed-fields {
+  opacity: 0.5;
+  pointer-events: auto;
+  transition: opacity 0.3s ease;
+}
+
+.dimmed-fields:hover,
+.dimmed-fields:focus-within {
+  opacity: 1;
 }
 
 /* -----------------------------------------------------------------------------
@@ -2059,4 +2113,44 @@ input[type="number"]:hover::-webkit-outer-spin-button {
   .comparison-arrow {
     transform: rotate(90deg);
   }
+}
+
+/* -----------------------------------------------------------------------------
+   Sensitivity Intro Section
+   ----------------------------------------------------------------------------- */
+.sensitivity-intro {
+  text-align: center;
+  padding: var(--space-4) var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+.sensitivity-title {
+  color: var(--color-primary-700);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.sensitivity-subtitle {
+  color: var(--color-gray-500);
+  font-size: 0.95rem;
+  margin-bottom: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* -----------------------------------------------------------------------------
+   Impact Label Animations + Focus States
+   ----------------------------------------------------------------------------- */
+.slider-impact:not(:empty) {
+  animation: impactFadeIn 0.3s ease-out;
+}
+
+@keyframes impactFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.slider-container:focus-within {
+  box-shadow: var(--shadow-sm), 0 0 0 3px rgba(236, 72, 153, 0.1);
 }

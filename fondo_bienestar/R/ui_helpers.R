@@ -702,7 +702,10 @@ render_results_hero <- function(resultado) {
     tags$div(
       class = "fondo-status-inline not-eligible",
       tags$i(class = "bi bi-info-circle"),
-      tags$span(resultado$fondo_bienestar$razon_no_elegible)
+      tags$span(
+        tags$strong("No elegible para Fondo Bienestar. "),
+        resultado$fondo_bienestar$razon_no_elegible
+      )
     )
   }
 
@@ -743,7 +746,14 @@ render_results_hero_ley73 <- function(res) {
 
   # Hero shows the best available pension
   best_pension <- max(pension_base, pension_m40)
-  tasa <- if (res$pension_base$elegible) res$pension_base$tasa_reemplazo else 0
+  m40_active <- !is.null(res$pension_m40) && pension_m40 > pension_base
+  tasa <- if (res$pension_base$elegible) {
+    if (m40_active) {
+      res$pension_m40$nueva_pension_detalle$tasa_reemplazo %||% res$pension_base$tasa_reemplazo
+    } else {
+      res$pension_base$tasa_reemplazo
+    }
+  } else 0
   show_minimo <- if (res$pension_base$elegible) (res$pension_base$aplico_minimo %||% FALSE) else FALSE
 
   hero <- tags$div(
@@ -761,6 +771,17 @@ render_results_hero_ley73 <- function(res) {
       )
     } else {
       tags$div(class = "result-hero-badge", "No elegible")
+    },
+    if (m40_active) {
+      tags$div(class = "result-hero-tag m40-tag",
+        tags$i(class = "bi bi-arrow-up-circle me-1"),
+        "Incluye Modalidad 40"
+      )
+    },
+    if (m40_active) {
+      tags$div(class = "result-hero-base-pension",
+        paste0("Sin Modalidad 40: ", format_currency(pension_base), "/mes")
+      )
     },
     if (show_minimo) {
       tags$div(class = "result-hero-tag", "Pension Minima Garantizada")
