@@ -11,13 +11,13 @@ pension_theme <- function() {
   bslib::bs_theme(
     version = 5,  # Bootstrap 5
 
-    # Colores primarios - Trust Navy & Teal
-    primary = "#1a365d",     # Navy 700
-    secondary = "#0d9488",   # Teal 600
-    success = "#059669",     # Green 600
-    warning = "#d97706",     # Amber 600
-    danger = "#dc2626",      # Red 600
-    info = "#3182ce",        # Blue 500
+    # Colores primarios - Tropical Teal & Magenta
+    primary = "#0f766e",     # Teal 700
+    secondary = "#db2777",   # Pink 600
+    success = "#10b981",     # Emerald 500
+    warning = "#f59e0b",     # Amber 500
+    danger = "#ef4444",      # Red 500
+    info = "#0d9488",        # Teal 600
 
     # Tipografia - System fonts for performance
     base_font = bslib::font_collection(
@@ -31,8 +31,8 @@ pension_theme <- function() {
     code_font = bslib::font_collection("SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"),
 
     # Variables personalizadas
-    "body-bg" = "#f8fafc",
-    "card-bg" = "#ffffff",
+    "body-bg" = "#fef7ed",
+    "card-bg" = "#fffbf0",
     "border-radius" = "0.5rem",
     "border-radius-lg" = "0.75rem",
 
@@ -394,7 +394,7 @@ wizard_panel <- function(step_id,
     class = "wizard-panel card shadow-sm",
 
     tags$div(
-      class = "card-header bg-white border-0 pt-4",
+      class = "card-header bg-surface border-0 pt-4",
       tags$h4(class = "card-title mb-0", title)
     ),
 
@@ -404,7 +404,7 @@ wizard_panel <- function(step_id,
     ),
 
     tags$div(
-      class = "card-footer bg-white border-0 d-flex justify-content-between pb-4",
+      class = "card-footer bg-surface border-0 d-flex justify-content-between pb-4",
 
       # Boton anterior
       if (show_prev) {
@@ -484,76 +484,408 @@ result_card <- function(title,
   )
 }
 
-#' Crear las tres tarjetas de resultados
-#' @param resultado Resultado de calculate_pension_with_fondo
-#' @return HTML con las tres tarjetas
-render_result_cards <- function(resultado) {
+#' Detect which result scenario to display
+#' @param resultado Result from calculate_pension_with_fondo
+#' @return String identifying the scenario
+detect_result_scenario <- function(resultado) {
+  tiene_voluntarias <- (resultado$entrada$aportacion_voluntaria %||% 0) > 0
+  fondo_elegible <- resultado$con_fondo$elegible
+  aplico_minimo_base <- resultado$solo_sistema$aplico_minimo %||% FALSE
+  aplico_minimo_acciones <- resultado$con_acciones$aplico_minimo %||% FALSE
+  pension_diff <- resultado$con_acciones$pension_afore - resultado$solo_sistema$pension_mensual
 
-  # Tarjeta 1: Solo sistema
-  card1 <- result_card(
-    title = "SOLO SISTEMA",
-    amount = resultado$solo_sistema$pension_mensual,
-    subtitle = "Tu AFORE sin complementos",
-    badge_text = paste0(round(resultado$solo_sistema$tasa_reemplazo * 100), "% de tu salario"),
-    badge_class = "secondary",
-    card_class = "baseline"
+  if (fondo_elegible) {
+    return("ley97_fondo_eligible")
+  } else if (aplico_minimo_base && aplico_minimo_acciones && tiene_voluntarias) {
+    return("ley97_minimo")
+  } else if (tiene_voluntarias && pension_diff > 0) {
+    return("ley97_voluntary_improvement")
+  } else {
+    return("ley97_base")
+  }
+}
+
+#' Render hero + breakdown results for Ley 97
+#' @param resultado Result from calculate_pension_with_fondo
+#' @return HTML tagList with hero card, breakdown, and fondo status
+render_results_hero <- function(resultado) {
+  scenario <- detect_result_scenario(resultado)
+
+  # Determine hero amount and details based on scenario
+  if (scenario == "ley97_fondo_eligible") {
+    hero_amount <- resultado$con_fondo$pension_total
+    hero_label <- "TU PENSION ESTIMADA (CON FONDO BIENESTAR)"
+    tasa <- resultado$con_fondo$tasa_reemplazo
+    show_minimo_tag <- FALSE
+  } else if (scenario == "ley97_voluntary_improvement") {
+    hero_amount <- resultado$con_acciones$pension_afore
+    hero_label <- "TU PENSION ESTIMADA (CON APORTACIONES)"
+    tasa <- hero_amount / resultado$entrada$salario_mensual
+    show_minimo_tag <- resultado$con_acciones$aplico_minimo %||% FALSE
+  } else {
+    hero_amount <- resultado$solo_sistema$pension_mensual
+    hero_label <- "TU PENSION ESTIMADA"
+    tasa <- resultado$solo_sistema$tasa_reemplazo
+    show_minimo_tag <- resultado$solo_sistema$aplico_minimo %||% FALSE
+  }
+
+  # Build hero card
+  hero <- tags$div(
+    class = "result-hero",
+    tags$div(class = "result-hero-label", hero_label),
+    tags$div(
+      class = "result-hero-amount",
+      format_currency(hero_amount),
+      tags$span(class = "period", " /mes")
+    ),
+    tags$div(
+      class = "result-hero-badge",
+      paste0(round(tasa * 100), "% de tu salario")
+    ),
+    if (show_minimo_tag) {
+      tags$div(class = "result-hero-tag", "Pension Minima Garantizada")
+    }
   )
 
-  # Tarjeta 2: Con Fondo Bienestar
-  if (resultado$con_fondo$elegible) {
-    card2 <- result_card(
-      title = "+ FONDO BIENESTAR",
-      amount = resultado$con_fondo$pension_total,
-      subtitle = "Si el Fondo existe cuando te jubiles",
-      badge_text = "Elegible",
-      badge_class = "success",
-      card_class = "fondo"
+  # Build breakdown panel
+  breakdown_rows <- list()
+
+  # Detect if minimum guarantee applies
+  aplico_minimo_flag <- resultado$solo_sistema$aplico_minimo %||% FALSE
+
+  if (aplico_minimo_flag) {
+    # When minimum applies, show detailed breakdown: calculated vs guaranteed
+    pension_real <- resultado$solo_sistema$pension_calculada %||% resultado$solo_sistema$pension_mensual
+    pension_min <- resultado$solo_sistema$pension_minima %||% (UMA_MENSUAL_2025 * 2.5)
+    saldo_necesario <- resultado$solo_sistema$saldo_minimo_para_superar_garantia %||% 0
+    saldo_actual_proy <- resultado$solo_sistema$saldo_proyectado %||% 0
+    pct_del_minimo <- if (saldo_necesario > 0) min(100, round(saldo_actual_proy / saldo_necesario * 100)) else 100
+
+    # Row: Calculated pension from AFORE
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row minimum-info",
+      tags$span(
+        class = "breakdown-label",
+        tags$i(class = "bi bi-calculator"),
+        "Pension calculada de tu AFORE"
+      ),
+      tags$span(class = "breakdown-value",
+        paste0(format_currency(pension_real), "/mes"))
+    )
+
+    # Row: Guaranteed minimum pension (floor)
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row minimum-info",
+      tags$span(
+        class = "breakdown-label",
+        tags$i(class = "bi bi-shield-fill-check"),
+        "Pension minima garantizada (piso legal)"
+      ),
+      tags$span(class = "breakdown-value",
+        paste0(format_currency(pension_min), "/mes"))
+    )
+
+    # Row: Progress toward exceeding minimum
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row",
+      tags$span(
+        class = "breakdown-label",
+        tags$i(class = "bi bi-graph-up-arrow"),
+        "Avance hacia superar el minimo"
+      ),
+      tags$span(class = "breakdown-value",
+        paste0(pct_del_minimo, "% (", format_currency(saldo_actual_proy),
+               " de ", format_currency(saldo_necesario), ")"))
     )
   } else {
-    card2 <- result_card(
-      title = "+ FONDO BIENESTAR",
-      amount = 0,  # Show $0 when not eligible (not the same as Card 1)
-      subtitle = "No elegible para este programa",
-      badge_text = "No aplica",
-      badge_class = "secondary",
-      card_class = "fondo disabled"
+    # Row 1: Base AFORE pension (simple view when no minimum)
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row",
+      tags$span(
+        class = "breakdown-label",
+        tags$i(class = "bi bi-bank"),
+        "Pension AFORE (solo sistema)"
+      ),
+      tags$span(class = "breakdown-value",
+        paste0(format_currency(resultado$solo_sistema$pension_mensual), "/mes"))
     )
   }
 
-  # Tarjeta 3: Con tus acciones (shows AFORE-only pension to display true impact)
-  # Calculate pension and saldo differences
+  # Row 2: Voluntary contributions (if they make a difference)
+  tiene_voluntarias <- (resultado$entrada$aportacion_voluntaria %||% 0) > 0
   pension_diff <- resultado$con_acciones$pension_afore - resultado$solo_sistema$pension_mensual
   saldo_diff <- resultado$con_acciones$saldo_proyectado - resultado$solo_sistema$saldo_proyectado
-  tiene_voluntarias <- (resultado$entrada$aportacion_voluntaria %||% 0) > 0
 
-  # When pension minimum applies to both, show saldo increase instead
-  if (pension_diff == 0 && tiene_voluntarias && saldo_diff > 0) {
-    badge_text <- paste0("+", format_currency(saldo_diff), " saldo")
-    subtitle_text <- "Pension minima garantizada (saldo mayor)"
-  } else if (pension_diff > 0) {
-    badge_text <- paste0("+", format_currency(pension_diff), "/mes")
-    subtitle_text <- "Tu pension AFORE con aportaciones voluntarias"
-  } else {
-    badge_text <- "Sin aportaciones extra"
-    subtitle_text <- "Agrega aportaciones voluntarias para mejorar"
+  if (tiene_voluntarias) {
+    if (pension_diff > 0) {
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row highlight",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-plus-circle"),
+          paste0("Aportaciones voluntarias ($",
+            format(round(resultado$entrada$aportacion_voluntaria), big.mark = ","), "/mes)")
+        ),
+        tags$span(class = "breakdown-value",
+          paste0("+", format_currency(pension_diff), "/mes"))
+      )
+    } else if (saldo_diff > 0) {
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row highlight",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-plus-circle"),
+          "Aportaciones voluntarias"
+        ),
+        tags$span(class = "breakdown-value",
+          paste0("+", format_currency(saldo_diff), " saldo"))
+      )
+    }
   }
 
-  card3 <- result_card(
-    title = "+ TUS ACCIONES",
-    amount = resultado$con_acciones$pension_afore,
-    subtitle = subtitle_text,
-    badge_text = badge_text,
-    badge_class = "warning",
-    card_class = "empowerment",
-    show_star = TRUE
+  # Row 3: Fondo complement (only if eligible)
+  if (resultado$con_fondo$elegible && resultado$con_fondo$complemento > 0) {
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row highlight",
+      tags$span(
+        class = "breakdown-label",
+        tags$i(class = "bi bi-shield-check"),
+        "Complemento Fondo Bienestar"
+      ),
+      tags$span(class = "breakdown-value",
+        paste0("+", format_currency(resultado$con_fondo$complemento), "/mes"))
+    )
+  }
+
+  # Total row (only if there are additions)
+  if (length(breakdown_rows) > 1) {
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row total",
+      tags$span(class = "breakdown-label", "Total pension mensual"),
+      tags$span(class = "breakdown-value", paste0(format_currency(hero_amount), "/mes"))
+    )
+  }
+
+  # Saldo info row
+  saldo_to_show <- if (tiene_voluntarias) {
+    resultado$con_acciones$saldo_proyectado
+  } else {
+    resultado$solo_sistema$saldo_proyectado
+  }
+  breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+    class = "breakdown-row",
+    tags$span(
+      class = "breakdown-label",
+      tags$i(class = "bi bi-piggy-bank"),
+      "Saldo AFORE proyectado al retiro"
+    ),
+    tags$span(class = "breakdown-value", format_currency(saldo_to_show))
   )
 
-  fluidRow(
-    class = "result-cards-container stagger-children",
-    column(4, class = "col-md-4 mb-3 animate-fadeInUp", card1),
-    column(4, class = "col-md-4 mb-3 animate-fadeInUp", card2),
-    column(4, class = "col-md-4 mb-3 animate-fadeInUp", card3)
+  breakdown <- tags$div(
+    class = "result-breakdown",
+    tags$div(class = "result-breakdown-header", "Desglose de tu pension"),
+    tagList(breakdown_rows)
   )
+
+  # Fondo status inline
+  fondo_status <- if (resultado$con_fondo$elegible) {
+    tags$div(
+      class = "fondo-status-inline eligible",
+      tags$i(class = "bi bi-check-circle-fill"),
+      tags$span(
+        tags$strong("Elegible para Fondo Bienestar. "),
+        "Recuerda: es un programa nuevo (2024) y su sostenibilidad no esta garantizada."
+      )
+    )
+  } else {
+    tags$div(
+      class = "fondo-status-inline not-eligible",
+      tags$i(class = "bi bi-info-circle"),
+      tags$span(resultado$fondo_bienestar$razon_no_elegible)
+    )
+  }
+
+  # Minimum note (when minimum guarantee applies)
+  minimum_note <- if (aplico_minimo_flag) {
+    saldo_necesario_note <- resultado$solo_sistema$saldo_minimo_para_superar_garantia %||% 0
+    tags$div(
+      class = "minimum-note",
+      tags$i(class = "bi bi-lightbulb"),
+      tags$div(
+        "Tu salario SI mejora tu saldo proyectado. Cuando tu saldo supere ",
+        tags$strong(format_currency(saldo_necesario_note)),
+        ", tu pension real superara la minima garantizada. ",
+        "Aumentar aportaciones voluntarias o retrasar el retiro te acercan a este punto."
+      )
+    )
+  } else {
+    NULL
+  }
+
+  # Encouragement (inline, not separate)
+  tasa_base <- resultado$solo_sistema$tasa_reemplazo
+  encouragement <- if (tasa_base < 0.4 && !resultado$con_fondo$elegible) {
+    encouragement_message(resultado)
+  } else {
+    NULL
+  }
+
+  tagList(hero, breakdown, minimum_note, fondo_status, encouragement)
+}
+
+#' Render hero + breakdown results for Ley 73
+#' @param res Result list with regimen = "ley73"
+#' @return HTML tagList with hero card and breakdown
+render_results_hero_ley73 <- function(res) {
+  pension_base <- if (res$pension_base$elegible) res$pension_base$pension_mensual else 0
+  pension_m40 <- if (!is.null(res$pension_m40)) res$pension_m40$pension_con_m40 else pension_base
+
+  # Hero shows the best available pension
+  best_pension <- max(pension_base, pension_m40)
+  tasa <- if (res$pension_base$elegible) res$pension_base$tasa_reemplazo else 0
+  show_minimo <- if (res$pension_base$elegible) (res$pension_base$aplico_minimo %||% FALSE) else FALSE
+
+  hero <- tags$div(
+    class = "result-hero",
+    tags$div(class = "result-hero-label", "TU PENSION LEY 73 ESTIMADA"),
+    tags$div(
+      class = "result-hero-amount",
+      format_currency(best_pension),
+      tags$span(class = "period", " /mes")
+    ),
+    if (res$pension_base$elegible) {
+      tags$div(
+        class = "result-hero-badge",
+        paste0(round(tasa * 100), "% de tu salario")
+      )
+    } else {
+      tags$div(class = "result-hero-badge", "No elegible")
+    },
+    if (show_minimo) {
+      tags$div(class = "result-hero-tag", "Pension Minima Garantizada")
+    }
+  )
+
+  # Breakdown
+  breakdown_rows <- list()
+
+  if (res$pension_base$elegible) {
+    if (show_minimo) {
+      # When minimum applies, show calculated vs guaranteed
+      pension_sin_min <- res$pension_base$pension_sin_minimo %||% pension_base
+      pension_min_val <- SM_DIARIO_2025 * 30.4375  # 1 SM mensual
+
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row minimum-info",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-calculator"),
+          paste0("Pension calculada Ley 73 (", res$pension_base$tipo_pension, ")")
+        ),
+        tags$span(class = "breakdown-value",
+          paste0(format_currency(pension_sin_min), "/mes"))
+      )
+
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row minimum-info",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-shield-fill-check"),
+          "Pension minima garantizada (1 SM)"
+        ),
+        tags$span(class = "breakdown-value",
+          paste0(format_currency(pension_min_val), "/mes"))
+      )
+    } else {
+      # Normal view when pension exceeds minimum
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-bank"),
+          paste0("Pension Ley 73 (", res$pension_base$tipo_pension, ")")
+        ),
+        tags$span(class = "breakdown-value",
+          paste0(format_currency(pension_base), "/mes"))
+      )
+    }
+
+    # Factor info
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row",
+      tags$span(
+        class = "breakdown-label",
+        tags$i(class = "bi bi-percent"),
+        paste0("Factor de edad (", res$entrada$edad_retiro, " anos)")
+      ),
+      tags$span(class = "breakdown-value",
+        paste0(round(res$pension_base$factor_edad * 100), "%"))
+    )
+
+    # M40 improvement (if available and different from base)
+    if (!is.null(res$pension_m40) && res$pension_m40$incremento_mensual > 0) {
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row highlight",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-arrow-up-circle"),
+          "Con Modalidad 40"
+        ),
+        tags$span(class = "breakdown-value",
+          paste0(format_currency(pension_m40), "/mes (+",
+            format_currency(res$pension_m40$incremento_mensual), ")"))
+      )
+    }
+  } else {
+    breakdown_rows[[1]] <- tags$div(
+      class = "breakdown-row",
+      tags$span(class = "breakdown-label", res$pension_base$mensaje),
+      tags$span(class = "breakdown-value", "$0.00")
+    )
+  }
+
+  breakdown <- tags$div(
+    class = "result-breakdown",
+    tags$div(class = "result-breakdown-header", "Desglose de tu pension"),
+    tagList(breakdown_rows)
+  )
+
+  # M40 cost callout
+  m40_callout <- if (!is.null(res$pension_m40) && res$pension_m40$incremento_mensual > 0) {
+    tags$div(
+      class = "m40-cost-callout",
+      tags$i(class = "bi bi-info-circle me-2"),
+      tags$strong("Modalidad 40: "),
+      paste0("Costo mensual de ", format_currency(res$pension_m40$cuota_mensual_m40),
+        " por ", res$pension_m40$meses_m40, " meses. ",
+        "Recuperas la inversion en ~", res$pension_m40$meses_recuperacion, " meses. ",
+        res$pension_m40$recomendacion)
+    )
+  }
+
+  # Minimum note for Ley 73
+  minimum_note_73 <- if (show_minimo) {
+    tags$div(
+      class = "minimum-note",
+      tags$i(class = "bi bi-lightbulb"),
+      tags$div(
+        "Tu pension calculada esta por debajo del salario minimo, por lo que recibes la pension minima garantizada. ",
+        "Aumentar tus semanas cotizadas o mejorar tu promedio salarial (por ejemplo con Modalidad 40) puede superar este piso."
+      )
+    )
+  } else {
+    NULL
+  }
+
+  # Fondo status for Ley 73 (always not applicable)
+  fondo_status <- tags$div(
+    class = "fondo-status-inline not-eligible",
+    tags$i(class = "bi bi-info-circle"),
+    tags$span("Ley 73: El Fondo Bienestar no aplica. Tu pension definida ya es generalmente mejor.")
+  )
+
+  tagList(hero, breakdown, m40_callout, minimum_note_73, fondo_status)
 }
 
 # ============================================================================

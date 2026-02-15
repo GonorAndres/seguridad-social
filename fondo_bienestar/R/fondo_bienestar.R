@@ -249,9 +249,13 @@ calculate_pension_with_fondo <- function(saldo_actual,
     # Escenario 1: Solo sistema
     solo_sistema = list(
       pension_mensual = pension_solo_sistema$pension_mensual,
+      pension_calculada = pension_solo_sistema$pension_calculada,
+      pension_minima = pension_solo_sistema$pension_minima,
+      saldo_minimo_para_superar_garantia = pension_solo_sistema$saldo_minimo_para_superar_garantia,
       saldo_proyectado = pension_solo_sistema$saldo_proyectado,
       trayectoria = pension_solo_sistema$trayectoria,
-      tasa_reemplazo = pension_solo_sistema$tasa_reemplazo
+      tasa_reemplazo = pension_solo_sistema$tasa_reemplazo,
+      aplico_minimo = pension_solo_sistema$aplico_minimo
     ),
 
     # Escenario 2: Con Fondo Bienestar
@@ -267,6 +271,9 @@ calculate_pension_with_fondo <- function(saldo_actual,
     # Escenario 3: Con tus acciones
     con_acciones = list(
       pension_afore = pension_con_acciones$pension_mensual,
+      pension_calculada = pension_con_acciones$pension_calculada,
+      pension_minima = pension_con_acciones$pension_minima,
+      saldo_minimo_para_superar_garantia = pension_con_acciones$saldo_minimo_para_superar_garantia,
       saldo_proyectado = pension_con_acciones$saldo_proyectado,
       trayectoria = pension_con_acciones$trayectoria,
       complemento_fondo = complemento_con_acciones$complemento,
@@ -277,7 +284,8 @@ calculate_pension_with_fondo <- function(saldo_actual,
       },
       aportacion_total_mes = pension_con_acciones$aportacion_total,
       diferencia_vs_base = pension_con_acciones$pension_mensual -
-                           pension_solo_sistema$pension_mensual
+                           pension_solo_sistema$pension_mensual,
+      aplico_minimo = pension_con_acciones$aplico_minimo
     ),
 
     # Informacion del Fondo

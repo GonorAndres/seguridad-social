@@ -4,83 +4,12 @@
 # Ejecutar con: shiny::runApp()
 
 # ============================================================================
-# CARGAR DEPENDENCIAS (requerido antes de definir UI)
+# DEPENDENCIAS Y DATOS
 # ============================================================================
+# Source global.R explicitly so everything is in the global environment.
+# Shiny also sources global.R, but scoping can cause issues with <<-.
 
-library(shiny)
-library(bslib)
-library(shinyjs)
-library(plotly)
-library(dplyr)
-library(scales)
-
-# ============================================================================
-# CARGAR DATOS PRIMERO (antes de las funciones que los usan)
-# ============================================================================
-
-# Usar <<- para asignar al entorno global
-articulo_167_tabla <<- read.csv("data/articulo_167_tabla.csv", stringsAsFactors = FALSE)
-afore_data <<- read.csv("data/afore_comisiones.csv", stringsAsFactors = FALSE)
-uma_data <<- read.csv("data/uma_historico.csv", stringsAsFactors = FALSE)
-salario_minimo_data <<- read.csv("data/salario_minimo.csv", stringsAsFactors = FALSE)
-
-# Constantes globales
-ANIO_ACTUAL <<- 2025
-UMA_DIARIA_2025 <<- 113.14
-UMA_MENSUAL_2025 <<- 3439.46
-SM_DIARIO_2025 <<- 278.80
-SM_MENSUAL_2025 <<- 8474.52
-UMBRAL_FONDO_BIENESTAR_2025 <<- 17364
-TOPE_SBC_DIARIO <<- UMA_DIARIA_2025 * 25
-RENDIMIENTO_CONSERVADOR <<- 0.03
-RENDIMIENTO_BASE <<- 0.04
-RENDIMIENTO_OPTIMISTA <<- 0.05
-FACTORES_CESANTIA <<- c("60" = 0.75, "61" = 0.80, "62" = 0.85, "63" = 0.90, "64" = 0.95, "65" = 1.00)
-COLOR_NAVY <<- "#1a365d"
-COLOR_TEAL <<- "#319795"
-
-# Funciones de formateo
-format_currency <<- function(x) paste0("$", format(round(x, 2), big.mark = ",", nsmall = 2))
-format_percent <<- function(x) paste0(round(x * 100, 1), "%")
-
-# Funciones de consulta de datos
-get_uma <<- function(anio) {
-  row <- uma_data[uma_data$anio == anio, ]
-  if (nrow(row) == 0) {
-    row <- uma_data[uma_data$anio == max(uma_data$anio), ]
-  }
-  return(row$uma_diaria)
-}
-
-get_salario_minimo <<- function(anio) {
-  row <- salario_minimo_data[salario_minimo_data$anio == anio, ]
-  if (nrow(row) == 0) {
-    row <- salario_minimo_data[salario_minimo_data$anio == max(salario_minimo_data$anio), ]
-  }
-  return(row$sm_diario)
-}
-
-get_umbral_fondo_bienestar <<- function(anio) {
-  umbrales <- c("2024" = 16777.68, "2025" = 17364, "2026" = 18050)
-  if (as.character(anio) %in% names(umbrales)) {
-    return(umbrales[as.character(anio)])
-  }
-  return(umbrales[length(umbrales)])
-}
-
-# ============================================================================
-# CARGAR FUNCIONES (despues de los datos)
-# ============================================================================
-
-source("R/ui_helpers.R", local = FALSE)
-source("R/data_tables.R", local = FALSE)
-source("R/calculations.R", local = FALSE)
-source("R/fondo_bienestar.R", local = FALSE)
-
-# Load document generators if available
-if (file.exists("R/document_generators.R")) {
-  source("R/document_generators.R", local = FALSE)
-}
+source("global.R", local = FALSE)
 
 # ============================================================================
 # UI - INTERFAZ DE USUARIO
@@ -93,6 +22,7 @@ ui <- bslib::page_fluid(
   # Recursos externos
   tags$head(
     tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
+    tags$link(rel = "icon", type = "image/svg+xml", href = "favicon.svg"),
     tags$meta(name = "description", content = "Simulador de pension IMSS. Calcula tu pension de Ley 73, Ley 97 y Fondo Bienestar en 5 minutos."),
     tags$link(
       rel = "stylesheet",
@@ -141,6 +71,31 @@ ui <- bslib::page_fluid(
         $(this).text(function(i, text) {
           return text.indexOf('Quiero entender') > -1 ? 'Ocultar contexto' : 'Quiero entender primero';
         });
+      });
+
+      // Loading state for calculate button
+      $(document).on('click', '#calcular', function() {
+        var btn = $(this);
+        btn.prop('disabled', true);
+        btn.html('<span class=\"spinner-border spinner-border-sm me-2\" role=\"status\"></span>Calculando...');
+      });
+
+      // Re-enable button when results load
+      $(document).on('shiny:value', function(event) {
+        if (event.name === 'result_cards') {
+          var btn = $('#calcular');
+          btn.prop('disabled', false);
+          btn.html('<i class=\"bi bi-calculator me-2\"></i>Calcular pension');
+        }
+      });
+
+      // Smooth scroll to top of results
+      $(document).on('shiny:value', function(event) {
+        if (event.name === 'result_cards') {
+          setTimeout(function() {
+            $('html, body').animate({ scrollTop: $('#step4_panel').offset().top - 20 }, 400);
+          }, 100);
+        }
       });
     "))
   ),
@@ -228,7 +183,7 @@ ui <- bslib::page_fluid(
           class = "wizard-panel card shadow-sm",
 
           tags$div(
-            class = "card-header bg-white border-0 pt-4",
+            class = "card-header bg-surface border-0 pt-4",
             tags$h4(class = "card-title mb-0", "Datos Personales")
           ),
 
@@ -294,7 +249,7 @@ ui <- bslib::page_fluid(
           ),
 
           tags$div(
-            class = "card-footer bg-white border-0 d-flex justify-content-between pb-4",
+            class = "card-footer bg-surface border-0 d-flex justify-content-between pb-4",
             actionButton(
               "back_to_landing",
               tagList(tags$i(class = "bi bi-arrow-left me-2"), "Volver"),
@@ -315,7 +270,7 @@ ui <- bslib::page_fluid(
             class = "wizard-panel card shadow-sm",
 
             tags$div(
-              class = "card-header bg-white border-0 pt-4",
+              class = "card-header bg-surface border-0 pt-4",
               tags$h4(class = "card-title mb-0", "Datos Laborales")
             ),
 
@@ -399,7 +354,7 @@ ui <- bslib::page_fluid(
             ),
 
             tags$div(
-              class = "card-footer bg-white border-0 d-flex justify-content-between pb-4",
+              class = "card-footer bg-surface border-0 d-flex justify-content-between pb-4",
               actionButton(
                 "prev_step2",
                 tagList(tags$i(class = "bi bi-arrow-left me-2"), "Anterior"),
@@ -421,7 +376,7 @@ ui <- bslib::page_fluid(
             class = "wizard-panel card shadow-sm",
 
             tags$div(
-              class = "card-header bg-white border-0 pt-4",
+              class = "card-header bg-surface border-0 pt-4",
               tags$h4(class = "card-title mb-0", "AFORE y Aportaciones")
             ),
 
@@ -504,7 +459,7 @@ ui <- bslib::page_fluid(
             ),
 
             tags$div(
-              class = "card-footer bg-white border-0 d-flex justify-content-between pb-4",
+              class = "card-footer bg-surface border-0 d-flex justify-content-between pb-4",
               actionButton(
                 "prev_step3",
                 tagList(tags$i(class = "bi bi-arrow-left me-2"), "Anterior"),
@@ -526,21 +481,15 @@ ui <- bslib::page_fluid(
             class = "wizard-panel card shadow-sm",
 
             tags$div(
-              class = "card-header bg-white border-0 pt-4",
+              class = "card-header bg-surface border-0 pt-4",
               tags$h4(class = "card-title mb-0", "Tu Pension Estimada")
             ),
 
             tags$div(
               class = "card-body",
 
-              # Tarjetas de resultados
+              # Results: Hero + Breakdown + Fondo status
               uiOutput("result_cards"),
-
-              # Mensaje del Fondo Bienestar
-              uiOutput("fondo_message"),
-
-              # Mensaje de aliento
-              uiOutput("encouragement"),
 
               # Separador
               tags$hr(class = "my-4"),
@@ -559,9 +508,9 @@ ui <- bslib::page_fluid(
                 " de tu pension. El Fondo Bienestar puede ayudar, pero su futuro es incierto."
               ),
 
-              # Sliders de sensibilidad
+              # Sliders de sensibilidad (2x2 grid)
               fluidRow(
-                column(4,
+                column(6,
                   tags$div(
                     class = "slider-container",
                     tags$div(
@@ -582,7 +531,7 @@ ui <- bslib::page_fluid(
                   )
                 ),
 
-                column(4,
+                column(6,
                   tags$div(
                     class = "slider-container",
                     tags$div(
@@ -601,9 +550,32 @@ ui <- bslib::page_fluid(
                     ),
                     tags$div(class = "slider-impact", id = "age_impact", "")
                   )
+                )
+              ),
+
+              fluidRow(
+                column(6,
+                  tags$div(
+                    class = "slider-container",
+                    tags$div(
+                      class = "slider-label",
+                      tags$span(class = "label-text", "Semanas cotizadas"),
+                      tags$span(class = "label-value", id = "semanas_value", "500")
+                    ),
+                    sliderInput(
+                      "slider_semanas",
+                      label = NULL,
+                      min = 0,
+                      max = 3000,
+                      value = 500,
+                      step = 10,
+                      ticks = FALSE
+                    ),
+                    tags$div(class = "slider-impact", id = "semanas_impact", "")
+                  )
                 ),
 
-                column(4,
+                column(6,
                   tags$div(
                     class = "slider-container",
                     tags$div(
@@ -611,7 +583,8 @@ ui <- bslib::page_fluid(
                       tags$span(class = "label-text", "Cambiar AFORE a"),
                       uiOutput("afore_value_display")
                     ),
-                    uiOutput("afore_selector_results")
+                    uiOutput("afore_selector_results"),
+                    tags$div(class = "slider-impact", id = "afore_impact", "")
                   )
                 )
               ),
@@ -620,7 +593,7 @@ ui <- bslib::page_fluid(
               tags$div(
                 class = "chart-container",
                 tags$h6(class = "chart-title", "Proyeccion de tu saldo"),
-                plotlyOutput("proyeccion_chart", height = "350px")
+                plotly::plotlyOutput("proyeccion_chart", height = "350px")
               ),
 
               # Panel tecnico
@@ -658,7 +631,7 @@ ui <- bslib::page_fluid(
             ),
 
             tags$div(
-              class = "card-footer bg-white border-0 d-flex justify-content-between pb-4",
+              class = "card-footer bg-surface border-0 d-flex justify-content-between pb-4",
               actionButton(
                 "modificar_datos",
                 tagList(tags$i(class = "bi bi-pencil me-2"), "Modificar datos"),
@@ -733,6 +706,9 @@ server <- function(input, output, session) {
 
   # Resultados del calculo
   resultados <- reactiveVal(NULL)
+
+  # Resultados originales (baseline fijo para el grafico)
+  resultados_originales <- reactiveVal(NULL)
 
   # Regimen seleccionado (reactivo)
   regimen_actual <- reactiveVal("ley97")
@@ -989,10 +965,12 @@ server <- function(input, output, session) {
     }
 
     resultados(res)
+    resultados_originales(res)
 
     # Actualizar sliders con valores iniciales
     updateSliderInput(session, "slider_voluntaria", value = input$aportacion_voluntaria)
     updateSliderInput(session, "slider_edad", value = input$edad_retiro)
+    updateSliderInput(session, "slider_semanas", value = input$semanas_cotizadas)
 
     # Mostrar resultados
     shinyjs::hide("step3_panel")
@@ -1005,112 +983,19 @@ server <- function(input, output, session) {
   # RENDERIZADO DE RESULTADOS
   # ==========================================================================
 
-  # Tarjetas de resultados
+  # Results: Hero + Breakdown
   output$result_cards <- renderUI({
     req(resultados())
     res <- resultados()
 
     if (res$regimen == "ley73") {
-      # Ley 73: mostrar pension base y con M40
-      pension_base <- if (res$pension_base$elegible) res$pension_base$pension_mensual else 0
-      pension_m40 <- if (!is.null(res$pension_m40)) res$pension_m40$pension_con_m40 else pension_base
-
-      fluidRow(
-        class = "result-cards-container stagger-children",
-        column(4, class = "col-md-4 mb-3 animate-fadeInUp",
-          result_card(
-            title = "PENSION LEY 73",
-            amount = pension_base,
-            subtitle = "Pension definida basada en semanas y salario",
-            badge_text = if (res$pension_base$elegible) {
-              paste0(round(res$pension_base$tasa_reemplazo * 100), "% de tu salario")
-            } else {
-              "No elegible"
-            },
-            badge_class = if (res$pension_base$elegible) "success" else "danger",
-            card_class = "baseline"
-          )
-        ),
-        column(4, class = "col-md-4 mb-3 animate-fadeInUp",
-          result_card(
-            title = "FONDO BIENESTAR",
-            amount = pension_base,
-            subtitle = "No aplica para Ley 73",
-            badge_text = "Tu pension ya es mejor",
-            badge_class = "secondary",
-            card_class = "fondo disabled"
-          )
-        ),
-        column(4, class = "col-md-4 mb-3 animate-fadeInUp",
-          result_card(
-            title = "+ MODALIDAD 40",
-            amount = pension_m40,
-            subtitle = if (!is.null(res$pension_m40)) {
-              paste0("+", format_currency(res$pension_m40$incremento_mensual), "/mes")
-            } else {
-              "No disponible"
-            },
-            badge_text = "Mejora tu pension",
-            badge_class = "warning",
-            card_class = "empowerment",
-            show_star = TRUE
-          )
-        )
-      )
-
+      render_results_hero_ley73(res)
     } else {
-      # Ley 97: mostrar tres escenarios
-      render_result_cards(res)
+      render_results_hero(res)
     }
   })
 
-  # Mensaje sobre Fondo Bienestar
-  output$fondo_message <- renderUI({
-    req(resultados())
-    res <- resultados()
-
-    if (res$regimen == "ley73") {
-      alert_message(
-        mensaje = paste(
-          "Como trabajador de Ley 73, tu pension se calcula con las reglas anteriores",
-          "que generalmente son mas favorables. El Fondo de Pensiones para el Bienestar",
-          "NO aplica para ti, pero no lo necesitas."
-        ),
-        tipo = "info",
-        titulo = "Ley 73"
-      )
-    } else if (res$con_fondo$elegible) {
-      alert_message(
-        mensaje = paste(
-          "Cumples los requisitos para el Fondo Bienestar.",
-          "Sin embargo, recuerda que es un programa nuevo (2024) y su sostenibilidad",
-          "a largo plazo no esta garantizada. Tus aportaciones voluntarias son",
-          "la parte mas segura de tu pension."
-        ),
-        tipo = "success",
-        titulo = "Elegible para Fondo Bienestar",
-        dismissible = TRUE
-      )
-    } else {
-      alert_message(
-        mensaje = res$fondo_bienestar$razon_no_elegible,
-        tipo = "warning",
-        titulo = "No elegible para Fondo Bienestar"
-      )
-    }
-  })
-
-  # Mensaje de aliento
-  output$encouragement <- renderUI({
-    req(resultados())
-    res <- resultados()
-
-    if (res$regimen == "ley97") {
-      encouragement_message(res)
-    } else {
-      NULL
-    }
-  })
+  # Fondo message and encouragement are now integrated into result_cards hero component
 
   # ==========================================================================
   # ANALISIS DE SENSIBILIDAD (con debounce)
@@ -1119,6 +1004,7 @@ server <- function(input, output, session) {
   # Debounced values
   vol_debounced <- reactive({ input$slider_voluntaria }) |> debounce(300)
   edad_debounced <- reactive({ input$slider_edad }) |> debounce(300)
+  semanas_debounced <- reactive({ input$slider_semanas }) |> debounce(300)
 
   # Actualizar etiquetas de sliders (only when inputs exist)
   observe({
@@ -1129,6 +1015,11 @@ server <- function(input, output, session) {
   observe({
     req(input$slider_edad)
     shinyjs::html("age_value", paste0(input$slider_edad, " anos"))
+  })
+
+  observe({
+    req(input$slider_semanas)
+    shinyjs::html("semanas_value", format(input$slider_semanas, big.mark = ","))
   })
 
   # Calcular impacto de voluntarias
@@ -1165,6 +1056,209 @@ server <- function(input, output, session) {
     }
   })
 
+  # Calcular impacto de edad de retiro
+  observe({
+    req(resultados(), edad_debounced())
+    res <- resultados()
+    edad_slider <- edad_debounced()
+
+    # Skip if same as original
+    if (edad_slider == res$entrada$edad_retiro) {
+      shinyjs::html("age_impact", "")
+      return()
+    }
+
+    tryCatch({
+      if (res$regimen == "ley97") {
+        # Recalcular con nueva edad
+        nuevo <- calculate_pension_with_fondo(
+          saldo_actual = res$entrada$saldo_actual,
+          salario_mensual = res$entrada$salario_mensual,
+          edad_actual = res$entrada$edad_actual,
+          edad_retiro = edad_slider,
+          semanas_actuales = res$entrada$semanas_actuales,
+          genero = res$entrada$genero %||% "M",
+          aportacion_voluntaria = 0,
+          afore_nombre = res$entrada$afore %||% "XXI Banorte",
+          escenario = res$entrada$escenario %||% "base"
+        )
+        diferencia <- nuevo$solo_sistema$pension_mensual - res$solo_sistema$pension_mensual
+      } else {
+        # Ley 73: recalcular con nueva edad
+        sbc_diario <- res$entrada$salario_mensual / 30
+        anios_restantes <- max(0, edad_slider - res$entrada$edad_actual)
+        semanas_al_retiro <- res$entrada$semanas_actuales + (anios_restantes * 52)
+
+        nuevo <- calculate_ley73_pension(
+          sbc_promedio_diario = sbc_diario,
+          semanas = semanas_al_retiro,
+          edad = edad_slider
+        )
+        diferencia <- nuevo$pension_mensual - res$pension_base$pension_mensual
+      }
+
+      if (!is.null(diferencia) && length(diferencia) > 0 && diferencia != 0) {
+        signo <- if (diferencia > 0) "+" else ""
+        clase <- if (diferencia > 0) "positive" else "negative"
+        shinyjs::html("age_impact",
+          paste0(signo, format_currency(diferencia), "/mes"))
+        shinyjs::removeClass(selector = "#age_impact", class = "positive")
+        shinyjs::removeClass(selector = "#age_impact", class = "negative")
+        shinyjs::addClass(selector = "#age_impact", class = clase)
+      } else {
+        shinyjs::html("age_impact", "")
+      }
+    }, error = function(e) {
+      shinyjs::html("age_impact", "")
+    })
+  })
+
+  # Calcular impacto de cambio de AFORE
+  observe({
+    req(resultados(), input$afore_comparar)
+    res <- resultados()
+
+    # Only applies to Ley 97
+    if (res$regimen != "ley97") {
+      shinyjs::html("afore_impact", "")
+      return()
+    }
+
+    # Skip if same as original
+    if (input$afore_comparar == res$entrada$afore) {
+      shinyjs::html("afore_impact", "")
+      return()
+    }
+
+    tryCatch({
+      nuevo <- calculate_pension_with_fondo(
+        saldo_actual = res$entrada$saldo_actual,
+        salario_mensual = res$entrada$salario_mensual,
+        edad_actual = res$entrada$edad_actual,
+        edad_retiro = res$entrada$edad_retiro,
+        semanas_actuales = res$entrada$semanas_actuales,
+        genero = res$entrada$genero %||% "M",
+        aportacion_voluntaria = 0,
+        afore_nombre = input$afore_comparar,
+        escenario = res$entrada$escenario %||% "base"
+      )
+
+      dif_pension <- nuevo$solo_sistema$pension_mensual - res$solo_sistema$pension_mensual
+      dif_saldo <- (nuevo$solo_sistema$saldo_proyectado %||% 0) -
+                   (res$solo_sistema$saldo_proyectado %||% 0)
+
+      shinyjs::removeClass(selector = "#afore_impact", class = "positive")
+      shinyjs::removeClass(selector = "#afore_impact", class = "negative")
+
+      if (!is.null(dif_pension) && dif_pension != 0) {
+        # Pension changed -- show pension difference
+        signo <- if (dif_pension > 0) "+" else ""
+        clase <- if (dif_pension > 0) "positive" else "negative"
+        shinyjs::html("afore_impact",
+          paste0(signo, format_currency(dif_pension), "/mes"))
+        shinyjs::addClass(selector = "#afore_impact", class = clase)
+      } else if (!is.null(dif_saldo) && abs(dif_saldo) > 100) {
+        # Pension floored at minimum but saldo differs -- show saldo difference
+        signo <- if (dif_saldo > 0) "+" else ""
+        clase <- if (dif_saldo > 0) "positive" else "negative"
+        shinyjs::html("afore_impact",
+          paste0(signo, format_currency(dif_saldo), " en saldo"))
+        shinyjs::addClass(selector = "#afore_impact", class = clase)
+      } else {
+        shinyjs::html("afore_impact", "")
+      }
+    }, error = function(e) {
+      shinyjs::html("afore_impact", "")
+    })
+  })
+
+  # Calcular impacto de semanas cotizadas
+  observe({
+    req(resultados(), semanas_debounced())
+    res <- resultados()
+    semanas_slider <- semanas_debounced()
+
+    # Skip if same as original
+    if (semanas_slider == res$entrada$semanas_actuales) {
+      shinyjs::html("semanas_impact", "")
+      return()
+    }
+
+    tryCatch({
+      shinyjs::removeClass(selector = "#semanas_impact", class = "positive")
+      shinyjs::removeClass(selector = "#semanas_impact", class = "negative")
+
+      if (res$regimen == "ley97") {
+        # Ley 97: semanas affect eligibility, not AFORE balance directly
+        anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
+        nuevo_semanas_retiro <- semanas_slider + (anios_restantes * 52)
+        orig_semanas_retiro <- res$entrada$semanas_actuales + (anios_restantes * 52)
+
+        # Recalculate to check pension and Fondo eligibility changes
+        nuevo <- calculate_pension_with_fondo(
+          saldo_actual = res$entrada$saldo_actual,
+          salario_mensual = res$entrada$salario_mensual,
+          edad_actual = res$entrada$edad_actual,
+          edad_retiro = res$entrada$edad_retiro,
+          semanas_actuales = semanas_slider,
+          genero = res$entrada$genero %||% "M",
+          aportacion_voluntaria = 0,
+          afore_nombre = res$entrada$afore %||% "XXI Banorte",
+          escenario = res$entrada$escenario %||% "base"
+        )
+
+        dif_pension <- nuevo$solo_sistema$pension_mensual - res$solo_sistema$pension_mensual
+
+        if (dif_pension != 0) {
+          # Pension changed (e.g., crossed eligibility threshold)
+          signo <- if (dif_pension > 0) "+" else ""
+          clase <- if (dif_pension > 0) "positive" else "negative"
+          shinyjs::html("semanas_impact",
+            paste0(signo, format_currency(dif_pension), "/mes"))
+          shinyjs::addClass(selector = "#semanas_impact", class = clase)
+        } else if (nuevo$con_fondo$elegible != res$con_fondo$elegible) {
+          # Fondo Bienestar eligibility changed
+          if (nuevo$con_fondo$elegible) {
+            shinyjs::html("semanas_impact", "Elegible para Fondo Bienestar")
+            shinyjs::addClass(selector = "#semanas_impact", class = "positive")
+          } else {
+            shinyjs::html("semanas_impact", "No elegible para Fondo")
+            shinyjs::addClass(selector = "#semanas_impact", class = "negative")
+          }
+        } else {
+          # Show semanas al retiro count as informational
+          shinyjs::html("semanas_impact",
+            paste0(format(nuevo_semanas_retiro, big.mark = ","), " sem. al retiro"))
+        }
+
+      } else {
+        # Ley 73: semanas directly affect pension via Art. 167
+        sbc_diario <- res$entrada$salario_mensual / 30
+        anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
+        semanas_al_retiro <- semanas_slider + (anios_restantes * 52)
+
+        nuevo <- calculate_ley73_pension(
+          sbc_promedio_diario = sbc_diario,
+          semanas = semanas_al_retiro,
+          edad = res$entrada$edad_retiro
+        )
+        diferencia <- nuevo$pension_mensual - res$pension_base$pension_mensual
+
+        if (!is.null(diferencia) && length(diferencia) > 0 && diferencia != 0) {
+          signo <- if (diferencia > 0) "+" else ""
+          clase <- if (diferencia > 0) "positive" else "negative"
+          shinyjs::html("semanas_impact",
+            paste0(signo, format_currency(diferencia), "/mes"))
+          shinyjs::addClass(selector = "#semanas_impact", class = clase)
+        } else {
+          shinyjs::html("semanas_impact", "")
+        }
+      }
+    }, error = function(e) {
+      shinyjs::html("semanas_impact", "")
+    })
+  })
+
   # AFORE selector en resultados
   output$afore_selector_results <- renderUI({
     selectInput(
@@ -1183,11 +1277,13 @@ server <- function(input, output, session) {
   # GRAFICO DE PROYECCION
   # ==========================================================================
 
-  output$proyeccion_chart <- renderPlotly({
-    req(resultados(), vol_debounced(), edad_debounced())
+  output$proyeccion_chart <- plotly::renderPlotly({
+    req(resultados(), resultados_originales(), vol_debounced(), edad_debounced(), semanas_debounced())
     res <- resultados()
+    res_orig <- resultados_originales()
     vol_actual <- vol_debounced() %||% 0
     edad_slider <- edad_debounced() %||% res$entrada$edad_retiro
+    semanas_slider <- semanas_debounced() %||% res$entrada$semanas_actuales
 
     # Get selected AFORE (falls back to original if not selected)
     afore_to_use <- if (!is.null(input$afore_comparar) && input$afore_comparar != "") {
@@ -1197,9 +1293,9 @@ server <- function(input, output, session) {
     }
 
     if (res$regimen == "ley73") {
-      # Para Ley 73, mostrar comparacion por edad de retiro (factor de cesantia)
-      # Solo si la edad del slider esta entre 60-65
+      # Ley 73: bar chart with 3 color states
       edad_mostrar <- max(60, min(65, edad_slider))
+      edad_original <- res_orig$entrada$edad_retiro
 
       edades <- 60:65
       factores <- c(0.75, 0.80, 0.85, 0.90, 0.95, 1.00)
@@ -1208,8 +1304,9 @@ server <- function(input, output, session) {
       pension_base_65 <- res$pension_base$pension_mensual / res$pension_base$factor_edad
       pensiones <- pension_base_65 * factores
 
-      # Colores para las barras - resaltar la edad seleccionada
-      colores <- ifelse(edades == edad_mostrar, "#1a365d", "#94a3b8")
+      # 3 color states: slider-selected (teal), original (magenta), other (golden)
+      colores <- ifelse(edades == edad_mostrar, "#0f766e",
+                   ifelse(edades == edad_original & edad_original != edad_mostrar, "#db2777", "#c4a67a"))
 
       plot_ly(
         x = edades,
@@ -1231,40 +1328,42 @@ server <- function(input, output, session) {
             title = "Pension mensual estimada",
             tickformat = "$,.0f"
           ),
-          plot_bgcolor = "#ffffff",
-          paper_bgcolor = "#ffffff",
+          plot_bgcolor = "#fffbf0",
+          paper_bgcolor = "#fffbf0",
           margin = list(t = 50)
         ) |>
         config(displayModeBar = FALSE)
 
     } else {
-      # Ley 97: mostrar trayectoria (responsive to edad and AFORE sliders)
+      # Ley 97: 3-trace overlay chart
 
-      # Recalculate base trajectory with slider age and selected AFORE
-      res_base <- calculate_pension_with_fondo(
+      # Trace 1: Original calculation (fixed baseline, dotted golden)
+      tray_orig <- res_orig$solo_sistema$trayectoria
+      if (is.null(tray_orig)) {
+        return(NULL)
+      }
+
+      # Trace 2: With changes (slider age/semanas/AFORE, no voluntary) - dashed teal
+      res_cambios <- calculate_pension_with_fondo(
         saldo_actual = res$entrada$saldo_actual,
         salario_mensual = res$entrada$salario_mensual,
         edad_actual = res$entrada$edad_actual,
         edad_retiro = edad_slider,
-        semanas_actuales = res$entrada$semanas_actuales,
+        semanas_actuales = semanas_slider,
         genero = res$entrada$genero,
         aportacion_voluntaria = 0,
         afore_nombre = afore_to_use,
         escenario = res$entrada$escenario
       )
-      tray <- res_base$solo_sistema$trayectoria
+      tray_cambios <- res_cambios$solo_sistema$trayectoria
 
-      if (is.null(tray)) {
-        return(NULL)
-      }
-
-      # Recalculate voluntary trajectory with slider age and selected AFORE
+      # Trace 3: With changes + voluntary contributions - solid teal
       res_vol <- calculate_pension_with_fondo(
         saldo_actual = res$entrada$saldo_actual,
         salario_mensual = res$entrada$salario_mensual,
         edad_actual = res$entrada$edad_actual,
         edad_retiro = edad_slider,
-        semanas_actuales = res$entrada$semanas_actuales,
+        semanas_actuales = semanas_slider,
         genero = res$entrada$genero,
         aportacion_voluntaria = max(500, vol_actual),
         afore_nombre = afore_to_use,
@@ -1274,12 +1373,21 @@ server <- function(input, output, session) {
 
       plot_ly() |>
         add_trace(
-          x = tray$anio,
-          y = tray$saldo,
+          x = tray_orig$anio,
+          y = tray_orig$saldo,
           type = "scatter",
           mode = "lines",
-          name = "Solo sistema",
-          line = list(color = "#94a3b8", dash = "dot", width = 2),
+          name = "Calculo original",
+          line = list(color = "#c4a67a", dash = "dot", width = 2),
+          hovertemplate = "Ano %{x}: $%{y:,.0f}<extra></extra>"
+        ) |>
+        add_trace(
+          x = tray_cambios$anio,
+          y = tray_cambios$saldo,
+          type = "scatter",
+          mode = "lines",
+          name = "Con cambios",
+          line = list(color = "#0f766e", dash = "dash", width = 2),
           hovertemplate = "Ano %{x}: $%{y:,.0f}<extra></extra>"
         ) |>
         add_trace(
@@ -1288,20 +1396,20 @@ server <- function(input, output, session) {
           type = "scatter",
           mode = "lines",
           name = "+ Tus aportaciones",
-          line = list(color = "#1a365d", width = 3),
+          line = list(color = "#0f766e", width = 3),
           fill = "tonexty",
-          fillcolor = "rgba(26, 54, 93, 0.1)",
+          fillcolor = "rgba(15, 118, 110, 0.1)",
           hovertemplate = "Ano %{x}: $%{y:,.0f}<extra></extra>"
         ) |>
         layout(
           xaxis = list(
             title = "Anos hasta retiro",
-            gridcolor = "#e2e8f0"
+            gridcolor = "#fde6c4"
           ),
           yaxis = list(
             title = "Saldo acumulado (MXN)",
             tickformat = "$,.0f",
-            gridcolor = "#e2e8f0"
+            gridcolor = "#fde6c4"
           ),
           legend = list(
             orientation = "h",
@@ -1310,8 +1418,8 @@ server <- function(input, output, session) {
             y = -0.15
           ),
           hovermode = "x unified",
-          plot_bgcolor = "#ffffff",
-          paper_bgcolor = "#ffffff",
+          plot_bgcolor = "#fffbf0",
+          paper_bgcolor = "#fffbf0",
           margin = list(t = 20)
         ) |>
         config(
@@ -1408,202 +1516,73 @@ server <- function(input, output, session) {
   })
 
   # ==========================================================================
-  # VISUALIZACION DE REPORTES (HTML con opcion de imprimir)
+  # VISUALIZACION DE REPORTES (HTML en nueva pestana del navegador)
   # ==========================================================================
 
-  # Ver documento tecnico
-  observeEvent(input$ver_tecnico, {
-    req(resultados())
-    res <- resultados()
+  # Temp file tracking for session cleanup
+  session_temp_files <- character(0)
+  session$onSessionEnded(function() {
+    for (f in session_temp_files) {
+      if (file.exists(f)) try(file.remove(f), silent = TRUE)
+    }
+  })
 
-    # Generate HTML content
-    html_content <- generate_technical_report(res)
-
-    # Add print button and styling
+  # Helper: write HTML to www/ temp file and open in new tab
+  open_report_in_tab <- function(html_content, prefix, print_btn_color, print_btn_hover) {
+    # Wrap with print button
     html_with_print <- paste0(
       "<!DOCTYPE html><html><head><meta charset='UTF-8'>",
-      "<title>Documento Tecnico - Pension</title>",
       "<style>",
       "@media print { .no-print { display: none !important; } body { padding: 20px; } }",
       ".print-section { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }",
-      ".print-btn { background: #1a365d; color: white; border: none; padding: 15px 30px; ",
+      ".print-btn { background: ", print_btn_color, "; color: white; border: none; padding: 15px 30px; ",
       "font-size: 16px; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }",
-      ".print-btn:hover { background: #2c5282; }",
+      ".print-btn:hover { background: ", print_btn_hover, "; }",
       "</style>",
       "</head><body>",
-      # Extract body content from generated HTML
       gsub(".*<body>|</body>.*", "", html_content),
       "<div class='print-section no-print'>",
-      "<button class='print-btn' onclick='window.print()'>",
-      "<span style='margin-right:8px;'>&#128424;</span> Imprimir / Guardar PDF</button>",
+      "<button class='print-btn' onclick='window.print()'>Imprimir / Guardar PDF</button>",
       "</div>",
       "</body></html>"
     )
 
-    # Show in modal with iframe
-    showModal(modalDialog(
-      title = "Documento Tecnico",
-      size = "l",
-      easyClose = TRUE,
-      footer = tagList(
-        actionButton("print_tecnico", "Imprimir / Guardar PDF", class = "btn-primary"),
-        modalButton("Cerrar")
-      ),
-      tags$iframe(
-        srcdoc = html_with_print,
-        style = "width: 100%; height: 70vh; border: 1px solid #ddd; border-radius: 4px;",
-        id = "tecnico_iframe"
-      )
-    ))
-  })
+    # Write to www/ with unique filename
+    filename <- paste0(prefix, "_", format(Sys.time(), "%Y%m%d%H%M%S"), "_",
+                       sample(1000:9999, 1), ".html")
+    filepath <- file.path("www", filename)
+    writeLines(html_with_print, filepath)
+    session_temp_files <<- c(session_temp_files, filepath)
 
-  # Print button in modal
-  observeEvent(input$print_tecnico, {
-    shinyjs::runjs("document.getElementById('tecnico_iframe').contentWindow.print();")
+    # Open in new browser tab
+    shinyjs::runjs(paste0("window.open('", filename, "', '_blank');"))
+  }
+
+  # Ver documento tecnico
+  observeEvent(input$ver_tecnico, {
+    req(resultados())
+    html_content <- generate_technical_report(resultados())
+    open_report_in_tab(html_content, "tecnico", "#0f766e", "#0d9488")
   })
 
   # Ver resumen ejecutivo
   observeEvent(input$ver_resumen, {
     req(resultados())
-    res <- resultados()
-
-    # Generate HTML content
-    html_content <- generate_summary_report(res)
-
-    # Add print button
-    html_with_print <- paste0(
-      "<!DOCTYPE html><html><head><meta charset='UTF-8'>",
-      "<title>Resumen Ejecutivo - Pension</title>",
-      "<style>",
-      "@media print { .no-print { display: none !important; } body { padding: 20px; } }",
-      ".print-section { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }",
-      ".print-btn { background: #0d9488; color: white; border: none; padding: 15px 30px; ",
-      "font-size: 16px; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }",
-      ".print-btn:hover { background: #0f766e; }",
-      "</style>",
-      "</head><body>",
-      gsub(".*<body>|</body>.*", "", html_content),
-      "<div class='print-section no-print'>",
-      "<button class='print-btn' onclick='window.print()'>",
-      "<span style='margin-right:8px;'>&#128424;</span> Imprimir / Guardar PDF</button>",
-      "</div>",
-      "</body></html>"
-    )
-
-    showModal(modalDialog(
-      title = "Resumen Ejecutivo",
-      size = "l",
-      easyClose = TRUE,
-      footer = tagList(
-        actionButton("print_resumen", "Imprimir / Guardar PDF", class = "btn-success"),
-        modalButton("Cerrar")
-      ),
-      tags$iframe(
-        srcdoc = html_with_print,
-        style = "width: 100%; height: 70vh; border: 1px solid #ddd; border-radius: 4px;",
-        id = "resumen_iframe"
-      )
-    ))
+    html_content <- generate_summary_report(resultados())
+    open_report_in_tab(html_content, "resumen", "#db2777", "#ec4899")
   })
 
-  # Print button for resumen
-  observeEvent(input$print_resumen, {
-    shinyjs::runjs("document.getElementById('resumen_iframe').contentWindow.print();")
-  })
-
-  # Ver reporte basico (new modal)
+  # Ver reporte basico
   observeEvent(input$ver_reporte, {
     req(resultados())
-    res <- resultados()
-
-    # Generate HTML content
-    html_content <- generate_basic_report(res)
-
-    # Add print button
-    html_with_print <- paste0(
-      "<!DOCTYPE html><html><head><meta charset='UTF-8'>",
-      "<title>Reporte Basico - Pension</title>",
-      "<style>",
-      "@media print { .no-print { display: none !important; } body { padding: 20px; } }",
-      ".print-section { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }",
-      ".print-btn { background: #3182ce; color: white; border: none; padding: 15px 30px; ",
-      "font-size: 16px; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }",
-      ".print-btn:hover { background: #2c5282; }",
-      "</style>",
-      "</head><body>",
-      gsub(".*<body>|</body>.*", "", html_content),
-      "<div class='print-section no-print'>",
-      "<button class='print-btn' onclick='window.print()'>",
-      "<span style='margin-right:8px;'>&#128424;</span> Imprimir / Guardar PDF</button>",
-      "</div>",
-      "</body></html>"
-    )
-
-    showModal(modalDialog(
-      title = "Reporte Basico",
-      size = "l",
-      easyClose = TRUE,
-      footer = tagList(
-        actionButton("print_reporte", "Imprimir / Guardar PDF", class = "btn-info"),
-        modalButton("Cerrar")
-      ),
-      tags$iframe(
-        srcdoc = html_with_print,
-        style = "width: 100%; height: 70vh; border: 1px solid #ddd; border-radius: 4px;",
-        id = "reporte_iframe"
-      )
-    ))
+    html_content <- generate_basic_report(resultados())
+    open_report_in_tab(html_content, "reporte", "#0f766e", "#0d9488")
   })
 
-  # Print button for reporte basico
-  observeEvent(input$print_reporte, {
-    shinyjs::runjs("document.getElementById('reporte_iframe').contentWindow.print();")
-  })
-
-  # Ver metodologia (new modal)
+  # Ver metodologia
   observeEvent(input$ver_metodologia, {
-    # Generate HTML content from methodology
     html_content <- generate_methodology_html()
-
-    # Add print button
-    html_with_print <- paste0(
-      "<!DOCTYPE html><html><head><meta charset='UTF-8'>",
-      "<title>Metodologia - Simulador de Pension</title>",
-      "<style>",
-      "@media print { .no-print { display: none !important; } body { padding: 20px; } }",
-      ".print-section { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }",
-      ".print-btn { background: #374151; color: white; border: none; padding: 15px 30px; ",
-      "font-size: 16px; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }",
-      ".print-btn:hover { background: #1f2937; }",
-      "</style>",
-      "</head><body>",
-      gsub(".*<body>|</body>.*", "", html_content),
-      "<div class='print-section no-print'>",
-      "<button class='print-btn' onclick='window.print()'>",
-      "<span style='margin-right:8px;'>&#128424;</span> Imprimir / Guardar PDF</button>",
-      "</div>",
-      "</body></html>"
-    )
-
-    showModal(modalDialog(
-      title = "Metodologia del Simulador",
-      size = "l",
-      easyClose = TRUE,
-      footer = tagList(
-        actionButton("print_metodologia", "Imprimir / Guardar PDF", class = "btn-dark"),
-        modalButton("Cerrar")
-      ),
-      tags$iframe(
-        srcdoc = html_with_print,
-        style = "width: 100%; height: 70vh; border: 1px solid #ddd; border-radius: 4px;",
-        id = "metodologia_iframe"
-      )
-    ))
-  })
-
-  # Print button for metodologia
-  observeEvent(input$print_metodologia, {
-    shinyjs::runjs("document.getElementById('metodologia_iframe').contentWindow.print();")
+    open_report_in_tab(html_content, "metodologia", "#0f766e", "#0d9488")
   })
 
   # Nueva simulacion button - goes back to landing page

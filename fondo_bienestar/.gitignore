@@ -1,0 +1,10 @@
+# Temp report files generated per session
+www/tecnico_*.html
+www/resumen_*.html
+www/reporte_*.html
+www/metodologia_*.html
+
+# R session files
+.Rhistory
+.RData
+.Rproj.user/

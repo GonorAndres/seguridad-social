@@ -154,10 +154,12 @@ project_afore_balance <- function(saldo_actual,
     for (i in 0:anios_al_retiro) {
       trayectoria$saldo[i + 1] <- saldo_temp
       if (i < anios_al_retiro) {
-        # Aportaciones del ano
-        aportaciones_anio <- aportacion_mensual * 12
-        # Aplicar rendimiento
-        saldo_temp <- (saldo_temp + aportaciones_anio) * (1 + r_neto)
+        # Apply interest to existing balance first, then add contributions
+        # with monthly compounding to match the closed-form formula
+        saldo_temp <- saldo_temp * (1 + r_neto)
+        for (m in 1:12) {
+          saldo_temp <- saldo_temp + aportacion_mensual * (1 + r_mensual)^(12 - m)
+        }
       }
     }
   }
@@ -368,6 +370,9 @@ calculate_ley97_pension <- function(saldo_actual,
 
   return(list(
     pension_mensual = pension$pension_mensual,
+    pension_calculada = pension$pension_calculada,
+    pension_minima = pension$pension_minima,
+    saldo_minimo_para_superar_garantia = pension$saldo_minimo_para_superar_garantia,
     elegible = TRUE,
     saldo_proyectado = proyeccion$saldo_final,
     trayectoria = proyeccion$trayectoria,

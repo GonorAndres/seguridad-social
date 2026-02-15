@@ -33,7 +33,7 @@ get_document_css <- function() {
     .doc-title {
       font-size: 32px;
       font-weight: 700;
-      color: #1a365d;
+      color: #0f766e;
       text-align: center;
       margin-bottom: 8px;
       letter-spacing: -0.5px;
@@ -43,7 +43,7 @@ get_document_css <- function() {
       display: block;
       width: 100px;
       height: 4px;
-      background: linear-gradient(90deg, #319795, #1a365d);
+      background: linear-gradient(90deg, #db2777, #0f766e);
       margin: 15px auto 0;
       border-radius: 2px;
     }
@@ -57,7 +57,7 @@ get_document_css <- function() {
 
     .doc-date {
       text-align: center;
-      color: #94a3b8;
+      color: #c4a67a;
       font-size: 14px;
       margin-bottom: 30px;
     }
@@ -67,7 +67,7 @@ get_document_css <- function() {
       display: flex;
       align-items: center;
       gap: 12px;
-      color: #1a365d;
+      color: #0f766e;
       font-size: 20px;
       font-weight: 600;
       margin: 35px 0 15px;
@@ -78,7 +78,7 @@ get_document_css <- function() {
     .section-icon {
       width: 28px;
       height: 28px;
-      background: linear-gradient(135deg, #319795, #1a365d);
+      background: linear-gradient(135deg, #db2777, #0f766e);
       border-radius: 6px;
       display: flex;
       align-items: center;
@@ -88,7 +88,7 @@ get_document_css <- function() {
     }
 
     h3 {
-      color: #2c5282;
+      color: #115e59;
       font-size: 17px;
       margin: 25px 0 12px;
       font-weight: 600;
@@ -117,7 +117,7 @@ get_document_css <- function() {
     .pension-amount {
       font-size: 48px;
       font-weight: 700;
-      color: #1a365d;
+      color: #0f766e;
       text-align: center;
       line-height: 1.2;
     }
@@ -146,7 +146,7 @@ get_document_css <- function() {
       margin: 20px 0;
     }
     .styled-table th {
-      background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+      background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
       color: white;
       padding: 14px 18px;
       text-align: left;
@@ -223,7 +223,7 @@ get_document_css <- function() {
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     .three-cards .card.highlight {
-      background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+      background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
       color: white;
     }
     .three-cards .card.highlight .card-label {
@@ -242,7 +242,7 @@ get_document_css <- function() {
     .card-value {
       font-size: 24px;
       font-weight: 700;
-      color: #1a365d;
+      color: #0f766e;
     }
     .card-subtitle {
       font-size: 13px;
@@ -296,7 +296,7 @@ get_document_css <- function() {
       border-top: 2px solid #e2e8f0;
       text-align: center;
       font-size: 13px;
-      color: #94a3b8;
+      color: #c4a67a;
     }
 
     /* Comparison arrows */
@@ -1150,7 +1150,7 @@ generate_basic_report <- function(resultado) {
       paste0(
         "<div class='data-card' style='text-align: center;'>",
         "<div style='font-size: 14px; color: #64748b; margin-bottom: 10px;'>PENSION LEY 73</div>",
-        "<div style='font-size: 36px; font-weight: 700; color: #1a365d;'>",
+        "<div style='font-size: 36px; font-weight: 700; color: #0f766e;'>",
         format_currency(resultado$pension_base$pension_mensual), "/mes</div>",
         "<div style='margin-top: 10px; color: #64748b;'>Pension definida basada en semanas y salario</div>",
         "</div>"
@@ -1211,7 +1211,7 @@ generate_methodology_html <- function() {
     }
     .toc-title {
       font-weight: 600;
-      color: #1a365d;
+      color: #0f766e;
       margin-bottom: 15px;
     }
     .toc a {
