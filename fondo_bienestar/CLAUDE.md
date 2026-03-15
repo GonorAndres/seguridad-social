@@ -10,22 +10,24 @@
 
 ### File Structure & Responsibilities
 ```
-app.R          (1951 lines)  -- Main Shiny app: UI definition + server logic
-global.R       (152 lines)   -- Package loading, CSV data, constants, source()
-R/calculations.R    (671)    -- Core actuarial formulas (Ley 73, Ley 97, Modalidad 40)
-R/fondo_bienestar.R (497)   -- Fondo Bienestar eligibility & complement
-R/data_tables.R     (244)   -- Art. 167 lookup, AFORE data, mortality tables, validation
-R/ui_helpers.R      (1330)  -- UI component builders (hero, wizard, timeline, results)
+app.R          (~1960 lines) -- Main Shiny app: UI definition + server logic
+global.R       (~120 lines)  -- Package loading, CSV data, source()
+R/constants.R  (~80 lines)   -- Constants + get_semanas_minimas_ley97() (no Shiny dep)
+R/calculations.R    (~770)   -- Core formulas + tiered rate lookups (Ley 73, Ley 97, M40)
+R/fondo_bienestar.R (~500)   -- Fondo Bienestar eligibility & complement
+R/data_tables.R     (~244)   -- Art. 167 lookup, AFORE data, mortality tables, validation
+R/ui_helpers.R      (1330)   -- UI component builders (hero, wizard, timeline, results)
 R/document_generators.R (1667) -- HTML/PDF report generation
-www/styles.css      (2156)  -- Full design system CSS
-data/*.csv (4 files)        -- Regulatory data tables
-docs/ (2 files)             -- methodology.md, narrative_content.md
-tests/ (6 files)            -- Unit tests, integration tests, QA profiles
+www/styles.css      (~2170)  -- Full design system CSS
+data/*.csv (5 files)         -- Regulatory data tables (incl. DOF 2020 reform rates)
+docs/ (3 files)              -- methodology.md, narrative_content.md, portfolio_defense.md
+tests/ (6 files)             -- Unit tests, integration tests, QA profiles
 ```
 
 ### Dependency Hierarchy
 ```
-app.R -> source("global.R") -> loads CSVs + source("R/*.R")
+app.R -> source("global.R") -> source("R/constants.R") + loads CSVs + source("R/*.R")
+tests -> source("R/constants.R") + loads CSVs + source("R/*.R")
 ```
 Libraries must be in BOTH app.R and global.R (plotlyOutput etc. needed during UI eval).
 Global `<<-` assignment required for Shiny scoping rules.
@@ -76,7 +78,7 @@ Global `<<-` assignment required for Shiny scoping rules.
 
 ### Document Generators
 - Same Tropical Vibrant palette (no navy colors)
-- LaTeX `\definecolor{navyblue}` in PDF YAML headers NOT yet updated (separate concern)
+- LaTeX PDF headers updated: `\definecolor{primary}` (teal) and `\definecolor{accent}` (magenta)
 
 ## Actuarial Methodology
 
@@ -96,18 +98,24 @@ Global `<<-` assignment required for Shiny scoping rules.
 ```
 1. r_neto = rendimiento - comision_afore
 2. r_mensual = (1 + r_neto)^(1/12) - 1
-3. FV_saldo = saldo * (1 + r_neto)^n
-4. FV_aportaciones = aport_mensual * [(1 + r_mensual)^(12n) - 1] / r_mensual
-5. saldo_final = FV_saldo + FV_aportaciones
-6. pension = saldo_final / (esperanza_vida * 12)
-7. pension_final = max(pension, 2.5 * UMA_mensual)
+3. contrib_schedule = generate_contribution_schedule(salario, ANIO_ACTUAL, n)
+   -> calls calculate_aportacion_obligatoria(salario, anio=year) per year
+   -> applies DOF 2020 reform tiered rates by salary bracket (8 brackets, UMA-based)
+   -> employer CEAV: 3.150% (1 SM) to 6.422% (4.01+ UMA) in 2025, up to 11.875% by 2030
+   -> cuota social: fixed daily amount per bracket, phases out at 4.01+ UMA
+4. project_afore_balance(saldo, contrib_schedule, n):
+   - Scalar mode: closed-form FV formula (backward compat)
+   - Vector mode: iterative year-by-year compounding
+5. pension = saldo_final / (esperanza_vida * 12)
+6. pension_final = max(pension, 2.5 * UMA_mensual)
 ```
 
 ### Fondo Bienestar -- R/fondo_bienestar.R
 ```
-Eligibility: Ley97 AND age>=65 AND weeks>=1000 AND salary<=umbral
+Eligibility: Ley97 AND age>=65 AND weeks>=1000 AND salary<=umbral(retirement_year)
 Complement: max(0, min(salary, umbral) - pension_afore)
 Decree: DOF 01/05/2024, effective 01/07/2024
+Threshold extrapolation: 3.5% annual growth from last known value (2026=$18,050)
 ```
 
 ### Key Simplifications (documented, intentional)
@@ -116,8 +124,8 @@ Decree: DOF 01/05/2024, effective 01/07/2024
 - Simplified mortality tables (CONAPO-based, linear interpolation)
 - Commission subtracted from return (not charged on balance)
 - Only retiro programado modeled (no renta vitalicia)
-- 2025 contribution rates used for all future years (reform schedule not applied per-year)
 - No inflation modeling (all values real)
+- Fondo threshold extrapolated at 3.5% annual beyond 2026 (actual IMSS adjusts by SBC avg)
 
 ## Regulatory Constants (2025)
 
@@ -133,7 +141,8 @@ Decree: DOF 01/05/2024, effective 01/07/2024
 | Rendimiento Base | 4% real | |
 | Rendimiento Optimista | 5% real | |
 
-Contribution reform schedule: employer rate 6.20% (2023) -> 12.00% (2030).
+Contribution reform: tiered by salary bracket (DOF 2020). See `data/tasas_reforma_2020.csv`.
+Minimum weeks Ley 97: transitional 750 (2021) +25/yr -> 1000 (2031). See `get_semanas_minimas_ley97()`.
 Fondo threshold progression: $16,778 (2024), $17,364 (2025), ~$18,050 (2026).
 
 ## UX & Data Flow
@@ -142,7 +151,7 @@ Fondo threshold progression: $16,778 (2024), $17,364 (2025), ~$18,050 (2026).
 - Step 1: Birth date, gender, retirement age
 - Step 2: Start-of-work date (auto-detects regime), salary, semanas
 - Step 3: AFORE selection, balance, voluntary contributions (dimmed for Ley 73)
-- Step 4: Results with sensitivity sliders
+- Step 4: Results with sensitivity sliders (vol/AFORE hidden for Ley 73)
 
 ### Regime Detection
 - `dateInput("fecha_inicio_cotizacion")` + `determinar_regimen()` (cutoff: 1997-07-01)
@@ -163,8 +172,24 @@ Fondo threshold progression: $16,778 (2024), $17,364 (2025), ~$18,050 (2026).
 
 ## Testing
 
-- `tests/testthat/test_calculations.R`: 92 unit tests across 13 sections (A-M)
-  - Covers `lookup_articulo_167`, `calculate_ley73_pension`, boundary cases
+- `tests/testthat/test_calculations.R`: 380 passing tests across 28 sections (A-BB)
+- `tests/testthat/test_legislative.R`: 137 passing tests across 13 sections (LA-LM)
+  - Independent legislative tests based on DOF/CONSAR/IMSS, NOT derived from code
+  - A-N: Core formulas, Ley 73/97, M40, Fondo eligibility, date validation
+  - O: `generate_contribution_schedule()` (6 tests)
+  - P: `project_afore_balance()` vector mode (8 tests)
+  - Q: Reform impact validation (7 tests)
+  - R: Fondo threshold extrapolation + retirement year (5 tests)
+  - S: Full-pipeline hand-verified profiles (4 tests)
+  - T: `calculate_all_scenarios()` integration (6 tests)
+  - U: `compare_afores()` (4 tests)
+  - V: `analyze_voluntary_contributions()` (4 tests)
+  - W: `analyze_retirement_age()` (4 tests)
+  - X: `generate_personalized_message()` (5 tests)
+  - Y: Format helpers (4 tests)
+  - Z: Data retrieval functions (5 tests)
+  - AA: Edge cases (8 tests)
+  - BB: /30 regression (DIAS_POR_MES consistency, 3 tests)
   - Uses `expect_num()` helper to ignore name attributes from vector lookups
 - `tests/integration_test.R`: Frontend-backend sensitivity pipeline
 - `tests/qa_test_profiles.R`: 22+ simulated user profiles
@@ -182,8 +207,14 @@ Fondo threshold progression: $16,778 (2024), $17,364 (2025), ~$18,050 (2026).
 
 ## Technical Gotchas
 - Libraries must be in BOTH `app.R` and `global.R` (UI evaluation needs plotly etc.)
-- 30.4375 days/month (not 30) -- 1.44% difference compounds over decades
+- `DIAS_POR_MES = 30.4375` (365.25/12) -- all daily-to-monthly conversions use this constant from `R/constants.R`. No more `/ 30` or `* 30` anywhere.
 - plotly must be namespaced (`plotly::plotlyOutput`, `plotly::renderPlotly`)
 - Global `<<-` assignment is intentional, not a code smell (Shiny scoping)
 - `%||%` handles NULL inputs during Shiny initialization
 - `.bg-surface` class, never `.bg-white`
+- All `tryCatch` blocks log errors via `message()` and show user notification -- no silent `error = function(e) NULL`
+- Report handlers wrapped in tryCatch for graceful error display
+- `R/constants.R` is the single source of truth for all magic numbers -- sourced by both global.R and tests
+- Navy color `#1a365d` fully removed from all R, CSS, SVG, and LaTeX
+- CSS `prefers-reduced-motion` media query disables animations for accessibility
+- LaTeX PDF headers use `\definecolor{primary}` (teal) and `\definecolor{accent}` (magenta)

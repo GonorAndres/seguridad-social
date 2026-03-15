@@ -559,7 +559,7 @@ ui <- bslib::page_fluid(
                   )
                 ),
 
-                column(6,
+                column(6, id = "vol_slider_col",
                   tags$div(
                     class = "slider-container",
                     tags$div(
@@ -626,8 +626,8 @@ ui <- bslib::page_fluid(
                 )
               ),
 
-              # Row 3: AFORE
-              fluidRow(
+              # Row 3: AFORE (hidden for Ley 73)
+              fluidRow(id = "afore_slider_row",
                 column(6,
                   tags$div(
                     class = "slider-container",
@@ -640,6 +640,16 @@ ui <- bslib::page_fluid(
                     tags$div(class = "slider-impact", id = "afore_impact", "")
                   )
                 )
+              ),
+
+              # Note for Ley 73 (hidden for Ley 97)
+              tags$div(
+                id = "ley73_sensitivity_note",
+                class = "ley73-sensitivity-note",
+                style = "display: none;",
+                tags$i(class = "bi bi-info-circle me-2"),
+                "Tu pension Ley 73 se calcula por formula (Art. 167), no por saldo AFORE. ",
+                "Las aportaciones voluntarias y la AFORE no afectan tu pension principal."
               ),
 
               # Key message (advice, below sliders)
@@ -889,7 +899,7 @@ server <- function(input, output, session) {
     }
 
     # Validate salary minimum
-    if (input$salario_mensual < 1000) {
+    if (input$salario_mensual < SALARIO_MINIMO_INPUT) {
       showNotification("El salario debe ser al menos $1,000 MXN", type = "error")
       return()
     }
@@ -937,16 +947,12 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = FALSE)
 
-  # Track manual edits to prevent overwriting user's choice
+  # ==========================================================================
+  # AUTO-DETERMINE REGIME FROM START DATE + track manual edits
+  # ==========================================================================
+
   observeEvent(input$fecha_inicio_cotizacion, {
     if (current_step() >= 2) fecha_cotizacion_user_edited(TRUE)
-  }, ignoreInit = TRUE)
-
-  # ==========================================================================
-  # AUTO-DETERMINE REGIME FROM START DATE
-  # ==========================================================================
-
-  observeEvent(input$fecha_inicio_cotizacion, {
     req(input$fecha_inicio_cotizacion)
     if (!regimen_override_active_val()) {
       nuevo <- determinar_regimen(input$fecha_inicio_cotizacion)
@@ -1015,7 +1021,7 @@ server <- function(input, output, session) {
     req(input$fecha_inicio_cotizacion)
     years_working <- as.numeric(difftime(Sys.Date(), input$fecha_inicio_cotizacion, units = "days")) / 365.25
     if (years_working > 0) {
-      estimated <- round(years_working * 52 * 0.60)
+      estimated <- round(years_working * SEMANAS_POR_ANO * DENSIDAD_COTIZACION_DEFAULT)
       updateNumericInput(session, "semanas_cotizadas", value = estimated)
       shinyjs::removeClass("semanas_estimate_text", "d-none")
       shinyjs::html("semanas_estimate_text",
@@ -1067,9 +1073,9 @@ server <- function(input, output, session) {
     # Realizar calculo
     if (regimen == "ley73") {
       # Calcular pension Ley 73
-      sbc_diario <- input$salario_mensual / 30
+      sbc_diario <- input$salario_mensual / DIAS_POR_MES
       anios_restantes <- max(0, input$edad_retiro - floor(edad_actual))
-      semanas_al_retiro <- input$semanas_cotizadas + (anios_restantes * 52)
+      semanas_al_retiro <- input$semanas_cotizadas + (anios_restantes * SEMANAS_POR_ANO)
 
       resultado_base <- calculate_ley73_pension(
         sbc_promedio_diario = sbc_diario,
@@ -1080,11 +1086,11 @@ server <- function(input, output, session) {
       # Simular Modalidad 40 si aplica
       resultado_m40 <- NULL
       if (resultado_base$elegible && anios_restantes > 0) {
-        semanas_m40 <- min(anios_restantes * 52, 260)
+        semanas_m40 <- min(anios_restantes * SEMANAS_POR_ANO, MAX_SEMANAS_M40)
         resultado_m40 <- calculate_modalidad_40(
           pension_actual = resultado_base,
           sbc_actual = sbc_diario,
-          sbc_m40 = TOPE_SBC_DIARIO * 0.8,
+          sbc_m40 = TOPE_SBC_DIARIO * FACTOR_SBC_M40,
           semanas_actuales = semanas_al_retiro - semanas_m40,
           semanas_m40 = semanas_m40,
           edad_actual = floor(edad_actual),
@@ -1141,6 +1147,17 @@ server <- function(input, output, session) {
     updateSliderInput(session, "slider_voluntaria", value = input$aportacion_voluntaria)
     updateSliderInput(session, "slider_edad", value = input$edad_retiro)
     updateSliderInput(session, "slider_semanas", value = input$semanas_cotizadas)
+
+    # Show/hide sensitivity elements based on regime
+    if (regimen == "ley73") {
+      shinyjs::hide("vol_slider_col")
+      shinyjs::hide("afore_slider_row")
+      shinyjs::show("ley73_sensitivity_note")
+    } else {
+      shinyjs::show("vol_slider_col")
+      shinyjs::show("afore_slider_row")
+      shinyjs::hide("ley73_sensitivity_note")
+    }
 
     # Mostrar resultados
     shinyjs::hide("step3_panel")
@@ -1260,12 +1277,16 @@ server <- function(input, output, session) {
         prev_aplico_minimo(new_minimo)
 
         resultados(res)
-      }, error = function(e) NULL)
+      }, error = function(e) {
+        message("[Sensitivity] Recalculation error: ", e$message)
+        showNotification("Error en recalculo de sensibilidad", type = "warning", duration = 5)
+        NULL
+      })
     } else {
       tryCatch({
-        sbc_diario <- salario_slider / 30
+        sbc_diario <- salario_slider / DIAS_POR_MES
         anios_restantes <- max(0, edad_slider - res_orig$entrada$edad_actual)
-        semanas_al_retiro <- semanas_slider + (anios_restantes * 52)
+        semanas_al_retiro <- semanas_slider + (anios_restantes * SEMANAS_POR_ANO)
 
         resultado_base <- calculate_ley73_pension(
           sbc_promedio_diario = sbc_diario,
@@ -1275,11 +1296,11 @@ server <- function(input, output, session) {
 
         resultado_m40 <- NULL
         if (resultado_base$elegible && anios_restantes > 0) {
-          semanas_m40 <- min(anios_restantes * 52, 260)
+          semanas_m40 <- min(anios_restantes * SEMANAS_POR_ANO, MAX_SEMANAS_M40)
           resultado_m40 <- calculate_modalidad_40(
             pension_actual = resultado_base,
             sbc_actual = sbc_diario,
-            sbc_m40 = TOPE_SBC_DIARIO * 0.8,
+            sbc_m40 = TOPE_SBC_DIARIO * FACTOR_SBC_M40,
             semanas_actuales = semanas_al_retiro - semanas_m40,
             semanas_m40 = semanas_m40,
             edad_actual = res_orig$entrada$edad_actual,
@@ -1301,7 +1322,11 @@ server <- function(input, output, session) {
           )
         )
         resultados(res)
-      }, error = function(e) NULL)
+      }, error = function(e) {
+        message("[Sensitivity] Recalculation error: ", e$message)
+        showNotification("Error en recalculo de sensibilidad", type = "warning", duration = 5)
+        NULL
+      })
     }
   })
 
@@ -1350,6 +1375,7 @@ server <- function(input, output, session) {
           shinyjs::html("vol_impact", "")
         }
       }, error = function(e) {
+        message("[Impact] Error calculating voluntary impact: ", e$message)
         shinyjs::html("vol_impact", "")
       })
     }
@@ -1390,9 +1416,9 @@ server <- function(input, output, session) {
       } else {
         pension_orig <- unname(res$pension_base$pension_mensual)
         # Ley 73: recalcular con nueva edad
-        sbc_diario <- res$entrada$salario_mensual / 30
+        sbc_diario <- res$entrada$salario_mensual / DIAS_POR_MES
         anios_restantes <- max(0, edad_slider - res$entrada$edad_actual)
-        semanas_al_retiro <- res$entrada$semanas_actuales + (anios_restantes * 52)
+        semanas_al_retiro <- res$entrada$semanas_actuales + (anios_restantes * SEMANAS_POR_ANO)
 
         nuevo <- calculate_ley73_pension(
           sbc_promedio_diario = sbc_diario,
@@ -1416,6 +1442,7 @@ server <- function(input, output, session) {
         shinyjs::html("age_impact", "")
       }
     }, error = function(e) {
+      message("[Impact] Error calculating age impact: ", e$message)
       shinyjs::html("age_impact", "")
     })
   })
@@ -1469,16 +1496,17 @@ server <- function(input, output, session) {
           signo, format_currency(dif_pension), ")"
         ))
         shinyjs::addClass(selector = "#afore_impact", class = clase)
-      } else if (!is.null(dif_saldo) && abs(dif_saldo) > 100) {
+      } else if (!is.null(dif_saldo) && abs(dif_saldo) > 0) {
         signo <- if (dif_saldo > 0) "+" else ""
         clase <- if (dif_saldo > 0) "positive" else "negative"
         shinyjs::html("afore_impact",
-          paste0(signo, format_currency(dif_saldo), " en saldo"))
+          paste0(signo, format_currency(dif_saldo), " en saldo al retiro"))
         shinyjs::addClass(selector = "#afore_impact", class = clase)
       } else {
-        shinyjs::html("afore_impact", "")
+        shinyjs::html("afore_impact", "Comisiones similares, impacto minimo")
       }
     }, error = function(e) {
+      message("[Impact] Error calculating AFORE impact: ", e$message)
       shinyjs::html("afore_impact", "")
     })
   })
@@ -1503,7 +1531,7 @@ server <- function(input, output, session) {
         pension_orig <- unname(res$solo_sistema$pension_mensual)
         # Ley 97: semanas affect eligibility, not AFORE balance directly
         anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
-        nuevo_semanas_retiro <- semanas_slider + (anios_restantes * 52)
+        nuevo_semanas_retiro <- semanas_slider + (anios_restantes * SEMANAS_POR_ANO)
 
         # Recalculate to check pension and Fondo eligibility changes
         nuevo <- calculate_pension_with_fondo(
@@ -1546,9 +1574,9 @@ server <- function(input, output, session) {
       } else {
         pension_orig <- unname(res$pension_base$pension_mensual)
         # Ley 73: semanas directly affect pension via Art. 167
-        sbc_diario <- res$entrada$salario_mensual / 30
+        sbc_diario <- res$entrada$salario_mensual / DIAS_POR_MES
         anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
-        semanas_al_retiro <- semanas_slider + (anios_restantes * 52)
+        semanas_al_retiro <- semanas_slider + (anios_restantes * SEMANAS_POR_ANO)
 
         nuevo <- calculate_ley73_pension(
           sbc_promedio_diario = sbc_diario,
@@ -1572,6 +1600,7 @@ server <- function(input, output, session) {
         }
       }
     }, error = function(e) {
+      message("[Impact] Error calculating semanas impact: ", e$message)
       shinyjs::html("semanas_impact", "")
     })
   })
@@ -1608,9 +1637,9 @@ server <- function(input, output, session) {
         diferencia <- pension_new - pension_orig
       } else {
         pension_orig <- unname(res$pension_base$pension_mensual)
-        sbc_diario <- salario_slider / 30
+        sbc_diario <- salario_slider / DIAS_POR_MES
         anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
-        semanas_al_retiro <- res$entrada$semanas_actuales + (anios_restantes * 52)
+        semanas_al_retiro <- res$entrada$semanas_actuales + (anios_restantes * SEMANAS_POR_ANO)
         nuevo <- calculate_ley73_pension(
           sbc_promedio_diario = sbc_diario,
           semanas = semanas_al_retiro,
@@ -1633,6 +1662,7 @@ server <- function(input, output, session) {
         shinyjs::html("salario_impact", "")
       }
     }, error = function(e) {
+      message("[Impact] Error calculating salary impact: ", e$message)
       shinyjs::html("salario_impact", "")
     })
   })
@@ -1662,11 +1692,16 @@ server <- function(input, output, session) {
 
     if (res$regimen == "ley73") {
       # Ley 73: bar chart with 3 color states
-      edad_mostrar <- max(60, min(65, res$entrada$edad_retiro))
+      edad_mostrar <- max(60, min(70, res$entrada$edad_retiro))
       edad_original <- res_orig$entrada$edad_retiro
 
-      edades <- 60:65
-      factores <- c(0.75, 0.80, 0.85, 0.90, 0.95, 1.00)
+      # Extend chart to cover ages 60 through max(65, retirement age)
+      edad_max_chart <- max(65, edad_mostrar)
+      edades <- 60:edad_max_chart
+      factores <- sapply(edades, function(e) {
+        if (e <= 65) unname(FACTORES_CESANTIA[as.character(e)])
+        else 1.0  # Full vejez pension at 66+
+      })
 
       # Calcular pension base a 65 anos (100%)
       pension_base_65 <- res$pension_base$pension_mensual / res$pension_base$factor_edad
@@ -1907,28 +1942,48 @@ server <- function(input, output, session) {
   # Ver documento tecnico
   observeEvent(input$ver_tecnico, {
     req(resultados())
-    html_content <- generate_technical_report(resultados())
-    open_report_in_tab(html_content, "tecnico", "#0f766e", "#0d9488")
+    tryCatch({
+      html_content <- generate_technical_report(resultados())
+      open_report_in_tab(html_content, "tecnico", "#0f766e", "#0d9488")
+    }, error = function(e) {
+      message("[Report] Error generating technical report: ", e$message)
+      showNotification("Error al generar el reporte tecnico", type = "error", duration = 5)
+    })
   })
 
   # Ver resumen ejecutivo
   observeEvent(input$ver_resumen, {
     req(resultados())
-    html_content <- generate_summary_report(resultados())
-    open_report_in_tab(html_content, "resumen", "#db2777", "#ec4899")
+    tryCatch({
+      html_content <- generate_summary_report(resultados())
+      open_report_in_tab(html_content, "resumen", "#db2777", "#ec4899")
+    }, error = function(e) {
+      message("[Report] Error generating summary report: ", e$message)
+      showNotification("Error al generar el resumen ejecutivo", type = "error", duration = 5)
+    })
   })
 
   # Ver reporte basico
   observeEvent(input$ver_reporte, {
     req(resultados())
-    html_content <- generate_basic_report(resultados())
-    open_report_in_tab(html_content, "reporte", "#0f766e", "#0d9488")
+    tryCatch({
+      html_content <- generate_basic_report(resultados())
+      open_report_in_tab(html_content, "reporte", "#0f766e", "#0d9488")
+    }, error = function(e) {
+      message("[Report] Error generating basic report: ", e$message)
+      showNotification("Error al generar el reporte basico", type = "error", duration = 5)
+    })
   })
 
   # Ver metodologia
   observeEvent(input$ver_metodologia, {
-    html_content <- generate_methodology_html()
-    open_report_in_tab(html_content, "metodologia", "#0f766e", "#0d9488")
+    tryCatch({
+      html_content <- generate_methodology_html()
+      open_report_in_tab(html_content, "metodologia", "#0f766e", "#0d9488")
+    }, error = function(e) {
+      message("[Report] Error generating methodology: ", e$message)
+      showNotification("Error al generar la metodologia", type = "error", duration = 5)
+    })
   })
 
   # Nueva simulacion button - goes back to landing page

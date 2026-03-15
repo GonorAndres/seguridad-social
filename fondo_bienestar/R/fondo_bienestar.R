@@ -49,11 +49,14 @@ check_fondo_eligibility <- function(regimen,
       }
     ),
     semanas_minimas = list(
-      cumple = (semanas >= 1000),
-      mensaje = if (semanas >= 1000) {
-        paste0("Cumples con las 1,000 semanas minimas cotizadas")
+      cumple = (semanas >= get_semanas_minimas_ley97(anio)),
+      mensaje = if (semanas >= get_semanas_minimas_ley97(anio)) {
+        paste0("Cumples con las ", format(get_semanas_minimas_ley97(anio), big.mark = ","),
+               " semanas minimas cotizadas")
       } else {
-        paste0("Necesitas al menos 1,000 semanas cotizadas. Hoy llevas ", format(round(semanas), big.mark = ","), ".")
+        paste0("Necesitas al menos ", format(get_semanas_minimas_ley97(anio), big.mark = ","),
+               " semanas cotizadas para retiro en ", anio, ". Hoy llevas ",
+               format(round(semanas), big.mark = ","), ".")
       }
     ),
     salario_bajo_umbral = list(
@@ -173,7 +176,7 @@ calculate_pension_with_fondo <- function(saldo_actual,
                                           escenario = "base") {
 
   anios_restantes <- max(0, edad_retiro - edad_actual)
-  semanas_al_retiro <- semanas_actuales + (anios_restantes * 52)
+  semanas_al_retiro <- semanas_actuales + (anios_restantes * SEMANAS_POR_ANO)
 
   # ============ ESCENARIO 1: Solo sistema (AFORE sin Fondo) ============
   pension_solo_sistema <- calculate_ley97_pension(
@@ -193,11 +196,14 @@ calculate_pension_with_fondo <- function(saldo_actual,
   # Verificar elegibilidad
   # Nota: Usamos salario_mensual como proxy del SBC promedio
   # En implementacion real, deberia ser el promedio de 240 semanas
+  # Usamos anio de retiro para el umbral proyectado del Fondo
+  anio_retiro <- ANIO_ACTUAL + anios_restantes
   elegibilidad <- check_fondo_eligibility(
     regimen = "ley97",
     edad = edad_retiro,
     semanas = semanas_al_retiro,
-    sbc_promedio_mensual = salario_mensual
+    sbc_promedio_mensual = salario_mensual,
+    anio = anio_retiro
   )
 
   # Calcular complemento

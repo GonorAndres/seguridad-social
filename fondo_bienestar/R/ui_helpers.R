@@ -494,7 +494,11 @@ detect_result_scenario <- function(resultado) {
   aplico_minimo_acciones <- resultado$con_acciones$aplico_minimo %||% FALSE
   pension_diff <- resultado$con_acciones$pension_afore - resultado$solo_sistema$pension_mensual
 
-  if (fondo_elegible) {
+  if (fondo_elegible && tiene_voluntarias &&
+      resultado$con_acciones$pension_afore > resultado$con_fondo$pension_total) {
+    # Voluntary contributions push AFORE pension above Fondo cap
+    return("ley97_fondo_voluntary")
+  } else if (fondo_elegible) {
     return("ley97_fondo_eligible")
   } else if (aplico_minimo_base && aplico_minimo_acciones && tiene_voluntarias) {
     return("ley97_minimo")
@@ -512,7 +516,13 @@ render_results_hero <- function(resultado) {
   scenario <- detect_result_scenario(resultado)
 
   # Determine hero amount and details based on scenario
-  if (scenario == "ley97_fondo_eligible") {
+  if (scenario == "ley97_fondo_voluntary") {
+    # Voluntary contributions beat the Fondo cap
+    hero_amount <- resultado$con_acciones$pension_afore
+    hero_label <- "TU PENSION ESTIMADA (CON APORTACIONES)"
+    tasa <- hero_amount / resultado$entrada$salario_mensual
+    show_minimo_tag <- resultado$con_acciones$aplico_minimo %||% FALSE
+  } else if (scenario == "ley97_fondo_eligible") {
     hero_amount <- resultado$con_fondo$pension_total
     hero_label <- "TU PENSION ESTIMADA (CON FONDO BIENESTAR)"
     tasa <- resultado$con_fondo$tasa_reemplazo
@@ -635,7 +645,8 @@ render_results_hero <- function(resultado) {
         tags$span(
           class = "breakdown-label",
           tags$i(class = "bi bi-plus-circle"),
-          "Aportaciones voluntarias"
+          paste0("Aportaciones voluntarias ($",
+            format(round(resultado$entrada$aportacion_voluntaria), big.mark = ","), "/mes)")
         ),
         tags$span(class = "breakdown-value",
           paste0("+", format_currency(saldo_diff), " saldo"))
@@ -644,17 +655,51 @@ render_results_hero <- function(resultado) {
   }
 
   # Row 3: Fondo complement (only if eligible)
-  if (resultado$con_fondo$elegible && resultado$con_fondo$complemento > 0) {
-    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
-      class = "breakdown-row highlight",
-      tags$span(
-        class = "breakdown-label",
-        tags$i(class = "bi bi-shield-check"),
-        "Complemento Fondo Bienestar"
-      ),
-      tags$span(class = "breakdown-value",
-        paste0("+", format_currency(resultado$con_fondo$complemento), "/mes"))
-    )
+  fondo_elegible <- resultado$con_fondo$elegible
+  if (fondo_elegible && resultado$con_fondo$complemento > 0) {
+    if (scenario == "ley97_fondo_voluntary") {
+      # Vol contribs exceed Fondo cap -- Fondo not needed
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-shield-check"),
+          "Fondo Bienestar"
+        ),
+        tags$span(class = "breakdown-value fondo-not-needed",
+          "No necesario")
+      )
+    } else {
+      # Show Fondo complement
+      complemento_con_vol <- resultado$con_acciones$complemento_fondo %||% resultado$con_fondo$complemento
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row highlight",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-shield-check"),
+          "Complemento Fondo Bienestar"
+        ),
+        tags$span(class = "breakdown-value",
+          paste0("+", format_currency(complemento_con_vol), "/mes"))
+      )
+      # Explain Fondo-masking when voluntary contributions are active
+      if (tiene_voluntarias && saldo_diff > 0) {
+        fondo_sin_vol <- resultado$con_fondo$complemento
+        fondo_con_vol <- complemento_con_vol
+        if (fondo_sin_vol > fondo_con_vol) {
+          breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+            class = "breakdown-row fondo-dependency-note",
+            tags$span(
+              class = "breakdown-label",
+              tags$i(class = "bi bi-info-circle"),
+              paste0("Tus aportaciones reducen tu dependencia del Fondo (",
+                format_currency(fondo_sin_vol), " ", "\u2192", " ",
+                format_currency(fondo_con_vol), ")")
+            )
+          )
+        }
+      }
+    }
   }
 
   # Total row (only if there are additions)

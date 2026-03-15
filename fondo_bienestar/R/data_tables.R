@@ -176,7 +176,7 @@ validar_entrada <- function(edad, semanas, sbc, fecha_primera_cotizacion = NULL)
 
   # Validar consistencia edad-semanas
   if (!is.na(edad) && !is.na(semanas)) {
-    max_semanas_posibles <- (edad - 18) * 52
+    max_semanas_posibles <- (edad - EDAD_MINIMA_TRABAJO) * SEMANAS_POR_ANO
     if (semanas > max_semanas_posibles) {
       errores <- c(errores,
         paste0("Con ", edad, " anos, el maximo de semanas posibles es ",
@@ -186,7 +186,7 @@ validar_entrada <- function(edad, semanas, sbc, fecha_primera_cotizacion = NULL)
 
   # Advertencia sobre tope de cotizacion
   if (!is.na(sbc)) {
-    tope_mensual <- TOPE_SBC_DIARIO * 30
+    tope_mensual <- TOPE_SBC_DIARIO * DIAS_POR_MES
     if (sbc > tope_mensual) {
       advertencias <- c(advertencias,
         paste0("Tu salario excede el tope de cotizacion ($",

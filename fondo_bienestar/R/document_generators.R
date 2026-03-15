@@ -422,8 +422,8 @@ generate_basic_rmd <- function(resultado) {
     "    latex_engine: xelatex\n",
     "header-includes:\n",
     "  - \\usepackage{xcolor}\n",
-    "  - \\definecolor{navyblue}{RGB}{26,54,93}\n",
-    "  - \\definecolor{teal}{RGB}{49,151,149}\n",
+    "  - \\definecolor{primary}{RGB}{15,118,110}\n",
+    "  - \\definecolor{accent}{RGB}{219,39,119}\n",
     "---\n\n"
   )
 
@@ -541,8 +541,8 @@ generate_technical_rmd <- function(resultado) {
     "  - \\usepackage{booktabs}\n",
     "  - \\usepackage{longtable}\n",
     "  - \\usepackage{xcolor}\n",
-    "  - \\definecolor{navyblue}{RGB}{26,54,93}\n",
-    "  - \\definecolor{teal}{RGB}{49,151,149}\n",
+    "  - \\definecolor{primary}{RGB}{15,118,110}\n",
+    "  - \\definecolor{accent}{RGB}{219,39,119}\n",
     "---\n\n"
   )
 
@@ -1464,7 +1464,7 @@ generate_summary_rmd <- function(resultado) {
     "    latex_engine: xelatex\n",
     "header-includes:\n",
     "  - \\usepackage{xcolor}\n",
-    "  - \\definecolor{navyblue}{RGB}{26,54,93}\n",
+    "  - \\definecolor{primary}{RGB}{15,118,110}\n",
     "  - \\pagenumbering{gobble}\n",
     "---\n\n"
   )
