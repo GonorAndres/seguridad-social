@@ -567,7 +567,7 @@ calculate_modalidad_40 <- function(pension_actual,
   )
 
   # Costo total de M40
-  meses_m40 <- ceiling(semanas_m40 / 4.33)  # ~4.33 semanas por mes
+  meses_m40 <- ceiling(semanas_m40 / (SEMANAS_POR_ANO / 12))
   costo_total_m40 <- cuota_mensual_m40 * meses_m40
 
   # Beneficio (incremento en pension mensual)

@@ -29,7 +29,7 @@ check_fondo_eligibility <- function(regimen,
                                      anio = ANIO_ACTUAL) {
 
   umbral <- get_umbral_fondo_bienestar(anio)
-  semanas_min <- get_semanas_minimas_ley97(anio)
+  semanas_min <- SEMANAS_MIN_FONDO_BIENESTAR
 
   # Lista de verificaciones
   checks <- list(

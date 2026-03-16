@@ -30,8 +30,9 @@ UMA_MENSUAL_2025 <- 3439.46
 SM_DIARIO_2025 <- 278.80
 SM_MENSUAL_2025 <- 8474.52
 
-# Umbral Fondo Bienestar 2025 (promedio SBC IMSS)
-UMBRAL_FONDO_BIENESTAR_2025 <- 17364
+# Fondo Bienestar (DOF 01/05/2024)
+UMBRAL_FONDO_BIENESTAR_2025 <- 17364   # Promedio SBC IMSS
+SEMANAS_MIN_FONDO_BIENESTAR <- 1000    # Fixed per decree, NOT the transitional Ley 97 schedule
 
 # Tope de cotizacion (25 UMAs)
 TOPE_SBC_DIARIO <- UMA_DIARIA_2025 * 25  # ~2828.50

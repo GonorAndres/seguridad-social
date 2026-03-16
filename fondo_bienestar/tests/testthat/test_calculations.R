@@ -580,11 +580,10 @@ test_that("H2: Age < 65 is not eligible", {
   expect_false(r$checks$edad_minima$cumple)
 })
 
-test_that("H3: Less than minimum weeks is not eligible", {
-  # In 2025, minimum is 850 weeks (transitional schedule)
-  min_weeks <- get_semanas_minimas_ley97(2025)
+test_that("H3: Less than 1000 weeks is not eligible for Fondo", {
+  # Fondo Bienestar requires fixed 1000 weeks (DOF 01/05/2024), NOT transitional Ley 97 schedule
   r <- check_fondo_eligibility(
-    regimen = "ley97", edad = 65, semanas = min_weeks - 1,
+    regimen = "ley97", edad = 65, semanas = 999,
     sbc_promedio_mensual = 15000
   )
   expect_false(r$elegible)
@@ -814,9 +813,9 @@ test_that("K12: AFORE helpers return consistent data after bug fix", {
   expect_equal(length(names_list), 10)
   expect_true("XXI Banorte" %in% names_list)
 
-  # Known AFORE: comision as decimal
+  # Known AFORE: comision as decimal (CONSAR 2025: 0.55% for most, 0.52% PensionISSSTE)
   com <- get_afore_comision("XXI Banorte")
-  expect_num(com, 0.51 / 100, tolerance = 1e-6)
+  expect_num(com, 0.55 / 100, tolerance = 1e-6)
 
   # Known AFORE: IRN as decimal
   irn <- get_afore_irn("XXI Banorte")
@@ -838,15 +837,16 @@ test_that("K12: AFORE helpers return consistent data after bug fix", {
 # Verify that changing one input produces a different calculation output
 # ==========================================================================
 
-test_that("L1: Different AFORE -> different comision -> different projected balance", {
+test_that("L1: Different AFORE comision -> different projected balance", {
+  # PensionISSSTE (0.52%) vs XXI Banorte (0.55%) -- only pair with different commissions in 2025
   args <- list(
     saldo_actual = 500000, salario_mensual = 15000,
     edad_actual = 45, edad_retiro = 65,
     semanas_actuales = 800, genero = "M",
     aportacion_voluntaria = 0, escenario = "base"
   )
-  r1 <- do.call(calculate_pension_with_fondo, c(args, afore_nombre = "XXI Banorte"))
-  r2 <- do.call(calculate_pension_with_fondo, c(args, afore_nombre = "Profuturo"))
+  r1 <- do.call(calculate_pension_with_fondo, c(args, afore_nombre = "PensionISSSTE"))
+  r2 <- do.call(calculate_pension_with_fondo, c(args, afore_nombre = "XXI Banorte"))
   expect_false(r1$solo_sistema$saldo_proyectado == r2$solo_sistema$saldo_proyectado)
 })
 
@@ -1275,16 +1275,16 @@ test_that("M15: Age 65 -> Fondo eligible; age 64 -> NOT eligible", {
   expect_false(r_64$elegible)
 })
 
-test_that("M16: Semanas at/above minimum -> eligible; below -> NOT eligible", {
-  min_weeks <- get_semanas_minimas_ley97(2025)
-  r_above <- check_fondo_eligibility(
-    regimen = "ley97", edad = 65, semanas = min_weeks,
+test_that("M16: Fondo requires fixed 1000 weeks, not transitional schedule", {
+  # Fondo Bienestar: fixed 1000 weeks (DOF 01/05/2024)
+  r_at <- check_fondo_eligibility(
+    regimen = "ley97", edad = 65, semanas = 1000,
     sbc_promedio_mensual = 15000
   )
-  expect_true(r_above$elegible)
+  expect_true(r_at$elegible)
 
   r_below <- check_fondo_eligibility(
-    regimen = "ley97", edad = 65, semanas = min_weeks - 1,
+    regimen = "ley97", edad = 65, semanas = 999,
     sbc_promedio_mensual = 15000
   )
   expect_false(r_below$elegible)
