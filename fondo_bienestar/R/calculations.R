@@ -67,9 +67,7 @@ calculate_ley73_pension <- function(sbc_promedio_diario,
   }
 
   # Paso 6: Calculo final
-  # Nota: Usamos 30.4375 dias/mes (365.25/12) para conversion diaria a mensual
-  # Esto es el estandar actuarial para evitar subestimacion de ~1.44%
-  DIAS_POR_MES <- 30.4375
+  # Nota: DIAS_POR_MES = 30.4375 (365.25/12), estandar actuarial
 
   pension_diaria <- sbc_promedio_diario * porcentaje_total * factor_edad
   pension_mensual <- pension_diaria * DIAS_POR_MES
@@ -109,7 +107,9 @@ calculate_ley73_pension <- function(sbc_promedio_diario,
 #' Proyectar saldo de cuenta AFORE a futuro
 #'
 #' @param saldo_actual Saldo actual en la AFORE
-#' @param aportacion_mensual Aportacion mensual total (obligatoria + voluntaria)
+#' @param aportacion_mensual Aportacion mensual total (obligatoria + voluntaria).
+#'   Scalar: usa formula cerrada (backward compat). Vector de longitud
+#'   anios_al_retiro: computa iterativamente ano por ano (reforma 2020).
 #' @param anios_al_retiro Anos restantes hasta el retiro
 #' @param rendimiento_real_anual Tasa de rendimiento real anual (ej: 0.04 = 4%)
 #' @param comision_anual Comision anual de la AFORE (ej: 0.0053 = 0.53%)
@@ -129,55 +129,103 @@ project_afore_balance <- function(saldo_actual,
   r_mensual <- (1 + r_neto)^(1/12) - 1
   meses <- anios_al_retiro * 12
 
-  # Valor futuro del saldo actual
-  fv_actual <- saldo_actual * (1 + r_neto)^anios_al_retiro
+  # Detect variable contributions mode
+  variable_contrib <- length(aportacion_mensual) > 1
 
-  # Valor futuro de las aportaciones (anualidad)
-  if (abs(r_mensual) < 1e-10) {
-    # Caso especial: rendimiento cero
-    fv_aportaciones <- aportacion_mensual * meses
-  } else {
-    fv_aportaciones <- aportacion_mensual * ((1 + r_mensual)^meses - 1) / r_mensual
-  }
+  if (variable_contrib) {
+    # Vector mode: year-by-year iterative computation
+    stopifnot(length(aportacion_mensual) == anios_al_retiro)
 
-  saldo_final <- fv_actual + fv_aportaciones
-
-  # Calcular trayectoria si se solicita
-  trayectoria <- NULL
-  if (incluir_trayectoria) {
-    trayectoria <- data.frame(
-      anio = 0:anios_al_retiro,
-      saldo = numeric(anios_al_retiro + 1)
-    )
+    trayectoria <- NULL
+    if (incluir_trayectoria) {
+      trayectoria <- data.frame(
+        anio = 0:anios_al_retiro,
+        saldo = numeric(anios_al_retiro + 1)
+      )
+    }
 
     saldo_temp <- saldo_actual
+    total_aportado_contrib <- 0
+
     for (i in 0:anios_al_retiro) {
-      trayectoria$saldo[i + 1] <- saldo_temp
+      if (!is.null(trayectoria)) trayectoria$saldo[i + 1] <- saldo_temp
       if (i < anios_al_retiro) {
-        # Apply interest to existing balance first, then add contributions
-        # with monthly compounding to match the closed-form formula
+        aport_anio <- aportacion_mensual[i + 1]
+        total_aportado_contrib <- total_aportado_contrib + (aport_anio * 12)
+        # Apply interest to existing balance, then add monthly contributions
         saldo_temp <- saldo_temp * (1 + r_neto)
         for (m in 1:12) {
-          saldo_temp <- saldo_temp + aportacion_mensual * (1 + r_mensual)^(12 - m)
+          saldo_temp <- saldo_temp + aport_anio * (1 + r_mensual)^(12 - m)
         }
       }
     }
+
+    saldo_final <- saldo_temp
+    total_aportado <- saldo_actual + total_aportado_contrib
+    ganancia <- saldo_final - total_aportado
+
+    return(list(
+      saldo_final = saldo_final,
+      fv_saldo_actual = NA,
+      fv_aportaciones = NA,
+      total_aportado = total_aportado,
+      ganancia_intereses = ganancia,
+      rendimiento_neto_usado = r_neto,
+      meses_proyectados = meses,
+      trayectoria = trayectoria
+    ))
+
+  } else {
+    # Scalar mode: existing closed-form formula (backward compat)
+
+    # Valor futuro del saldo actual
+    fv_actual <- saldo_actual * (1 + r_neto)^anios_al_retiro
+
+    # Valor futuro de las aportaciones (anualidad)
+    if (abs(r_mensual) < 1e-10) {
+      # Caso especial: rendimiento cero
+      fv_aportaciones <- aportacion_mensual * meses
+    } else {
+      fv_aportaciones <- aportacion_mensual * ((1 + r_mensual)^meses - 1) / r_mensual
+    }
+
+    saldo_final <- fv_actual + fv_aportaciones
+
+    # Calcular trayectoria si se solicita
+    trayectoria <- NULL
+    if (incluir_trayectoria) {
+      trayectoria <- data.frame(
+        anio = 0:anios_al_retiro,
+        saldo = numeric(anios_al_retiro + 1)
+      )
+
+      saldo_temp <- saldo_actual
+      for (i in 0:anios_al_retiro) {
+        trayectoria$saldo[i + 1] <- saldo_temp
+        if (i < anios_al_retiro) {
+          saldo_temp <- saldo_temp * (1 + r_neto)
+          for (m in 1:12) {
+            saldo_temp <- saldo_temp + aportacion_mensual * (1 + r_mensual)^(12 - m)
+          }
+        }
+      }
+    }
+
+    # Total aportado vs ganancia
+    total_aportado <- saldo_actual + (aportacion_mensual * meses)
+    ganancia <- saldo_final - total_aportado
+
+    return(list(
+      saldo_final = saldo_final,
+      fv_saldo_actual = fv_actual,
+      fv_aportaciones = fv_aportaciones,
+      total_aportado = total_aportado,
+      ganancia_intereses = ganancia,
+      rendimiento_neto_usado = r_neto,
+      meses_proyectados = meses,
+      trayectoria = trayectoria
+    ))
   }
-
-  # Total aportado vs ganancia
-  total_aportado <- saldo_actual + (aportacion_mensual * meses)
-  ganancia <- saldo_final - total_aportado
-
-  return(list(
-    saldo_final = saldo_final,
-    fv_saldo_actual = fv_actual,
-    fv_aportaciones = fv_aportaciones,
-    total_aportado = total_aportado,
-    ganancia_intereses = ganancia,
-    rendimiento_neto_usado = r_neto,
-    meses_proyectados = meses,
-    trayectoria = trayectoria
-  ))
 }
 
 #' Calcular aportacion mensual obligatoria a AFORE
@@ -186,52 +234,116 @@ project_afore_balance <- function(saldo_actual,
 #' @param anio Ano para determinar tasa de aportacion
 #' @return Aportacion mensual obligatoria
 calculate_aportacion_obligatoria <- function(salario_mensual, anio = 2025) {
-  # Tasas de aportacion segun reforma 2020
-  # Patron aumenta gradualmente hasta 2030
-
-  tasas_patron <- c(
-    "2023" = 0.0620,  # 6.20%
-    "2024" = 0.0690,  # 6.90%
-    "2025" = 0.0775,  # 7.75%
-    "2026" = 0.0860,  # 8.60%
-    "2027" = 0.0945,  # 9.45%
-    "2028" = 0.1030,  # 10.30%
-    "2029" = 0.1115,  # 11.15%
-    "2030" = 0.1200   # 12.00%
-  )
-
-  # Aportacion del trabajador: 1.125% fijo
-  tasa_trabajador <- 0.01125
-
-  # Aportacion gobierno (cuota social): variable
-  tasa_gobierno <- 0.00225  # aproximado
-
-  # Tasa patron segun ano
-  anio_str <- as.character(anio)
-  if (anio_str %in% names(tasas_patron)) {
-    tasa_patron <- tasas_patron[anio_str]
-  } else if (anio >= 2030) {
-    tasa_patron <- 0.12
-  } else {
-    tasa_patron <- 0.0775  # default 2025
-  }
-
-  tasa_total <- tasa_patron + tasa_trabajador + tasa_gobierno
-
   # Aplicar tope de cotizacion
-  tope_mensual <- TOPE_SBC_DIARIO * 30
+  tope_mensual <- TOPE_SBC_DIARIO * DIAS_POR_MES
   salario_cotizable <- min(salario_mensual, tope_mensual)
 
-  aportacion <- salario_cotizable * tasa_total
+  # Determine salary bracket in UMA multiples
+  salario_diario <- salario_cotizable / DIAS_POR_MES
+  salario_uma <- salario_diario / UMA_DIARIA_2025
+
+  # Look up tiered CEAV employer rate from reform data
+  tasa_ceav_patron <- get_ceav_employer_rate(salario_uma, anio)
+
+  # Total employer = 2% retiro (fixed) + CEAV (tiered)
+  tasa_patron <- TASA_RETIRO_PATRON + tasa_ceav_patron
+
+  # Worker: 1.125% fixed
+  tasa_trabajador <- TASA_TRABAJADOR_CEAV
+
+  # Government cuota social: fixed amount based on bracket, not % of salary
+  cuota_social_mensual <- get_cuota_social_mensual(salario_uma)
+  tasa_gobierno_efectiva <- if (salario_cotizable > 0) {
+    cuota_social_mensual / salario_cotizable
+  } else {
+    0
+  }
+
+  tasa_total <- tasa_patron + tasa_trabajador + tasa_gobierno_efectiva
+  aportacion_patron <- salario_cotizable * tasa_patron
+  aportacion_trabajador <- salario_cotizable * tasa_trabajador
+  aportacion_total <- aportacion_patron + aportacion_trabajador + cuota_social_mensual
 
   return(list(
-    aportacion_total = aportacion,
-    aportacion_patron = salario_cotizable * tasa_patron,
-    aportacion_trabajador = salario_cotizable * tasa_trabajador,
-    aportacion_gobierno = salario_cotizable * tasa_gobierno,
+    aportacion_total = aportacion_total,
+    aportacion_patron = aportacion_patron,
+    aportacion_trabajador = aportacion_trabajador,
+    aportacion_gobierno = cuota_social_mensual,
     tasa_total = tasa_total,
+    tasa_patron = tasa_patron,
+    tasa_ceav = tasa_ceav_patron,
     salario_cotizable = salario_cotizable
   ))
+}
+
+#' Get tiered CEAV employer rate from DOF 2020 reform table
+#' @param salario_uma Salary in UMA multiples
+#' @param anio Year (2023-2030+)
+#' @return CEAV employer rate as decimal
+get_ceav_employer_rate <- function(salario_uma, anio) {
+  # Clamp year column
+  anio_col <- min(max(anio, 2023), 2030)
+  col_name <- paste0("ceav_", anio_col)
+
+  if (!exists("tasas_reforma_data") || is.null(tasas_reforma_data)) {
+    # Fallback if data not loaded (e.g., in some test environments)
+    return(0.0775)  # approximate 2025 average
+  }
+
+  # Find matching bracket
+  idx <- which(salario_uma >= tasas_reforma_data$bracket_min_uma &
+               salario_uma <= tasas_reforma_data$bracket_max_uma)
+  if (length(idx) == 0) {
+    # Default to highest bracket
+    idx <- nrow(tasas_reforma_data)
+  }
+
+  rate <- tasas_reforma_data[[col_name]][idx[1]]
+  return(rate / 100)  # Convert percentage to decimal
+}
+
+#' Get monthly government cuota social based on salary bracket
+#' @param salario_uma Salary in UMA multiples
+#' @return Monthly cuota social in pesos
+get_cuota_social_mensual <- function(salario_uma) {
+  if (!exists("tasas_reforma_data") || is.null(tasas_reforma_data)) {
+    # Fallback
+    return(UMA_DIARIA_2025 * 0.05177 * DIAS_POR_MES)
+  }
+
+  # Find matching bracket
+  idx <- which(salario_uma >= tasas_reforma_data$bracket_min_uma &
+               salario_uma <= tasas_reforma_data$bracket_max_uma)
+  if (length(idx) == 0) {
+    idx <- nrow(tasas_reforma_data)
+  }
+
+  cs_pct <- tasas_reforma_data$cs_pct_uma[idx[1]]
+  # Cuota social = percentage of UMA daily * DIAS_POR_MES
+  return(UMA_DIARIA_2025 * (cs_pct / 100) * DIAS_POR_MES)
+}
+
+#' Generar vector de aportaciones mensuales ano por ano
+#'
+#' Aplica las tasas de contribucion de la reforma 2020 para cada ano
+#' de la proyeccion, en lugar de usar una tasa plana.
+#'
+#' @param salario_mensual Salario mensual del trabajador
+#' @param anio_inicio Ano calendario de inicio de la proyeccion
+#' @param anios_al_retiro Numero de anos a proyectar
+#' @param aportacion_voluntaria Aportacion voluntaria mensual adicional
+#' @return Vector numerico de longitud anios_al_retiro con aportacion mensual total por ano
+generate_contribution_schedule <- function(salario_mensual,
+                                            anio_inicio,
+                                            anios_al_retiro,
+                                            aportacion_voluntaria = 0) {
+  schedule <- numeric(anios_al_retiro)
+  for (i in seq_len(anios_al_retiro)) {
+    anio <- anio_inicio + i - 1
+    obligatoria <- calculate_aportacion_obligatoria(salario_mensual, anio = anio)
+    schedule[i] <- obligatoria$aportacion_total + aportacion_voluntaria
+  }
+  return(schedule)
 }
 
 # ============================================================================
@@ -320,15 +432,18 @@ calculate_ley97_pension <- function(saldo_actual,
                                      afore_nombre = "XXI Banorte",
                                      escenario = "base") {
 
-  # Validar semanas minimas
+  # Validar semanas minimas (transitional schedule per DOF 2020 reform)
   anios_restantes <- edad_retiro - edad_actual
-  semanas_al_retiro <- semanas_actuales + (anios_restantes * 52)
+  semanas_al_retiro <- semanas_actuales + (anios_restantes * SEMANAS_POR_ANO)
+  anio_retiro <- ANIO_ACTUAL + anios_restantes
+  semanas_minimas <- get_semanas_minimas_ley97(anio_retiro)
 
-  if (semanas_al_retiro < 1000) {
+  if (semanas_al_retiro < semanas_minimas) {
     return(list(
       pension_mensual = 0,
       elegible = FALSE,
-      mensaje = paste0("Se requieren 1,000 semanas. Tendras ",
+      mensaje = paste0("Se requieren ", format(semanas_minimas, big.mark = ","),
+                      " semanas para retiro en ", anio_retiro, ". Tendras ",
                       round(semanas_al_retiro), " semanas al retiro.")
     ))
   }
@@ -344,14 +459,26 @@ calculate_ley97_pension <- function(saldo_actual,
   # Obtener comision de la AFORE
   comision <- get_afore_comision(afore_nombre)
 
-  # Calcular aportacion obligatoria
+  # Aportacion obligatoria actual (para display)
   aport_obligatoria <- calculate_aportacion_obligatoria(salario_mensual)
-  aportacion_total <- aport_obligatoria$aportacion_total + aportacion_voluntaria
 
-  # Proyectar saldo
+  # Generar calendario de contribuciones con tasas de reforma 2020
+  # Edge case: anios_restantes == 0 -> use scalar 0 (already at retirement)
+  if (anios_restantes > 0) {
+    contrib_schedule <- generate_contribution_schedule(
+      salario_mensual = salario_mensual,
+      anio_inicio = ANIO_ACTUAL,
+      anios_al_retiro = anios_restantes,
+      aportacion_voluntaria = aportacion_voluntaria
+    )
+  } else {
+    contrib_schedule <- 0
+  }
+
+  # Proyectar saldo con contribuciones variables
   proyeccion <- project_afore_balance(
     saldo_actual = saldo_actual,
-    aportacion_mensual = aportacion_total,
+    aportacion_mensual = contrib_schedule,
     anios_al_retiro = anios_restantes,
     rendimiento_real_anual = rendimiento,
     comision_anual = comision,
@@ -381,7 +508,7 @@ calculate_ley97_pension <- function(saldo_actual,
     semanas_al_retiro = semanas_al_retiro,
     aportacion_obligatoria = aport_obligatoria$aportacion_total,
     aportacion_voluntaria = aportacion_voluntaria,
-    aportacion_total = aportacion_total,
+    aportacion_total = aport_obligatoria$aportacion_total + aportacion_voluntaria,
     rendimiento_usado = rendimiento,
     comision_usada = comision,
     aplico_minimo = pension$aplico_minimo,
@@ -423,7 +550,7 @@ calculate_modalidad_40 <- function(pension_actual,
 
   # Cuota M40 (10.075% del SBC elegido)
   tasa_m40 <- 0.10075
-  cuota_mensual_m40 <- sbc_m40_real * 30 * tasa_m40
+  cuota_mensual_m40 <- sbc_m40_real * DIAS_POR_MES * tasa_m40
 
   # Semanas totales con M40
   semanas_totales <- semanas_actuales + semanas_m40
@@ -507,7 +634,7 @@ calculate_all_scenarios <- function(regimen,
                                      afore_nombre = "XXI Banorte") {
 
   if (is.null(sbc_diario)) {
-    sbc_diario <- salario_mensual / 30
+    sbc_diario <- salario_mensual / DIAS_POR_MES
   }
 
   anios_restantes <- edad_retiro - edad_actual
@@ -518,7 +645,7 @@ calculate_all_scenarios <- function(regimen,
     # Pension base
     pension_base <- calculate_ley73_pension(
       sbc_promedio_diario = sbc_diario,
-      semanas = semanas_actuales + (anios_restantes * 52),
+      semanas = semanas_actuales + (anios_restantes * SEMANAS_POR_ANO),
       edad = edad_retiro
     )
 
@@ -526,14 +653,14 @@ calculate_all_scenarios <- function(regimen,
     pension_m40 <- NULL
     if (pension_base$elegible) {
       # Simular M40 con SBC maximo
-      semanas_m40 <- min(anios_restantes * 52, 260)  # Max 5 anos
-      sbc_m40 <- TOPE_SBC_DIARIO * 0.8  # 80% del tope
+      semanas_m40 <- min(anios_restantes * SEMANAS_POR_ANO, MAX_SEMANAS_M40)
+      sbc_m40 <- TOPE_SBC_DIARIO * FACTOR_SBC_M40
 
       pension_m40 <- calculate_modalidad_40(
         pension_actual = pension_base,
         sbc_actual = sbc_diario,
         sbc_m40 = sbc_m40,
-        semanas_actuales = semanas_actuales + (anios_restantes * 52) - semanas_m40,
+        semanas_actuales = semanas_actuales + (anios_restantes * SEMANAS_POR_ANO) - semanas_m40,
         semanas_m40 = semanas_m40,
         edad_actual = edad_actual,
         edad_retiro = edad_retiro
@@ -636,7 +763,16 @@ compare_afores <- function(saldo_actual,
     stringsAsFactors = FALSE
   )
 
-  aportacion <- calculate_aportacion_obligatoria(salario_mensual)$aportacion_total
+  # Generar calendario de contribuciones con reforma 2020
+  if (anios_al_retiro > 0) {
+    contrib_schedule <- generate_contribution_schedule(
+      salario_mensual = salario_mensual,
+      anio_inicio = ANIO_ACTUAL,
+      anios_al_retiro = anios_al_retiro
+    )
+  } else {
+    contrib_schedule <- 0
+  }
 
   for (afore in afores) {
     comision <- get_afore_comision(afore)
@@ -644,7 +780,7 @@ compare_afores <- function(saldo_actual,
 
     proyeccion <- project_afore_balance(
       saldo_actual = saldo_actual,
-      aportacion_mensual = aportacion,
+      aportacion_mensual = contrib_schedule,
       anios_al_retiro = anios_al_retiro,
       rendimiento_real_anual = irn,  # Usar IRN como proxy
       comision_anual = comision

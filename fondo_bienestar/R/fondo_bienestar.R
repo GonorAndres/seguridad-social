@@ -1,5 +1,5 @@
-# R/fondo_bienestar.R - Logica del Fondo de Pensiones para el Bienestar
-# Simulador de Pension IMSS + Fondo Bienestar
+# R/fondo_bienestar.R - Lógica del Fondo de Pensiones para el Bienestar
+# Simulador de Pensión IMSS + Fondo Bienestar
 #
 # Decreto: DOF 01/05/2024
 # Entrada en vigor: 01/07/2024
@@ -12,16 +12,16 @@
 #'
 #' Requisitos:
 #' - Trabajador bajo Ley 97 (IMSS) o Ley ISSSTE 2007
-#' - Edad minima: 65 anos
-#' - Semanas cotizadas: 1,000 minimo
+#' - Edad mínima: 65 años
+#' - Semanas cotizadas: 1,000 mínimo
 #' - Salario (SBC promedio): <= Umbral del Fondo
 #'
 #' @param regimen "ley97" o "ley73" (Ley 73 NO es elegible)
 #' @param edad Edad al momento del retiro
 #' @param semanas Semanas cotizadas
-#' @param sbc_promedio_mensual Promedio del SBC de las ultimas 240 semanas (mensual)
-#' @param anio Ano para determinar umbral
-#' @return Lista con elegibilidad y razon
+#' @param sbc_promedio_mensual Promedio del SBC de las últimas 240 semanas (mensual)
+#' @param anio Año para determinar umbral
+#' @return Lista con elegibilidad y razón
 check_fondo_eligibility <- function(regimen,
                                      edad,
                                      semanas,
@@ -35,31 +35,34 @@ check_fondo_eligibility <- function(regimen,
     regimen_valido = list(
       cumple = (regimen == "ley97"),
       mensaje = if (regimen == "ley97") {
-        "Regimen Ley 97: Elegible"
+        "Régimen Ley 97: Elegible"
       } else {
-        "Regimen Ley 73: NO elegible (tu pension ya es mejor)"
+        "Régimen Ley 73: NO elegible (tu pensión ya es mejor)"
       }
     ),
     edad_minima = list(
       cumple = (edad >= 65),
       mensaje = if (edad >= 65) {
-        paste0("Cumples con la edad minima de 65 anos")
+        paste0("Cumples con la edad mínima de 65 años")
       } else {
-        paste0("Necesitas tener al menos 65 anos para acceder al Fondo. Hoy tienes ", edad, ".")
+        paste0("Necesitas tener al menos 65 años para acceder al Fondo. Hoy tienes ", edad, ".")
       }
     ),
     semanas_minimas = list(
-      cumple = (semanas >= 1000),
-      mensaje = if (semanas >= 1000) {
-        paste0("Cumples con las 1,000 semanas minimas cotizadas")
+      cumple = (semanas >= get_semanas_minimas_ley97(anio)),
+      mensaje = if (semanas >= get_semanas_minimas_ley97(anio)) {
+        paste0("Cumples con las ", format(get_semanas_minimas_ley97(anio), big.mark = ","),
+               " semanas mínimas cotizadas")
       } else {
-        paste0("Necesitas al menos 1,000 semanas cotizadas. Hoy llevas ", format(round(semanas), big.mark = ","), ".")
+        paste0("Necesitas al menos ", format(get_semanas_minimas_ley97(anio), big.mark = ","),
+               " semanas cotizadas para retiro en ", anio, ". Hoy llevas ",
+               format(round(semanas), big.mark = ","), ".")
       }
     ),
     salario_bajo_umbral = list(
       cumple = (sbc_promedio_mensual <= umbral),
       mensaje = if (sbc_promedio_mensual <= umbral) {
-        paste0("Tu salario esta dentro del limite del Fondo")
+        paste0("Tu salario está dentro del límite del Fondo")
       } else {
         paste0("El Fondo Bienestar es para salarios menores a $",
                format(round(umbral), big.mark = ","),
@@ -71,7 +74,7 @@ check_fondo_eligibility <- function(regimen,
   # Determinar elegibilidad total
   elegible <- all(sapply(checks, function(x) x$cumple))
 
-  # Razon principal de no elegibilidad
+  # Razón principal de no elegibilidad
   razon_no_elegible <- NULL
   if (!elegible) {
     for (nombre in names(checks)) {
@@ -97,11 +100,11 @@ check_fondo_eligibility <- function(regimen,
 
 #' Calcular complemento del Fondo de Pensiones para el Bienestar
 #'
-#' El Fondo complementa la pension AFORE hasta alcanzar el 100%
-#' del ultimo salario (o el umbral, lo que sea menor).
+#' El Fondo complementa la pensión AFORE hasta alcanzar el 100%
+#' del último salario (o el umbral, lo que sea menor).
 #'
-#' @param pension_afore Pension mensual calculada de la AFORE
-#' @param sbc_promedio_mensual Promedio SBC ultimas 240 semanas (mensual)
+#' @param pension_afore Pensión mensual calculada de la AFORE
+#' @param sbc_promedio_mensual Promedio SBC últimas 240 semanas (mensual)
 #' @param elegibilidad Resultado de check_fondo_eligibility
 #' @return Lista con complemento y pension total
 calculate_fondo_complement <- function(pension_afore,
@@ -123,7 +126,7 @@ calculate_fondo_complement <- function(pension_afore,
 
   umbral <- elegibilidad$umbral_usado
 
-  # El objetivo es llegar al 100% del ultimo salario
+  # El objetivo es llegar al 100% del último salario
   # PERO tope en el umbral del Fondo
   pension_objetivo <- min(sbc_promedio_mensual, umbral)
 
@@ -148,9 +151,9 @@ calculate_fondo_complement <- function(pension_afore,
 # FUNCION PRINCIPAL DE FONDO BIENESTAR
 # ============================================================================
 
-#' Calcular pension completa con Fondo Bienestar
+#' Calcular pensión completa con Fondo Bienestar
 #'
-#' Combina el calculo de Ley 97 con el complemento del Fondo
+#' Combina el cálculo de Ley 97 con el complemento del Fondo
 #'
 #' @param saldo_actual Saldo actual en AFORE
 #' @param salario_mensual Salario mensual actual
@@ -158,7 +161,7 @@ calculate_fondo_complement <- function(pension_afore,
 #' @param edad_retiro Edad de retiro (default 65 para Fondo)
 #' @param semanas_actuales Semanas cotizadas actuales
 #' @param genero "M" o "F"
-#' @param aportacion_voluntaria Aportacion voluntaria mensual
+#' @param aportacion_voluntaria Aportación voluntaria mensual
 #' @param afore_nombre Nombre de la AFORE
 #' @param escenario "conservador", "base", u "optimista"
 #' @return Lista completa con todos los escenarios
@@ -172,8 +175,8 @@ calculate_pension_with_fondo <- function(saldo_actual,
                                           afore_nombre = "XXI Banorte",
                                           escenario = "base") {
 
-  anios_restantes <- max(0, edad_retiro - edad_actual)
-  semanas_al_retiro <- semanas_actuales + (anios_restantes * 52)
+  años_restantes <- max(0, edad_retiro - edad_actual)
+  semanas_al_retiro <- semanas_actuales + (años_restantes * SEMANAS_POR_ANO)
 
   # ============ ESCENARIO 1: Solo sistema (AFORE sin Fondo) ============
   pension_solo_sistema <- calculate_ley97_pension(
@@ -192,12 +195,15 @@ calculate_pension_with_fondo <- function(saldo_actual,
 
   # Verificar elegibilidad
   # Nota: Usamos salario_mensual como proxy del SBC promedio
-  # En implementacion real, deberia ser el promedio de 240 semanas
+  # En implementación real, debería ser el promedio de 240 semanas
+  # Usamos año de retiro para el umbral proyectado del Fondo
+  anio_retiro <- ANIO_ACTUAL + años_restantes
   elegibilidad <- check_fondo_eligibility(
     regimen = "ley97",
     edad = edad_retiro,
     semanas = semanas_al_retiro,
-    sbc_promedio_mensual = salario_mensual
+    sbc_promedio_mensual = salario_mensual,
+    anio = anio_retiro
   )
 
   # Calcular complemento
@@ -238,7 +244,7 @@ calculate_pension_with_fondo <- function(saldo_actual,
       edad_retiro = edad_retiro,
       semanas_actuales = semanas_actuales,
       semanas_al_retiro = semanas_al_retiro,
-      anios_restantes = anios_restantes,
+      años_restantes = años_restantes,
       genero = genero,
       aportacion_voluntaria = aportacion_voluntaria,
       afore = afore_nombre,
@@ -287,15 +293,15 @@ calculate_pension_with_fondo <- function(saldo_actual,
       aplico_minimo = pension_con_acciones$aplico_minimo
     ),
 
-    # Informacion del Fondo
+    # Información del Fondo
     fondo_bienestar = list(
       elegible = elegibilidad$elegible,
       umbral = elegibilidad$umbral_usado,
       razon_no_elegible = elegibilidad$razon_no_elegible,
       advertencia = if (elegibilidad$elegible) {
         paste0("El Fondo Bienestar es nuevo (2024) y su sostenibilidad ",
-               "a largo plazo no esta garantizada. Tus aportaciones ",
-               "voluntarias son la parte mas segura de tu pension.")
+               "a largo plazo no está garantizada. Tus aportaciones ",
+               "voluntarias son la parte más segura de tu pensión.")
       } else {
         NULL
       }
@@ -309,7 +315,7 @@ calculate_pension_with_fondo <- function(saldo_actual,
 
 #' Analizar impacto de diferentes aportaciones voluntarias
 #'
-#' @param ... Parametros base del trabajador
+#' @param ... Parámetros base del trabajador
 #' @param aportaciones_probar Vector de aportaciones a probar
 #' @return Data frame con resultados
 analyze_voluntary_contributions <- function(saldo_actual,
@@ -357,7 +363,7 @@ analyze_voluntary_contributions <- function(saldo_actual,
 
 #' Analizar impacto de diferentes edades de retiro
 #'
-#' @param ... Parametros base del trabajador
+#' @param ... Parámetros base del trabajador
 #' @param edades_probar Vector de edades a probar
 #' @return Data frame con resultados
 analyze_retirement_age <- function(saldo_actual,
@@ -426,10 +432,10 @@ generate_personalized_message <- function(resultado) {
       tipo = "info",
       titulo = "Eres elegible para el Fondo Bienestar",
       texto = paste0(
-        "El Fondo puede complementar tu pension con $",
+        "El Fondo puede complementar tu pensión con $",
         format(round(diferencia), big.mark = ","),
         " adicionales al mes. Sin embargo, recuerda que es un ",
-        "programa nuevo y su continuidad depende de decisiones politicas futuras."
+        "programa nuevo y su continuidad depende de decisiones políticas futuras."
       )
     )
   } else {
@@ -445,27 +451,27 @@ generate_personalized_message <- function(resultado) {
   if (tasa < 30) {
     mensajes$tasa <- list(
       tipo = "danger",
-      titulo = "Tu pension sera significativamente menor a tu salario",
+      titulo = "Tu pensión será significativamente menor a tu salario",
       texto = paste0(
-        "Tu pension sera aproximadamente el ", round(tasa), "% de tu salario actual. ",
+        "Tu pensión será aproximadamente el ", round(tasa), "% de tu salario actual. ",
         "Considera aumentar tus aportaciones voluntarias o retrasar tu retiro."
       )
     )
   } else if (tasa < 50) {
     mensajes$tasa <- list(
       tipo = "warning",
-      titulo = "Tu pension cubrira parte de tu salario",
+      titulo = "Tu pensión cubrirá parte de tu salario",
       texto = paste0(
-        "Tu pension sera aproximadamente el ", round(tasa), "% de tu salario actual. ",
+        "Tu pensión será aproximadamente el ", round(tasa), "% de tu salario actual. ",
         "Las aportaciones voluntarias pueden ayudar a mejorar este porcentaje."
       )
     )
   } else {
     mensajes$tasa <- list(
       tipo = "success",
-      titulo = "Tu pension tendra buena cobertura",
+      titulo = "Tu pensión tendrá buena cobertura",
       texto = paste0(
-        "Tu pension sera aproximadamente el ", round(tasa), "% de tu salario actual."
+        "Tu pensión será aproximadamente el ", round(tasa), "% de tu salario actual."
       )
     )
   }
@@ -478,7 +484,7 @@ generate_personalized_message <- function(resultado) {
       titulo = "Tus aportaciones voluntarias hacen diferencia",
       texto = paste0(
         "Con $", format(round(resultado$entrada$aportacion_voluntaria), big.mark = ","),
-        " mensuales de aportacion voluntaria, tu pension aumenta en $",
+        " mensuales de aportación voluntaria, tu pensión aumenta en $",
         format(round(diferencia), big.mark = ","), " al mes."
       )
     )
@@ -487,8 +493,8 @@ generate_personalized_message <- function(resultado) {
       tipo = "info",
       titulo = "Las aportaciones voluntarias son tu mejor herramienta",
       texto = paste0(
-        "Aun $500 mensuales pueden hacer una diferencia significativa ",
-        "en tu pension final. Es la parte de tu jubilacion que TU controlas."
+        "Aún $500 mensuales pueden hacer una diferencia significativa ",
+        "en tu pensión final. Es la parte de tu jubilación que TÚ controlas."
       )
     )
   }

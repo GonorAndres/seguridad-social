@@ -60,13 +60,13 @@ hero_section <- function() {
       # Thesis
       tags$h1(
         class = "hero-thesis",
-        "Tu pension es tuya. Conocerla te da poder."
+        "Tu pensión es tuya. Conocerla te da poder."
       ),
 
       # Subtitle
       tags$p(
         class = "hero-subtitle",
-        "Millones de trabajadores mexicanos no conocen su pension real.",
+        "Millones de trabajadores mexicanos no conocen su pensión real.",
         "Esta herramienta cambia eso en 5 minutos."
       ),
 
@@ -75,7 +75,7 @@ hero_section <- function() {
         class = "hero-value-props",
         value_prop_item("bi-clock", "Calcula en 5 minutos"),
         value_prop_item("bi-book", "Entiende Ley 73, 97 y Bienestar"),
-        value_prop_item("bi-lightning-charge", "Descubre que hacer HOY"),
+        value_prop_item("bi-lightning-charge", "Descubre qué hacer HOY"),
         value_prop_item("bi-shield-lock", "Sin registro, 100% privado")
       ),
 
@@ -86,7 +86,7 @@ hero_section <- function() {
           id = "start_wizard",
           class = "hero-cta-primary",
           tags$i(class = "bi bi-calculator me-2"),
-          "Calcular mi pension"
+          "Calcular mi pensión"
         ),
         tags$button(
           id = "show_context",
@@ -167,7 +167,7 @@ context_section <- function() {
     tags$hr(class = "my-4"),
 
     # Control Framework
-    tags$h5(class = "mb-3", tags$i(class = "bi bi-bullseye me-2 text-primary"), "Que puedes controlar?"),
+    tags$h5(class = "mb-3", tags$i(class = "bi bi-bullseye me-2 text-primary"), "¿Qué puedes controlar?"),
     control_framework(),
 
     tags$hr(class = "my-4"),
@@ -175,8 +175,8 @@ context_section <- function() {
     # Key Message
     key_message(
       "El Fondo Bienestar puede ser excelente, pero ",
-      tags$strong("tus aportaciones voluntarias son la parte MAS SEGURA"),
-      " de tu pension. Enfoca tu energia en lo que controlas."
+      tags$strong("tus aportaciones voluntarias son la parte MÁS SEGURA"),
+      " de tu pensión. Enfoca tu energía en lo que controlas."
     ),
 
     # CTA to start
@@ -186,7 +186,7 @@ context_section <- function() {
         id = "start_wizard_from_context",
         class = "btn btn-primary btn-lg",
         tags$i(class = "bi bi-arrow-right me-2"),
-        "Ahora si, calcular mi pension"
+        "Ahora sí, calcular mi pensión"
       )
     )
   )
@@ -201,13 +201,13 @@ pension_timeline <- function() {
     timeline_item(
       year = "1973",
       title = "Ley del Seguro Social",
-      description = "Pension definida basada en semanas y salario. Si empezaste antes de julio 1997, estas aqui."
+      description = "Pensión definida basada en semanas y salario. Si empezaste antes de julio 1997, estás aquí."
     ),
 
     timeline_item(
       year = "1997",
       title = "Sistema AFOREs",
-      description = "Cuentas individuales. Tu pension depende de lo que ahorres. La mayoria de trabajadores actuales."
+      description = "Cuentas individuales. Tu pensión depende de lo que ahorres. La mayoría de trabajadores actuales."
     ),
 
     timeline_item(
@@ -219,7 +219,7 @@ pension_timeline <- function() {
     timeline_item(
       year = "2024",
       title = "Fondo de Pensiones para el Bienestar",
-      description = "Complementa pensiones hasta el 100% del ultimo salario. Programa nuevo, sostenibilidad por confirmar."
+      description = "Complementa pensiones hasta el 100% del último salario. Programa nuevo, sostenibilidad por confirmar."
     )
   )
 }
@@ -494,7 +494,11 @@ detect_result_scenario <- function(resultado) {
   aplico_minimo_acciones <- resultado$con_acciones$aplico_minimo %||% FALSE
   pension_diff <- resultado$con_acciones$pension_afore - resultado$solo_sistema$pension_mensual
 
-  if (fondo_elegible) {
+  if (fondo_elegible && tiene_voluntarias &&
+      resultado$con_acciones$pension_afore > resultado$con_fondo$pension_total) {
+    # Voluntary contributions push AFORE pension above Fondo cap
+    return("ley97_fondo_voluntary")
+  } else if (fondo_elegible) {
     return("ley97_fondo_eligible")
   } else if (aplico_minimo_base && aplico_minimo_acciones && tiene_voluntarias) {
     return("ley97_minimo")
@@ -512,7 +516,13 @@ render_results_hero <- function(resultado) {
   scenario <- detect_result_scenario(resultado)
 
   # Determine hero amount and details based on scenario
-  if (scenario == "ley97_fondo_eligible") {
+  if (scenario == "ley97_fondo_voluntary") {
+    # Voluntary contributions beat the Fondo cap
+    hero_amount <- resultado$con_acciones$pension_afore
+    hero_label <- "TU PENSION ESTIMADA (CON APORTACIONES)"
+    tasa <- hero_amount / resultado$entrada$salario_mensual
+    show_minimo_tag <- resultado$con_acciones$aplico_minimo %||% FALSE
+  } else if (scenario == "ley97_fondo_eligible") {
     hero_amount <- resultado$con_fondo$pension_total
     hero_label <- "TU PENSION ESTIMADA (CON FONDO BIENESTAR)"
     tasa <- resultado$con_fondo$tasa_reemplazo
@@ -567,7 +577,7 @@ render_results_hero <- function(resultado) {
       tags$span(
         class = "breakdown-label",
         tags$i(class = "bi bi-calculator"),
-        "Pension calculada de tu AFORE"
+        "Pensión calculada de tu AFORE"
       ),
       tags$span(class = "breakdown-value",
         paste0(format_currency(pension_real), "/mes"))
@@ -579,7 +589,7 @@ render_results_hero <- function(resultado) {
       tags$span(
         class = "breakdown-label",
         tags$i(class = "bi bi-shield-fill-check"),
-        "Pension minima garantizada (piso legal)"
+        "Pensión mínima garantizada (piso legal)"
       ),
       tags$span(class = "breakdown-value",
         paste0(format_currency(pension_min), "/mes"))
@@ -591,7 +601,7 @@ render_results_hero <- function(resultado) {
       tags$span(
         class = "breakdown-label",
         tags$i(class = "bi bi-graph-up-arrow"),
-        "Avance hacia superar el minimo"
+        "Avance hacia superar el mínimo"
       ),
       tags$span(class = "breakdown-value",
         paste0(pct_del_minimo, "% (", format_currency(saldo_actual_proy),
@@ -635,7 +645,8 @@ render_results_hero <- function(resultado) {
         tags$span(
           class = "breakdown-label",
           tags$i(class = "bi bi-plus-circle"),
-          "Aportaciones voluntarias"
+          paste0("Aportaciones voluntarias ($",
+            format(round(resultado$entrada$aportacion_voluntaria), big.mark = ","), "/mes)")
         ),
         tags$span(class = "breakdown-value",
           paste0("+", format_currency(saldo_diff), " saldo"))
@@ -644,24 +655,58 @@ render_results_hero <- function(resultado) {
   }
 
   # Row 3: Fondo complement (only if eligible)
-  if (resultado$con_fondo$elegible && resultado$con_fondo$complemento > 0) {
-    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
-      class = "breakdown-row highlight",
-      tags$span(
-        class = "breakdown-label",
-        tags$i(class = "bi bi-shield-check"),
-        "Complemento Fondo Bienestar"
-      ),
-      tags$span(class = "breakdown-value",
-        paste0("+", format_currency(resultado$con_fondo$complemento), "/mes"))
-    )
+  fondo_elegible <- resultado$con_fondo$elegible
+  if (fondo_elegible && resultado$con_fondo$complemento > 0) {
+    if (scenario == "ley97_fondo_voluntary") {
+      # Vol contribs exceed Fondo cap -- Fondo not needed
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-shield-check"),
+          "Fondo Bienestar"
+        ),
+        tags$span(class = "breakdown-value fondo-not-needed",
+          "No necesario")
+      )
+    } else {
+      # Show Fondo complement
+      complemento_con_vol <- resultado$con_acciones$complemento_fondo %||% resultado$con_fondo$complemento
+      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+        class = "breakdown-row highlight",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-shield-check"),
+          "Complemento Fondo Bienestar"
+        ),
+        tags$span(class = "breakdown-value",
+          paste0("+", format_currency(complemento_con_vol), "/mes"))
+      )
+      # Explain Fondo-masking when voluntary contributions are active
+      if (tiene_voluntarias && saldo_diff > 0) {
+        fondo_sin_vol <- resultado$con_fondo$complemento
+        fondo_con_vol <- complemento_con_vol
+        if (fondo_sin_vol > fondo_con_vol) {
+          breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+            class = "breakdown-row fondo-dependency-note",
+            tags$span(
+              class = "breakdown-label",
+              tags$i(class = "bi bi-info-circle"),
+              paste0("Tus aportaciones reducen tu dependencia del Fondo (",
+                format_currency(fondo_sin_vol), " ", "\u2192", " ",
+                format_currency(fondo_con_vol), ")")
+            )
+          )
+        }
+      }
+    }
   }
 
   # Total row (only if there are additions)
   if (length(breakdown_rows) > 1) {
     breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
       class = "breakdown-row total",
-      tags$span(class = "breakdown-label", "Total pension mensual"),
+      tags$span(class = "breakdown-label", "Total pensión mensual"),
       tags$span(class = "breakdown-value", paste0(format_currency(hero_amount), "/mes"))
     )
   }
@@ -684,7 +729,7 @@ render_results_hero <- function(resultado) {
 
   breakdown <- tags$div(
     class = "result-breakdown",
-    tags$div(class = "result-breakdown-header", "Desglose de tu pension"),
+    tags$div(class = "result-breakdown-header", "Desglose de tu pensión"),
     tagList(breakdown_rows)
   )
 
@@ -695,7 +740,7 @@ render_results_hero <- function(resultado) {
       tags$i(class = "bi bi-check-circle-fill"),
       tags$span(
         tags$strong("Elegible para Fondo Bienestar. "),
-        "Recuerda: es un programa nuevo (2024) y su sostenibilidad no esta garantizada."
+        "Recuerda: es un programa nuevo (2024) y su sostenibilidad no está garantizada."
       )
     )
   } else {
@@ -718,7 +763,7 @@ render_results_hero <- function(resultado) {
       tags$div(
         "Tu salario SI mejora tu saldo proyectado. Cuando tu saldo supere ",
         tags$strong(format_currency(saldo_necesario_note)),
-        ", tu pension real superara la minima garantizada. ",
+        ", tu pensión real superará la mínima garantizada. ",
         "Aumentar aportaciones voluntarias o retrasar el retiro te acercan a este punto."
       )
     )
@@ -802,7 +847,7 @@ render_results_hero_ley73 <- function(res) {
         tags$span(
           class = "breakdown-label",
           tags$i(class = "bi bi-calculator"),
-          paste0("Pension calculada Ley 73 (", res$pension_base$tipo_pension, ")")
+          paste0("Pensión calculada Ley 73 (", res$pension_base$tipo_pension, ")")
         ),
         tags$span(class = "breakdown-value",
           paste0(format_currency(pension_sin_min), "/mes"))
@@ -813,7 +858,7 @@ render_results_hero_ley73 <- function(res) {
         tags$span(
           class = "breakdown-label",
           tags$i(class = "bi bi-shield-fill-check"),
-          "Pension minima garantizada (1 SM)"
+          "Pensión mínima garantizada (1 SM)"
         ),
         tags$span(class = "breakdown-value",
           paste0(format_currency(pension_min_val), "/mes"))
@@ -838,7 +883,7 @@ render_results_hero_ley73 <- function(res) {
       tags$span(
         class = "breakdown-label",
         tags$i(class = "bi bi-percent"),
-        paste0("Factor de edad (", res$entrada$edad_retiro, " anos)")
+        paste0("Factor de edad (", res$entrada$edad_retiro, " años)")
       ),
       tags$span(class = "breakdown-value",
         paste0(round(res$pension_base$factor_edad * 100), "%"))
@@ -868,7 +913,7 @@ render_results_hero_ley73 <- function(res) {
 
   breakdown <- tags$div(
     class = "result-breakdown",
-    tags$div(class = "result-breakdown-header", "Desglose de tu pension"),
+    tags$div(class = "result-breakdown-header", "Desglose de tu pensión"),
     tagList(breakdown_rows)
   )
 
@@ -891,7 +936,7 @@ render_results_hero_ley73 <- function(res) {
       class = "minimum-note",
       tags$i(class = "bi bi-lightbulb"),
       tags$div(
-        "Tu pension calculada esta por debajo del salario minimo, por lo que recibes la pension minima garantizada. ",
+        "Tu pensión calculada está por debajo del salario mínimo, por lo que recibes la pensión mínima garantizada. ",
         "Aumentar tus semanas cotizadas o mejorar tu promedio salarial (por ejemplo con Modalidad 40) puede superar este piso."
       )
     )
@@ -903,10 +948,97 @@ render_results_hero_ley73 <- function(res) {
   fondo_status <- tags$div(
     class = "fondo-status-inline not-eligible",
     tags$i(class = "bi bi-info-circle"),
-    tags$span("Ley 73: El Fondo Bienestar no aplica. Tu pension definida ya es generalmente mejor.")
+    tags$span("Ley 73: El Fondo Bienestar no aplica. Tu pensión definida ya es generalmente mejor.")
   )
 
   tagList(hero, breakdown, m40_callout, minimum_note_73, fondo_status)
+}
+
+# ============================================================================
+# ANTES / DESPUES COMPARISON
+# ============================================================================
+
+#' Extract headline pension from a result object
+#' @param resultado Result list from calculate_pension_with_fondo or Ley 73 calc
+#' @return Single numeric pension amount (monthly)
+get_hero_pension <<- function(resultado) {
+  if (!is.null(resultado$regimen) && resultado$regimen == "ley73") {
+    pension_base <- if (resultado$pension_base$elegible) resultado$pension_base$pension_mensual else 0
+    pension_m40 <- if (!is.null(resultado$pension_m40)) resultado$pension_m40$pension_con_m40 else pension_base
+    return(max(pension_base, pension_m40))
+  }
+
+  # Ley 97: use detect_result_scenario
+
+  scenario <- detect_result_scenario(resultado)
+
+  if (scenario == "ley97_fondo_voluntary") {
+    resultado$con_acciones$pension_afore
+  } else if (scenario == "ley97_fondo_eligible") {
+    resultado$con_fondo$pension_total
+  } else if (scenario == "ley97_voluntary_improvement") {
+    resultado$con_acciones$pension_afore
+  } else {
+    resultado$solo_sistema$pension_mensual
+  }
+}
+
+#' Render antes/despues comparison box
+#' @param res_orig Original result (from resultados_originales)
+#' @param res_current Current result (from resultados, after slider changes)
+#' @return HTML div with comparison
+render_antes_despues_box <<- function(res_orig, res_current) {
+  pension_antes <- get_hero_pension(res_orig)
+  pension_despues <- get_hero_pension(res_current)
+  diferencia <- pension_despues - pension_antes
+
+  if (abs(diferencia) < 0.01) {
+    # Neutral state -- no changes yet
+    return(tags$div(
+      class = "antes-despues-box neutral",
+      tags$div(class = "antes-despues-header", "Impacto de tus cambios"),
+      tags$div(
+        class = "antes-despues-neutral-msg",
+        tags$i(class = "bi bi-sliders me-2"),
+        "Mueve un control para ver el impacto"
+      )
+    ))
+  }
+
+  pct_change <- if (pension_antes > 0) diferencia / pension_antes * 100 else 0
+  diff_class <- if (diferencia > 0) "positive" else "negative"
+  diff_sign <- if (diferencia > 0) "+" else ""
+
+  # Format the difference text
+  diff_text <- if (pension_antes > 0) {
+    paste0(diff_sign, format_currency(diferencia), "/mes (",
+           diff_sign, round(pct_change, 1), "%)")
+  } else {
+    paste0(diff_sign, format_currency(diferencia), "/mes")
+  }
+
+  tags$div(
+    class = paste("antes-despues-box", diff_class),
+    tags$div(class = "antes-despues-header", "Impacto de tus cambios"),
+    tags$div(
+      class = "antes-despues-body",
+      tags$div(
+        class = "antes-col",
+        tags$div(class = "ad-label", "Antes"),
+        tags$div(class = "ad-amount", paste0(format_currency(pension_antes), "/mes"))
+      ),
+      tags$div(class = "antes-despues-arrow", HTML("&#8594;")),
+      tags$div(
+        class = "despues-col",
+        tags$div(class = "ad-label", "Despues"),
+        tags$div(class = "ad-amount", paste0(format_currency(pension_despues), "/mes"))
+      )
+    ),
+    tags$div(
+      class = paste("antes-despues-diff", diff_class),
+      diff_text
+    )
+  )
 }
 
 # ============================================================================
@@ -933,8 +1065,8 @@ encouragement_message <- function(resultado) {
       ),
       tags$p(
         class = "encouragement-text",
-        "Tu pension proyectada es razonable. Sigue asi y considera aumentar ",
-        "tus aportaciones voluntarias para aun mas tranquilidad."
+        "Tu pensión proyectada es razonable. Sigue así y considera aumentar ",
+        "tus aportaciones voluntarias para aún más tranquilidad."
       )
     ))
   } else if (tasa >= 0.4) {
@@ -948,13 +1080,13 @@ encouragement_message <- function(resultado) {
       ),
       tags$p(
         class = "encouragement-text",
-        "Tu pension cubre parte de tus necesidades. La buena noticia: ",
-        tags$strong("pequenas acciones hoy hacen gran diferencia manana."),
+        "Tu pensión cubre parte de tus necesidades. La buena noticia: ",
+        tags$strong("pequeñas acciones hoy hacen gran diferencia mañana."),
         " Usa los controles abajo para ver el impacto."
       ),
       tags$div(
         class = "encouragement-actions",
-        tags$span(class = "encouragement-action", "Aumentar aportacion voluntaria"),
+        tags$span(class = "encouragement-action", "Aumentar aportación voluntaria"),
         tags$span(class = "encouragement-action", "Revisar tu AFORE"),
         tags$span(class = "encouragement-action", "Considerar edad de retiro")
       )
@@ -966,13 +1098,13 @@ encouragement_message <- function(resultado) {
       tags$div(
         class = "encouragement-title",
         tags$i(class = "bi bi-exclamation-triangle"),
-        "Atencion: Tu pension necesita refuerzo"
+        "Atención: Tu pensión necesita refuerzo"
       ),
       tags$p(
         class = "encouragement-text",
-        "Una pension del ", round(tasa * 100), "% de tu salario es baja, pero ",
+        "Una pensión del ", round(tasa * 100), "% de tu salario es baja, pero ",
         tags$strong("esto NO es una sentencia."),
-        " Muchas personas han mejorado dramaticamente su situacion con acciones consistentes."
+        " Muchas personas han mejorado dramáticamente su situación con acciones consistentes."
       ),
       tags$div(
         class = "encouragement-actions",
@@ -1026,31 +1158,31 @@ input_with_help <- function(input_fn, inputId, label, help_text, ...) {
 
 #' Definiciones del glosario
 GLOSARIO <- list(
-  "UMA" = "Unidad de Medida y Actualizacion. Indicador que reemplaza al salario minimo para calculos oficiales desde 2016.",
+  "UMA" = "Unidad de Medida y Actualización. Indicador que reemplaza al salario mínimo para cálculos oficiales desde 2016.",
 
-  "SBC" = "Salario Base de Cotizacion. El salario registrado ante el IMSS, que puede ser diferente al salario real.",
+  "SBC" = "Salario Base de Cotización. El salario registrado ante el IMSS, que puede ser diferente al salario real.",
 
-  "Semanas cotizadas" = "Numero de semanas que tu empleador ha reportado al IMSS. Cada semana suma a tu historial.",
+  "Semanas cotizadas" = "Número de semanas que tu empleador ha reportado al IMSS. Cada semana suma a tu historial.",
 
-  "Cesantia" = "Pension anticipada entre los 60 y 64 anos. Tiene un factor de reduccion (75% a los 60, hasta 95% a los 64).",
+  "Cesantía" = "Pensión anticipada entre los 60 y 64 años. Tiene un factor de reducción (75% a los 60, hasta 95% a los 64).",
 
-  "Vejez" = "Pension completa a partir de los 65 anos, sin factor de reduccion.",
+  "Vejez" = "Pensión completa a partir de los 65 años, sin factor de reducción.",
 
-  "Retiro programado" = "Modalidad de pension donde tu AFORE te paga mes a mes hasta agotar tu saldo. El monto se recalcula cada ano.",
+  "Retiro programado" = "Modalidad de pensión donde tu AFORE te paga mes a mes hasta agotar tu saldo. El monto se recalcula cada año.",
 
-  "Renta vitalicia" = "Modalidad de pension donde una aseguradora te paga de por vida a cambio de tu saldo AFORE.",
+  "Renta vitalicia" = "Modalidad de pensión donde una aseguradora te paga de por vida a cambio de tu saldo AFORE.",
 
-  "Densidad de cotizacion" = "Porcentaje de tu vida laboral en que has cotizado. Promedio nacional: ~50-65%.",
+  "Densidad de cotización" = "Porcentaje de tu vida laboral en que has cotizado. Promedio nacional: ~50-65%.",
 
-  "Fondo Bienestar" = "Fondo de Pensiones para el Bienestar (2024). Complementa pensiones de trabajadores con salario <= $17,364/mes hasta el 100% de su ultimo salario.",
+  "Fondo Bienestar" = "Fondo de Pensiones para el Bienestar (2024). Complementa pensiones de trabajadores con salario <= $17,364/mes hasta el 100% de su último salario.",
 
-  "Modalidad 40" = "Continuacion voluntaria en el regimen obligatorio. Permite a ex-trabajadores seguir cotizando para mejorar su pension Ley 73.",
+  "Modalidad 40" = "Continuación voluntaria en el régimen obligatorio. Permite a ex-trabajadores seguir cotizando para mejorar su pensión Ley 73.",
 
-  "IRN" = "Indicador de Rendimiento Neto. Mide el rendimiento de una AFORE descontando comisiones. Mayor IRN = mejor desempeno.",
+  "IRN" = "Indicador de Rendimiento Neto. Mide el rendimiento de una AFORE descontando comisiones. Mayor IRN = mejor desempeño.",
 
-  "Ley 73" = "Sistema de pension anterior a julio 1997. Pension definida basada en salario y semanas. Generalmente mas favorable.",
+  "Ley 73" = "Sistema de pensión anterior a julio 1997. Pensión definida basada en salario y semanas. Generalmente más favorable.",
 
-  "Ley 97" = "Sistema de pension actual (AFORE). Cuenta individual donde cada quien ahorra para su propia pension."
+  "Ley 97" = "Sistema de pensión actual (AFORE). Cuenta individual donde cada quien ahorra para su propia pensión."
 )
 
 #' Crear panel de glosario
@@ -1158,7 +1290,7 @@ technical_panel <- function(resultado) {
         href = "#technicalCollapse",
         role = "button",
         tags$i(class = "bi bi-gear me-2"),
-        "Panel Tecnico (ver supuestos y formulas)"
+        "Panel Técnico (ver supuestos y fórmulas)"
       )
     ),
 
@@ -1176,13 +1308,13 @@ technical_panel <- function(resultado) {
           tags$li(paste0("AFORE: ", resultado$entrada$afore)),
           tags$li(paste0("Umbral Fondo Bienestar: ", format_currency(get_umbral_fondo_bienestar(ANIO_ACTUAL)))),
           tags$li(paste0("UMA diaria ", ANIO_ACTUAL, ": ", format_currency(UMA_DIARIA_2025))),
-          tags$li(paste0("Salario minimo ", ANIO_ACTUAL, ": ", format_currency(SM_DIARIO_2025)))
+          tags$li(paste0("Salario mínimo ", ANIO_ACTUAL, ": ", format_currency(SM_DIARIO_2025)))
         ),
 
         tags$h6(class = "mt-3", "Notas importantes:"),
         tags$ul(
-          tags$li("Esta es una estimacion educativa, no una garantia."),
-          tags$li("Las leyes y politicas pueden cambiar."),
+          tags$li("Esta es una estimación educativa, no una garantía."),
+          tags$li("Las leyes y políticas pueden cambiar."),
           tags$li("El Fondo Bienestar es un programa nuevo (2024) con sostenibilidad incierta."),
           tags$li("Consulta tu estado de cuenta oficial en IMSS y tu AFORE.")
         ),
@@ -1278,9 +1410,9 @@ download_section <- function() {
           "ver_tecnico",
           tagList(
             tags$i(class = "bi bi-file-text me-2"),
-            "Documento Tecnico",
+            "Documento Técnico",
             tags$br(),
-            tags$small(class = "text-muted", "Metodologia y formulas")
+            tags$small(class = "text-muted", "Metodología y fórmulas")
           ),
           class = "btn btn-outline-primary w-100 py-3"
         )
@@ -1306,7 +1438,7 @@ download_section <- function() {
           "ver_reporte",
           tagList(
             tags$i(class = "bi bi-printer me-2"),
-            "Reporte Basico",
+            "Reporte Básico",
             tags$br(),
             tags$small(class = "text-muted", "Para imprimir")
           ),
@@ -1318,7 +1450,7 @@ download_section <- function() {
           "ver_metodologia",
           tagList(
             tags$i(class = "bi bi-book me-2"),
-            "Metodologia",
+            "Metodología",
             tags$br(),
             tags$small(class = "text-muted", "Como calculamos")
           ),

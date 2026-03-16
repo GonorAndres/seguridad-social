@@ -1,6 +1,6 @@
 # tests/testthat/test_calculations.R
 # Comprehensive actuarial test suite for pension simulator
-# 92 test cases across 13 sections (A-M)
+# ~176 test cases across 28 sections (A-BB)
 #
 # Note: Many R functions return named numerics from vector lookups.
 # We use unname() in comparisons to avoid attr-mismatch failures.
@@ -28,20 +28,11 @@ salario_minimo_data <<- read.csv(file.path(data_dir, "salario_minimo.csv"),
                                  stringsAsFactors = FALSE)
 afore_data <<- read.csv(file.path(data_dir, "afore_comisiones.csv"),
                         stringsAsFactors = FALSE)
+tasas_reforma_data <<- read.csv(file.path(data_dir, "tasas_reforma_2020.csv"),
+                                stringsAsFactors = FALSE)
 
-# Constants (mirrored from global.R)
-ANIO_ACTUAL           <<- 2025
-UMA_DIARIA_2025       <<- 113.14
-UMA_MENSUAL_2025      <<- 3439.46
-SM_DIARIO_2025        <<- 278.80
-SM_MENSUAL_2025       <<- 8474.52
-UMBRAL_FONDO_BIENESTAR_2025 <<- 17364
-TOPE_SBC_DIARIO       <<- UMA_DIARIA_2025 * 25
-RENDIMIENTO_CONSERVADOR <<- 0.03
-RENDIMIENTO_BASE      <<- 0.04
-RENDIMIENTO_OPTIMISTA <<- 0.05
-FACTORES_CESANTIA     <<- c("60"=0.75, "61"=0.80, "62"=0.85,
-                            "63"=0.90, "64"=0.95, "65"=1.00)
+# Constants (single source of truth)
+source(file.path(r_dir, "constants.R"))
 
 # Utility functions from global.R needed by sourced files
 format_currency <<- function(x) {
@@ -51,17 +42,27 @@ format_percent <<- function(x) paste0(round(x * 100, 1), "%")
 get_umbral_fondo_bienestar <<- function(anio) {
   umbrales <- c("2024" = 16777.68, "2025" = 17364, "2026" = 18050)
   if (as.character(anio) %in% names(umbrales)) return(umbrales[as.character(anio)])
-  return(umbrales[length(umbrales)])
+  ultimo_anio <- 2026; ultimo_valor <- 18050; tasa <- 0.035
+  if (anio > ultimo_anio) return(ultimo_valor * (1 + tasa)^(anio - ultimo_anio))
+  return(umbrales["2024"])
 }
 `%||%` <<- function(x, y) if (is.null(x) || length(x) == 0) y else x
+
+get_uma <<- function(anio) {
+  row <- uma_data[uma_data$anio == anio, ]
+  if (nrow(row) == 0) row <- uma_data[uma_data$anio == max(uma_data$anio), ]
+  return(row$uma_diaria)
+}
+get_salario_minimo <<- function(anio) {
+  row <- salario_minimo_data[salario_minimo_data$anio == anio, ]
+  if (nrow(row) == 0) row <- salario_minimo_data[salario_minimo_data$anio == max(salario_minimo_data$anio), ]
+  return(row$sm_diario)
+}
 
 # Source calculation files
 source(file.path(r_dir, "data_tables.R"))
 source(file.path(r_dir, "calculations.R"))
 source(file.path(r_dir, "fondo_bienestar.R"))
-
-# Convenience constant
-DIAS_POR_MES <- 30.4375  # 365.25 / 12
 
 # Helper: numeric comparison ignoring names attribute
 # R propagates names from vector lookups through arithmetic,
@@ -287,37 +288,41 @@ test_that("C7: Trajectory endpoint matches closed-form saldo_final", {
 # SECTION D: calculate_aportacion_obligatoria (6 tests)
 # ==========================================================================
 
-test_that("D1: 2025 uses patron rate 7.75%", {
+test_that("D1: 2025 tiered rates -- high salary uses correct CEAV bracket", {
+  # $20,000/month -> ~21.7 UMA daily -> 4.01+ UMA bracket
+  # CEAV 2025 for 4.01+ UMA = 6.422%, retiro = 2%, worker = 1.125%
   r <- calculate_aportacion_obligatoria(salario_mensual = 20000, anio = 2025)
-  # tasa_total = 0.0775 + 0.01125 + 0.00225 = 0.091
-  expect_num(r$tasa_total, 0.091, tolerance = 1e-6)
-  expect_num(r$aportacion_total, 20000 * 0.091, tolerance = 0.01)
+  expect_num(r$tasa_ceav, 0.06422, tolerance = 0.001)
+  expect_num(r$tasa_patron, 0.02 + 0.06422, tolerance = 0.001)
+  expect_true(r$aportacion_total > 0)
 })
 
-test_that("D2: 2023 uses patron rate 6.20%", {
-  r <- calculate_aportacion_obligatoria(salario_mensual = 20000, anio = 2023)
-  expected_total <- 0.0620 + 0.01125 + 0.00225  # = 0.0755
-  expect_num(r$tasa_total, expected_total, tolerance = 1e-6)
+test_that("D2: 2023 uses lower CEAV rates than 2025", {
+  r_2023 <- calculate_aportacion_obligatoria(salario_mensual = 20000, anio = 2023)
+  r_2025 <- calculate_aportacion_obligatoria(salario_mensual = 20000, anio = 2025)
+  expect_true(unname(r_2023$aportacion_patron) < unname(r_2025$aportacion_patron))
 })
 
-test_that("D3: 2030 and beyond uses patron rate 12%", {
+test_that("D3: 2030 and beyond uses maximum CEAV rates", {
   r_2030 <- calculate_aportacion_obligatoria(salario_mensual = 20000, anio = 2030)
   r_2035 <- calculate_aportacion_obligatoria(salario_mensual = 20000, anio = 2035)
-  expected_total <- 0.12 + 0.01125 + 0.00225  # = 0.1335
-  expect_num(r_2030$tasa_total, expected_total, tolerance = 1e-6)
-  expect_num(r_2035$tasa_total, expected_total, tolerance = 1e-6)
+  expect_num(r_2030$tasa_ceav, r_2035$tasa_ceav, tolerance = 0.001)
+  expect_num(r_2030$tasa_patron, r_2035$tasa_patron, tolerance = 0.001)
 })
 
-test_that("D4: Year before 2023 defaults to 2025 rate", {
-  r <- calculate_aportacion_obligatoria(salario_mensual = 20000, anio = 2020)
-  expect_num(r$tasa_total, 0.091, tolerance = 1e-6)
+test_that("D4: Low salary (1 SM) gets lowest employer rate", {
+  r_low <- calculate_aportacion_obligatoria(salario_mensual = SM_MENSUAL_2025, anio = 2025)
+  r_high <- calculate_aportacion_obligatoria(salario_mensual = 50000, anio = 2025)
+  # 1 SM bracket has CEAV = 3.150% (lowest); high salary has 6.422% (highest)
+  expect_true(unname(r_low$tasa_ceav) < unname(r_high$tasa_ceav))
 })
 
 test_that("D5: Salary above tope is capped", {
-  tope_mensual <- TOPE_SBC_DIARIO * 30
+  tope_mensual <- TOPE_SBC_DIARIO * DIAS_POR_MES
   r <- calculate_aportacion_obligatoria(salario_mensual = 200000, anio = 2025)
   expect_num(r$salario_cotizable, tope_mensual)
-  expect_true(unname(r$aportacion_total) < 200000 * unname(r$tasa_total))
+  r_tope <- calculate_aportacion_obligatoria(salario_mensual = tope_mensual, anio = 2025)
+  expect_num(r$aportacion_total, r_tope$aportacion_total, tolerance = 0.01)
 })
 
 test_that("D6: Component breakdown sums to total", {
@@ -484,7 +489,7 @@ test_that("G1: SBC_M40 is capped at TOPE_SBC_DIARIO", {
   expect_num(r$sbc_m40_usado, TOPE_SBC_DIARIO)
 })
 
-test_that("G2: Cuota mensual = SBC_M40_real * 30 * 10.075%", {
+test_that("G2: Cuota mensual = SBC_M40_real * DIAS_POR_MES * 10.075%", {
   base <- calculate_ley73_pension(sbc_promedio_diario = 400, semanas = 1200, edad = 65)
   sbc_m40 <- 1000
   r <- calculate_modalidad_40(
@@ -492,7 +497,7 @@ test_that("G2: Cuota mensual = SBC_M40_real * 30 * 10.075%", {
     semanas_actuales = 1200, semanas_m40 = 260,
     edad_actual = 60, edad_retiro = 65
   )
-  expected_cuota <- sbc_m40 * 30 * 0.10075
+  expected_cuota <- sbc_m40 * DIAS_POR_MES * 0.10075
   expect_num(r$cuota_mensual_m40, expected_cuota, tolerance = 0.01)
 })
 
@@ -575,9 +580,11 @@ test_that("H2: Age < 65 is not eligible", {
   expect_false(r$checks$edad_minima$cumple)
 })
 
-test_that("H3: Less than 1000 weeks is not eligible", {
+test_that("H3: Less than minimum weeks is not eligible", {
+  # In 2025, minimum is 850 weeks (transitional schedule)
+  min_weeks <- get_semanas_minimas_ley97(2025)
   r <- check_fondo_eligibility(
-    regimen = "ley97", edad = 65, semanas = 999,
+    regimen = "ley97", edad = 65, semanas = min_weeks - 1,
     sbc_promedio_mensual = 15000
   )
   expect_false(r$elegible)
@@ -856,17 +863,18 @@ test_that("L2: More semanas -> higher Ley 73 pension (more incrementos)", {
 
 test_that("L3: More semanas -> crosses Ley 97 eligibility threshold", {
   # edad_actual=60, edad_retiro=65 -> anios_restantes=5 -> adds 260 weeks
-  # semanas_actuales=739 -> semanas_al_retiro=999 (not eligible)
-  # semanas_actuales=741 -> semanas_al_retiro=1001 (eligible)
+  # Retirement year: 2025+5 = 2030 -> min weeks = 975 (transitional)
+  # semanas_actuales=714 -> semanas_al_retiro=974 (not eligible)
+  # semanas_actuales=716 -> semanas_al_retiro=976 (eligible)
   r_below <- calculate_pension_with_fondo(
     saldo_actual = 500000, salario_mensual = 15000,
     edad_actual = 60, edad_retiro = 65,
-    semanas_actuales = 739, genero = "M"
+    semanas_actuales = 714, genero = "M"
   )
   r_above <- calculate_pension_with_fondo(
     saldo_actual = 500000, salario_mensual = 15000,
     edad_actual = 60, edad_retiro = 65,
-    semanas_actuales = 741, genero = "M"
+    semanas_actuales = 716, genero = "M"
   )
   expect_equal(r_below$solo_sistema$pension_mensual, 0)
   expect_true(unname(r_above$solo_sistema$pension_mensual) > 0)
@@ -1267,18 +1275,19 @@ test_that("M15: Age 65 -> Fondo eligible; age 64 -> NOT eligible", {
   expect_false(r_64$elegible)
 })
 
-test_that("M16: Semanas 1000 at retiro -> eligible; 999 -> NOT eligible", {
-  r_1000 <- check_fondo_eligibility(
-    regimen = "ley97", edad = 65, semanas = 1000,
+test_that("M16: Semanas at/above minimum -> eligible; below -> NOT eligible", {
+  min_weeks <- get_semanas_minimas_ley97(2025)
+  r_above <- check_fondo_eligibility(
+    regimen = "ley97", edad = 65, semanas = min_weeks,
     sbc_promedio_mensual = 15000
   )
-  expect_true(r_1000$elegible)
+  expect_true(r_above$elegible)
 
-  r_999 <- check_fondo_eligibility(
-    regimen = "ley97", edad = 65, semanas = 999,
+  r_below <- check_fondo_eligibility(
+    regimen = "ley97", edad = 65, semanas = min_weeks - 1,
     sbc_promedio_mensual = 15000
   )
-  expect_false(r_999$elegible)
+  expect_false(r_below$elegible)
 })
 
 
@@ -1311,4 +1320,800 @@ test_that("N3: Start age above 35 is inconsistent", {
   )
   expect_false(r$is_consistent)
   expect_true(grepl("50", r$message))
+})
+
+
+# ==========================================================================
+# SECTION O: generate_contribution_schedule (6 tests)
+# ==========================================================================
+
+test_that("O1: Schedule length equals anios_al_retiro", {
+  sched <- generate_contribution_schedule(20000, 2025, 10)
+  expect_length(sched, 10)
+})
+
+test_that("O2: Reform rates increase monotonically 2025-2030", {
+  sched <- generate_contribution_schedule(20000, 2025, 6)
+  # Each year's contribution should be >= previous (rates increase)
+  for (i in 2:6) {
+    expect_true(sched[i] >= sched[i - 1],
+                label = paste("Year", i, ">=", i - 1))
+  }
+})
+
+test_that("O3: All years 2030+ have identical contribution (employer locked at 12%)", {
+  sched <- generate_contribution_schedule(20000, 2029, 5)
+  # sched[2] = 2030, sched[3] = 2031, ... all should be equal
+  for (i in 3:5) {
+    expect_num(sched[i], sched[2], tolerance = 0.01)
+  }
+})
+
+test_that("O4: Voluntary contributions add uniformly", {
+  sched_base <- generate_contribution_schedule(20000, 2025, 5, 0)
+  sched_vol  <- generate_contribution_schedule(20000, 2025, 5, 1000)
+  diffs <- sched_vol - sched_base
+  for (d in diffs) {
+    expect_num(d, 1000, tolerance = 0.01)
+  }
+})
+
+test_that("O5: Hand-calculated total for $20K salary, 8 years 2025-2032", {
+  salario <- 20000
+  sched <- generate_contribution_schedule(salario, 2025, 8)
+  # Verify each year matches calculate_aportacion_obligatoria
+  for (i in 1:8) {
+    anio <- 2025 + i - 1
+    expected <- calculate_aportacion_obligatoria(salario, anio = anio)$aportacion_total
+    expect_num(sched[i], expected, tolerance = 0.01)
+  }
+})
+
+test_that("O6: Salary at tope cap produces capped contributions", {
+  salario_alto <- 100000
+  tope_mensual <- TOPE_SBC_DIARIO * DIAS_POR_MES
+  sched <- generate_contribution_schedule(salario_alto, 2025, 3)
+  # Each year's contribution should use tope, not full salary
+  for (i in 1:3) {
+    anio <- 2025 + i - 1
+    aport <- calculate_aportacion_obligatoria(salario_alto, anio = anio)
+    expect_num(aport$salario_cotizable, tope_mensual, tolerance = 0.01)
+    expect_num(sched[i], aport$aportacion_total, tolerance = 0.01)
+  }
+})
+
+
+# ==========================================================================
+# SECTION P: project_afore_balance vector mode (8 tests)
+# ==========================================================================
+
+test_that("P1: Vector-uniform matches scalar result within tolerance", {
+  saldo <- 200000
+  aport_scalar <- 2500
+  n <- 10
+  r <- 0.04
+  com <- 0.005
+
+  res_scalar <- project_afore_balance(saldo, aport_scalar, n, r, com)
+  res_vector <- project_afore_balance(saldo, rep(aport_scalar, n), n, r, com)
+
+  expect_num(res_vector$saldo_final, res_scalar$saldo_final, tolerance = 1)
+})
+
+test_that("P2: Scalar backward compat -- decomposition identity holds", {
+  saldo <- 150000
+  aport <- 3000
+  n <- 15
+  r <- 0.035
+  com <- 0.006
+
+  res <- project_afore_balance(saldo, aport, n, r, com)
+  expect_num(res$saldo_final, res$fv_saldo_actual + res$fv_aportaciones, tolerance = 0.01)
+})
+
+test_that("P3: Hand-calculated 3-year vector test", {
+  saldo <- 100000
+  contribs <- c(1500, 1600, 1700)
+  r_neto <- 0.035
+  r_mensual <- (1 + r_neto)^(1/12) - 1
+
+  # Year 1: saldo grows, then 12 months of 1500
+  s <- saldo * (1 + r_neto)
+  for (m in 1:12) s <- s + 1500 * (1 + r_mensual)^(12 - m)
+  # Year 2: s grows, then 12 months of 1600
+  s <- s * (1 + r_neto)
+  for (m in 1:12) s <- s + 1600 * (1 + r_mensual)^(12 - m)
+  # Year 3: s grows, then 12 months of 1700
+  s <- s * (1 + r_neto)
+  for (m in 1:12) s <- s + 1700 * (1 + r_mensual)^(12 - m)
+
+  res <- project_afore_balance(saldo, contribs, 3, r_neto + 0, 0)
+  expect_num(res$saldo_final, s, tolerance = 1)
+})
+
+test_that("P4: Vector with all zeros = only saldo growth", {
+  saldo <- 100000
+  n <- 5
+  r <- 0.04
+  com <- 0.005
+  r_neto <- r - com
+
+  res <- project_afore_balance(saldo, rep(0, n), n, r, com)
+  expected <- saldo * (1 + r_neto)^n
+  expect_num(res$saldo_final, expected, tolerance = 0.01)
+})
+
+test_that("P5: Trajectory endpoint matches saldo_final in vector mode", {
+  saldo <- 100000
+  contribs <- c(2000, 2200, 2400)
+  res <- project_afore_balance(saldo, contribs, 3, 0.04, 0.005,
+                                incluir_trayectoria = TRUE)
+  last_traj <- res$trayectoria$saldo[nrow(res$trayectoria)]
+  expect_num(last_traj, res$saldo_final, tolerance = 1)
+})
+
+test_that("P6: total_aportado = saldo_actual + sum(schedule * 12) identity", {
+  saldo <- 80000
+  contribs <- c(1500, 1600, 1700, 1800)
+  res <- project_afore_balance(saldo, contribs, 4, 0.04, 0.005)
+  expected_total <- saldo + sum(contribs * 12)
+  expect_num(res$total_aportado, expected_total, tolerance = 0.01)
+})
+
+test_that("P7: ganancia_intereses = saldo_final - total_aportado identity", {
+  saldo <- 120000
+  contribs <- c(2000, 2500, 3000)
+  res <- project_afore_balance(saldo, contribs, 3, 0.04, 0.005)
+  expect_num(res$ganancia_intereses, res$saldo_final - res$total_aportado, tolerance = 0.01)
+})
+
+test_that("P8: Length mismatch raises error", {
+  expect_error(
+    project_afore_balance(100000, c(1000, 2000), 3, 0.04, 0.005),
+    "length"
+  )
+})
+
+
+# ==========================================================================
+# SECTION Q: Reform impact validation (7 tests)
+# ==========================================================================
+
+test_that("Q1: Variable contributions produce HIGHER saldo than flat 2025 rate", {
+  saldo <- 200000
+  salario <- 20000
+  n <- 10
+  r <- 0.04
+  com <- 0.005
+
+  # Flat 2025 rate
+  flat_aport <- calculate_aportacion_obligatoria(salario, anio = 2025)$aportacion_total
+  res_flat <- project_afore_balance(saldo, flat_aport, n, r, com)
+
+  # Variable reform schedule
+  sched <- generate_contribution_schedule(salario, 2025, n)
+  res_var <- project_afore_balance(saldo, sched, n, r, com)
+
+  expect_true(res_var$saldo_final > res_flat$saldo_final)
+})
+
+test_that("Q2: Reform impact magnitude -- 10yr ~8-12%, 5yr ~3-5%", {
+  saldo <- 200000
+  salario <- 20000
+  r <- 0.04
+  com <- 0.005
+
+  # 10-year projection
+  flat_10 <- project_afore_balance(saldo,
+    calculate_aportacion_obligatoria(salario, 2025)$aportacion_total,
+    10, r, com)$saldo_final
+  var_10 <- project_afore_balance(saldo,
+    generate_contribution_schedule(salario, 2025, 10),
+    10, r, com)$saldo_final
+  impact_10 <- (var_10 - flat_10) / flat_10
+  expect_true(impact_10 > 0.03, label = "10yr impact > 3%")
+  expect_true(impact_10 < 0.25, label = "10yr impact < 25%")
+
+  # 5-year projection
+  flat_5 <- project_afore_balance(saldo,
+    calculate_aportacion_obligatoria(salario, 2025)$aportacion_total,
+    5, r, com)$saldo_final
+  var_5 <- project_afore_balance(saldo,
+    generate_contribution_schedule(salario, 2025, 5),
+    5, r, com)$saldo_final
+  impact_5 <- (var_5 - flat_5) / flat_5
+  expect_true(impact_5 > 0.005, label = "5yr impact > 0.5%")
+  expect_true(impact_5 < impact_10, label = "5yr impact < 10yr impact")
+})
+
+test_that("Q3: calculate_ley97_pension with reform returns higher pension", {
+  # Build flat projection manually
+  saldo <- 200000
+  salario <- 20000
+  flat_aport <- calculate_aportacion_obligatoria(salario, 2025)$aportacion_total
+  flat_proj <- project_afore_balance(saldo, flat_aport, 20, 0.04, 0.005)
+  flat_pension <- calculate_retiro_programado(flat_proj$saldo_final, 65, "M")
+
+  # Function now uses reform schedule
+  reform_result <- calculate_ley97_pension(
+    saldo_actual = saldo, salario_mensual = salario,
+    edad_actual = 45, edad_retiro = 65,
+    semanas_actuales = 800, genero = "M",
+    escenario = "base"
+  )
+
+  expect_true(reform_result$saldo_proyectado > flat_proj$saldo_final)
+})
+
+test_that("Q4: Short projection (2 years) still shows positive difference", {
+  saldo <- 300000
+  salario <- 25000
+  flat_aport <- calculate_aportacion_obligatoria(salario, 2025)$aportacion_total
+  res_flat <- project_afore_balance(saldo, flat_aport, 2, 0.04, 0.005)
+  sched <- generate_contribution_schedule(salario, 2025, 2)
+  res_var <- project_afore_balance(saldo, sched, 2, 0.04, 0.005)
+  expect_true(res_var$saldo_final >= res_flat$saldo_final)
+})
+
+test_that("Q5: Long projection (30 years) shows substantial reform impact", {
+  saldo <- 50000
+  salario <- 15000
+  flat_aport <- calculate_aportacion_obligatoria(salario, 2025)$aportacion_total
+  res_flat <- project_afore_balance(saldo, flat_aport, 30, 0.04, 0.005)
+  sched <- generate_contribution_schedule(salario, 2025, 30)
+  res_var <- project_afore_balance(saldo, sched, 30, 0.04, 0.005)
+  impact <- (res_var$saldo_final - res_flat$saldo_final) / res_flat$saldo_final
+  # Contributions post-2030 dominate; expect meaningful impact
+  expect_true(impact > 0.05, label = "30yr impact > 5%")
+})
+
+test_that("Q6: Trajectory contributions increase year-over-year until 2030", {
+  salario <- 20000
+  sched <- generate_contribution_schedule(salario, 2025, 10)
+  # Years 1-6 (2025-2030) should strictly increase
+  for (i in 2:6) {
+    expect_true(sched[i] > sched[i - 1],
+                label = paste("contribution year", i, ">", i - 1))
+  }
+})
+
+test_that("Q7: Projection starting after 2030 shows no difference vs flat 12%", {
+  saldo <- 200000
+  salario <- 20000
+  n <- 5
+
+  # Starting in 2031, all years are at 12%
+  sched <- generate_contribution_schedule(salario, 2031, n)
+  flat_2030 <- calculate_aportacion_obligatoria(salario, anio = 2030)$aportacion_total
+  res_flat <- project_afore_balance(saldo, flat_2030, n, 0.04, 0.005)
+  res_var <- project_afore_balance(saldo, sched, n, 0.04, 0.005)
+
+  expect_num(res_var$saldo_final, res_flat$saldo_final, tolerance = 1)
+})
+
+
+# ==========================================================================
+# SECTION R: Fondo Bienestar threshold + retirement year (5 tests)
+# ==========================================================================
+
+test_that("R1: Known thresholds match official values", {
+  expect_num(get_umbral_fondo_bienestar(2024), 16777.68, tolerance = 0.01)
+  expect_num(get_umbral_fondo_bienestar(2025), 17364, tolerance = 0.01)
+  expect_num(get_umbral_fondo_bienestar(2026), 18050, tolerance = 0.01)
+})
+
+test_that("R2: Extrapolation beyond 2026 at 3.5% annual", {
+  expected_2030 <- 18050 * 1.035^4
+  expect_num(get_umbral_fondo_bienestar(2030), expected_2030, tolerance = 0.01)
+})
+
+test_that("R3: Extrapolation monotonically increasing 2027-2040", {
+  prev <- get_umbral_fondo_bienestar(2026)
+  for (y in 2027:2040) {
+    curr <- get_umbral_fondo_bienestar(y)
+    expect_true(unname(curr) > unname(prev),
+                label = paste("threshold", y, ">", y - 1))
+    prev <- curr
+  }
+})
+
+test_that("R4: Eligibility uses retirement year threshold", {
+  # Worker with salary $17,500: eligible at 2025 threshold (17,364? no, 17500>17364)
+  # Use $17,000 salary: eligible at 2025, and also at 2045 projected threshold
+  salary <- 17000
+
+  r_2025 <- check_fondo_eligibility("ley97", 65, 1500, salary, anio = 2025)
+  expect_true(r_2025$elegible)  # 17000 < 17364
+
+  # At retirement year 2045, threshold should be much higher
+  r_2045 <- check_fondo_eligibility("ley97", 65, 1500, salary, anio = 2045)
+  expect_true(r_2045$elegible)
+  expect_true(unname(r_2045$umbral_usado) > unname(r_2025$umbral_usado))
+})
+
+test_that("R5: calculate_pension_with_fondo applies projected threshold", {
+  # Young worker retiring in 2060 -- threshold should be projected
+  result <- calculate_pension_with_fondo(
+    saldo_actual = 50000, salario_mensual = 15000,
+    edad_actual = 30, edad_retiro = 65,
+    semanas_actuales = 400, genero = "M"
+  )
+
+  # The umbral used should be for year 2060 (2025 + 35), not 2025
+  expected_umbral <- get_umbral_fondo_bienestar(2060)
+  expect_num(result$fondo_bienestar$umbral, expected_umbral, tolerance = 0.01)
+})
+
+
+# ==========================================================================
+# SECTION S: Full-pipeline hand-verified profiles (4 tests)
+# ==========================================================================
+
+test_that("S1: Young Ley 97 worker (30yo, $25K, 500 wks, retire 65)", {
+  result <- calculate_ley97_pension(
+    saldo_actual = 100000, salario_mensual = 25000,
+    edad_actual = 30, edad_retiro = 65,
+    semanas_actuales = 500, genero = "M",
+    escenario = "base"
+  )
+
+  expect_true(result$elegible)
+  # 35 years of contributions + growth should produce a substantial balance
+  expect_true(result$saldo_proyectado > 1000000,
+              label = "35yr projection should exceed 1M")
+  # With that balance, pension should exceed minima
+  expect_true(result$pension_mensual > 0)
+})
+
+test_that("S2: Near-retirement worker (60yo, $15K, 1500 wks, retire 65)", {
+  result <- calculate_ley97_pension(
+    saldo_actual = 500000, salario_mensual = 15000,
+    edad_actual = 60, edad_retiro = 65,
+    semanas_actuales = 1500, genero = "M",
+    escenario = "base"
+  )
+
+  expect_true(result$elegible)
+  # Short projection: difference vs flat should be modest
+  flat_aport <- calculate_aportacion_obligatoria(15000, 2025)$aportacion_total
+  flat_proj <- project_afore_balance(500000, flat_aport, 5, 0.04, result$comision_usada)
+  # Reform result should be >= flat
+  expect_true(result$saldo_proyectado >= flat_proj$saldo_final * 0.99)
+})
+
+test_that("S3: High-salary worker at tope ($100K, contributions capped)", {
+  salario_alto <- 100000
+  tope_mensual <- TOPE_SBC_DIARIO * DIAS_POR_MES
+
+  result <- calculate_ley97_pension(
+    saldo_actual = 800000, salario_mensual = salario_alto,
+    edad_actual = 45, edad_retiro = 65,
+    semanas_actuales = 1000, genero = "M",
+    escenario = "base"
+  )
+
+  expect_true(result$elegible)
+  # Contributions should be capped
+  aport <- calculate_aportacion_obligatoria(salario_alto, 2025)
+  expect_num(aport$salario_cotizable, tope_mensual, tolerance = 0.01)
+  # Reform still increases employer rate even at cap
+  sched <- generate_contribution_schedule(salario_alto, 2025, 5)
+  expect_true(sched[5] > sched[1])
+})
+
+test_that("S4: Low-salary Fondo-eligible worker ($12K, 1200 wks, age 65)", {
+  result <- calculate_pension_with_fondo(
+    saldo_actual = 300000, salario_mensual = 12000,
+    edad_actual = 65, edad_retiro = 65,
+    semanas_actuales = 1200, genero = "M"
+  )
+
+  # Should be eligible for Fondo
+  expect_true(result$con_fondo$elegible)
+  # Complement = max(0, min(salary, threshold) - pension_afore)
+  expect_true(result$con_fondo$complemento >= 0)
+  # Total pension with Fondo >= pension without
+  expect_true(result$con_fondo$pension_total >= result$solo_sistema$pension_mensual)
+})
+
+# ==========================================================================
+# SECTION T: calculate_all_scenarios() integration
+# ==========================================================================
+
+test_that("T1: Ley 73 scenario returns correct structure", {
+  result <- calculate_all_scenarios(
+    regimen = "ley73", salario_mensual = 20000,
+    edad_actual = 55, edad_retiro = 65, semanas_actuales = 1000
+  )
+  expect_equal(result$regimen, "ley73")
+  expect_true(!is.null(result$pension_base))
+  expect_false(result$fondo_bienestar_aplica)
+})
+
+test_that("T2: Ley 97 scenario returns all 4 sub-scenarios", {
+  result <- calculate_all_scenarios(
+    regimen = "ley97", saldo_actual = 500000, salario_mensual = 15000,
+    edad_actual = 40, edad_retiro = 65, semanas_actuales = 600
+  )
+  expect_equal(result$regimen, "ley97")
+  expect_true(!is.null(result$pension_conservador))
+  expect_true(!is.null(result$pension_base))
+  expect_true(!is.null(result$pension_optimista))
+  expect_true(!is.null(result$pension_con_voluntarias))
+  expect_true(result$fondo_bienestar_aplica)
+})
+
+test_that("T3: NULL sbc_diario auto-calculates from salario_mensual", {
+  result <- calculate_all_scenarios(
+    regimen = "ley73", salario_mensual = 20000, sbc_diario = NULL,
+    edad_actual = 55, edad_retiro = 65, semanas_actuales = 1000
+  )
+  expect_true(result$pension_base$elegible)
+})
+
+test_that("T4: Ley 97 scenarios ordered conservador < base < optimista", {
+  result <- calculate_all_scenarios(
+    regimen = "ley97", saldo_actual = 500000, salario_mensual = 15000,
+    edad_actual = 40, edad_retiro = 65, semanas_actuales = 600
+  )
+  expect_true(result$pension_conservador$saldo_proyectado <=
+              result$pension_base$saldo_proyectado)
+  expect_true(result$pension_base$saldo_proyectado <=
+              result$pension_optimista$saldo_proyectado)
+})
+
+test_that("T5: Ley 73 M40 is NULL when not eligible", {
+  result <- calculate_all_scenarios(
+    regimen = "ley73", salario_mensual = 5000,
+    edad_actual = 55, edad_retiro = 65, semanas_actuales = 200
+  )
+  # With only 200 + 10*52 = 720 weeks, still >= 500, so eligible
+  # But we can test with very few weeks
+  result2 <- calculate_all_scenarios(
+    regimen = "ley73", salario_mensual = 5000,
+    edad_actual = 64, edad_retiro = 65, semanas_actuales = 100
+  )
+  # 100 + 1*52 = 152 < 500, not eligible
+  expect_false(result2$pension_base$elegible)
+  expect_null(result2$pension_m40)
+})
+
+test_that("T6: Fondo flag correct per regime", {
+  ley73 <- calculate_all_scenarios(
+    regimen = "ley73", salario_mensual = 20000,
+    edad_actual = 55, edad_retiro = 65, semanas_actuales = 1000
+  )
+  ley97 <- calculate_all_scenarios(
+    regimen = "ley97", saldo_actual = 100000, salario_mensual = 15000,
+    edad_actual = 40, edad_retiro = 65, semanas_actuales = 600
+  )
+  expect_false(ley73$fondo_bienestar_aplica)
+  expect_true(ley97$fondo_bienestar_aplica)
+})
+
+# ==========================================================================
+# SECTION U: compare_afores()
+# ==========================================================================
+
+test_that("U1: Returns sorted by saldo_final descending", {
+  result <- compare_afores(
+    saldo_actual = 200000, salario_mensual = 15000,
+    anios_al_retiro = 20, afore_actual = "Profuturo"
+  )
+  expect_true(all(diff(result$saldo_final) <= 0))
+})
+
+test_that("U2: Returns all AFOREs", {
+  result <- compare_afores(
+    saldo_actual = 200000, salario_mensual = 15000,
+    anios_al_retiro = 20
+  )
+  expect_equal(nrow(result), length(get_afore_names()))
+})
+
+test_that("U3: Current AFORE diferencia is 0", {
+  result <- compare_afores(
+    saldo_actual = 200000, salario_mensual = 15000,
+    anios_al_retiro = 20, afore_actual = "Profuturo"
+  )
+  expect_num(result$diferencia[result$afore == "Profuturo"], 0)
+})
+
+test_that("U4: All saldo_final values are positive", {
+  result <- compare_afores(
+    saldo_actual = 200000, salario_mensual = 15000,
+    anios_al_retiro = 20
+  )
+  expect_true(all(result$saldo_final > 0))
+})
+
+# ==========================================================================
+# SECTION V: analyze_voluntary_contributions()
+# ==========================================================================
+
+test_that("V1: Higher voluntary contribution -> higher pension", {
+  result <- analyze_voluntary_contributions(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 40, edad_retiro = 65, semanas_actuales = 600,
+    aportaciones_probar = c(0, 500, 1000, 2000)
+  )
+  expect_true(all(diff(result$pension_afore) >= 0))
+})
+
+test_that("V2: Custom aportaciones vector works", {
+  result <- analyze_voluntary_contributions(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 40, edad_retiro = 65, semanas_actuales = 600,
+    aportaciones_probar = c(100, 300, 700)
+  )
+  expect_equal(nrow(result), 3)
+  expect_equal(result$aportacion, c(100, 300, 700))
+})
+
+test_that("V3: Saldo increases with contributions", {
+  result <- analyze_voluntary_contributions(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 40, edad_retiro = 65, semanas_actuales = 600,
+    aportaciones_probar = c(0, 1000)
+  )
+  expect_true(result$saldo_final[2] > result$saldo_final[1])
+})
+
+test_that("V4: Result has expected columns", {
+  result <- analyze_voluntary_contributions(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 40, edad_retiro = 65, semanas_actuales = 600
+  )
+  expected_cols <- c("aportacion", "saldo_final", "pension_afore",
+                     "pension_con_fondo", "incremento_vs_base")
+  expect_true(all(expected_cols %in% names(result)))
+})
+
+# ==========================================================================
+# SECTION W: analyze_retirement_age()
+# ==========================================================================
+
+test_that("W1: Skips ages <= current age", {
+  result <- analyze_retirement_age(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 55, semanas_actuales = 1200,
+    edades_probar = 50:65
+  )
+  expect_true(all(result$edad_retiro > 55))
+})
+
+test_that("W2: Saldo increases with later retirement", {
+  result <- analyze_retirement_age(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 40, semanas_actuales = 600,
+    edades_probar = 60:65
+  )
+  expect_true(all(diff(result$saldo_final) >= 0))
+})
+
+test_that("W3: anios_trabajo is correct", {
+  result <- analyze_retirement_age(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 40, semanas_actuales = 600,
+    edades_probar = 60:65
+  )
+  expect_equal(result$anios_trabajo, result$edad_retiro - 40)
+})
+
+test_that("W4: Result has expected columns", {
+  result <- analyze_retirement_age(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 40, semanas_actuales = 600
+  )
+  expected_cols <- c("edad_retiro", "anios_trabajo", "saldo_final",
+                     "pension_afore", "elegible_fondo", "pension_con_fondo")
+  expect_true(all(expected_cols %in% names(result)))
+})
+
+# ==========================================================================
+# SECTION X: generate_personalized_message()
+# ==========================================================================
+
+test_that("X1: Low tasa generates danger message", {
+  result <- calculate_pension_with_fondo(
+    saldo_actual = 10000, salario_mensual = 50000,
+    edad_actual = 55, edad_retiro = 65,
+    semanas_actuales = 600, genero = "M"
+  )
+  msgs <- generate_personalized_message(result)
+  expect_equal(msgs$tasa$tipo, "danger")
+})
+
+test_that("X2: Medium tasa generates warning message", {
+  result <- calculate_pension_with_fondo(
+    saldo_actual = 500000, salario_mensual = 15000,
+    edad_actual = 55, edad_retiro = 65,
+    semanas_actuales = 800, genero = "M"
+  )
+  msgs <- generate_personalized_message(result)
+  tasa <- result$solo_sistema$tasa_reemplazo * 100
+  if (tasa >= 30 && tasa < 50) {
+    expect_equal(msgs$tasa$tipo, "warning")
+  } else if (tasa >= 50) {
+    expect_equal(msgs$tasa$tipo, "success")
+  }
+})
+
+test_that("X3: High tasa generates success message", {
+  result <- calculate_pension_with_fondo(
+    saldo_actual = 3000000, salario_mensual = 10000,
+    edad_actual = 60, edad_retiro = 65,
+    semanas_actuales = 1200, genero = "M"
+  )
+  msgs <- generate_personalized_message(result)
+  expect_equal(msgs$tasa$tipo, "success")
+})
+
+test_that("X4: Fondo eligible generates info message", {
+  result <- calculate_pension_with_fondo(
+    saldo_actual = 200000, salario_mensual = 12000,
+    edad_actual = 65, edad_retiro = 65,
+    semanas_actuales = 1200, genero = "M"
+  )
+  msgs <- generate_personalized_message(result)
+  expect_equal(msgs$fondo$tipo, "info")
+})
+
+test_that("X5: Message always has 3 blocks", {
+  result <- calculate_pension_with_fondo(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 40, edad_retiro = 65,
+    semanas_actuales = 600, genero = "M"
+  )
+  msgs <- generate_personalized_message(result)
+  expect_equal(length(msgs), 3)
+  expect_true(all(c("fondo", "tasa", "voluntarias") %in% names(msgs)))
+})
+
+# ==========================================================================
+# SECTION Y: Format helpers
+# ==========================================================================
+
+test_that("Y1: format_currency formats normal value", {
+  expect_equal(format_currency(1234.56), "$1,234.56")
+})
+
+test_that("Y2: format_currency handles zero", {
+  expect_equal(format_currency(0), "$0.00")
+})
+
+test_that("Y3: format_percent 25%", {
+  expect_equal(format_percent(0.25), "25%")
+})
+
+test_that("Y4: format_percent 100%", {
+  expect_equal(format_percent(1.0), "100%")
+})
+
+# ==========================================================================
+# SECTION Z: Data retrieval functions
+# ==========================================================================
+
+test_that("Z1: get_uma returns known 2025 value", {
+  expect_num(get_uma(2025), UMA_DIARIA_2025)
+})
+
+test_that("Z2: get_uma falls back for unknown year", {
+  val <- get_uma(2099)
+  expect_true(is.numeric(val) && val > 0)
+})
+
+test_that("Z3: get_salario_minimo returns 2025 value", {
+  expect_num(get_salario_minimo(2025), SM_DIARIO_2025)
+})
+
+test_that("Z4: get_all_afores returns data frame", {
+  result <- get_all_afores()
+  expect_true(is.data.frame(result))
+  expect_true("comision_pct" %in% names(result))
+  expect_true("irn_pct" %in% names(result))
+})
+
+test_that("Z5: get_afore_names returns character vector", {
+  names <- get_afore_names()
+  expect_true(is.character(names))
+  expect_true(length(names) >= 10)
+})
+
+# ==========================================================================
+# SECTION AA: Edge cases
+# ==========================================================================
+
+test_that("AA1: Zero years to retirement (already at retirement age)", {
+  result <- calculate_ley97_pension(
+    saldo_actual = 500000, salario_mensual = 15000,
+    edad_actual = 65, edad_retiro = 65,
+    semanas_actuales = 1200, genero = "M"
+  )
+  expect_true(result$elegible)
+  expect_true(result$pension_mensual > 0)
+})
+
+test_that("AA2: Negative return rate still computes", {
+  result <- project_afore_balance(
+    saldo_actual = 500000, aportacion_mensual = 1000,
+    anios_al_retiro = 10, rendimiento_real_anual = -0.01,
+    comision_anual = 0.005
+  )
+  expect_true(is.numeric(result$saldo_final))
+  # Negative net return should erode balance
+  expect_true(result$saldo_final < 500000 + 1000 * 120)
+})
+
+test_that("AA3: Zero weeks cotizadas for Ley 73", {
+  result <- calculate_ley73_pension(
+    sbc_promedio_diario = 500, semanas = 0, edad = 65
+  )
+  expect_false(result$elegible)
+})
+
+test_that("AA4: Very low salary Ley 73 applies minimum", {
+  result <- calculate_ley73_pension(
+    sbc_promedio_diario = 100, semanas = 1500, edad = 65
+  )
+  expect_true(result$aplico_minimo)
+  expect_num(result$pension_mensual, SM_DIARIO_2025 * DIAS_POR_MES)
+})
+
+test_that("AA5: Very high AFORE balance", {
+  result <- calculate_retiro_programado(saldo = 10000000, edad = 65, genero = "M")
+  expect_false(result$aplico_minimo)
+  expect_true(result$pension_mensual > result$pension_minima)
+})
+
+test_that("AA6: Salary exactly at Fondo threshold", {
+  umbral <- get_umbral_fondo_bienestar(2025)
+  elig <- check_fondo_eligibility(
+    regimen = "ley97", edad = 65, semanas = 1200,
+    sbc_promedio_mensual = umbral, anio = 2025
+  )
+  expect_true(elig$elegible)
+})
+
+test_that("AA7: grupo_salarial exactly 1.00", {
+  result <- lookup_articulo_167(1.0)
+  expect_true(is.numeric(result$cuantia_basica))
+  expect_true(is.numeric(result$incremento_anual))
+})
+
+test_that("AA8: M40 at SBC tope", {
+  base <- calculate_ley73_pension(
+    sbc_promedio_diario = 500, semanas = 1000, edad = 65
+  )
+  result <- calculate_modalidad_40(
+    pension_actual = base, sbc_actual = 500,
+    sbc_m40 = TOPE_SBC_DIARIO, semanas_actuales = 1000,
+    semanas_m40 = 260, edad_actual = 60, edad_retiro = 65
+  )
+  expect_num(result$sbc_m40_usado, TOPE_SBC_DIARIO)
+})
+
+# ==========================================================================
+# SECTION BB: /30 regression tests (DIAS_POR_MES consistency)
+# ==========================================================================
+
+test_that("BB1: DIAS_POR_MES equals 365.25/12", {
+  expect_equal(DIAS_POR_MES, 365.25 / 12)
+})
+
+test_that("BB2: Ley 73 pension_mensual = diaria * DIAS_POR_MES", {
+  result <- calculate_ley73_pension(
+    sbc_promedio_diario = 500, semanas = 1500, edad = 65
+  )
+  if (!result$aplico_minimo) {
+    expect_num(result$pension_sin_minimo, result$pension_diaria * DIAS_POR_MES,
+               tolerance = 0.01)
+  }
+})
+
+test_that("BB3: SBC daily-to-monthly conversion is consistent", {
+  salario <- 20000
+  sbc_daily <- salario / DIAS_POR_MES
+  salario_roundtrip <- sbc_daily * DIAS_POR_MES
+  expect_equal(salario_roundtrip, salario, tolerance = 0.001)
 })

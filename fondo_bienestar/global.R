@@ -37,45 +37,14 @@ salario_minimo_data <<- read.csv("data/salario_minimo.csv", stringsAsFactors = F
 # Comisiones y rendimientos de AFOREs
 afore_data <<- read.csv("data/afore_comisiones.csv", stringsAsFactors = FALSE)
 
+# Tasas de aportacion reforma 2020 (DOF 16/12/2020)
+tasas_reforma_data <<- read.csv("data/tasas_reforma_2020.csv", stringsAsFactors = FALSE)
+
 # ============================================================================
-# CONSTANTES GLOBALES
+# CONSTANTES GLOBALES (from R/constants.R)
 # ============================================================================
 
-# Ano actual para calculos
-ANIO_ACTUAL <<- 2025
-
-# UMA 2025
-UMA_DIARIA_2025 <<- 113.14
-UMA_MENSUAL_2025 <<- 3439.46
-
-# Salario minimo 2025
-SM_DIARIO_2025 <<- 278.80
-SM_MENSUAL_2025 <<- 8474.52
-
-# Umbral Fondo Bienestar 2025 (promedio SBC IMSS)
-UMBRAL_FONDO_BIENESTAR_2025 <<- 17364
-
-# Tope de cotizacion (25 UMAs)
-TOPE_SBC_DIARIO <<- UMA_DIARIA_2025 * 25  # ~2828.50
-
-# Escenarios de rendimiento real
-RENDIMIENTO_CONSERVADOR <<- 0.03  # 3%
-RENDIMIENTO_BASE <<- 0.04         # 4%
-RENDIMIENTO_OPTIMISTA <<- 0.05    # 5%
-
-# Factores de edad para cesantia (Ley 73)
-FACTORES_CESANTIA <<- c(
-  "60" = 0.75,
-  "61" = 0.80,
-  "62" = 0.85,
-  "63" = 0.90,
-  "64" = 0.95,
-  "65" = 1.00
-)
-
-# Colores del tema
-COLOR_NAVY <<- "#1a365d"
-COLOR_TEAL <<- "#319795"
+source("R/constants.R", local = FALSE)
 
 # ============================================================================
 # FUNCIONES UTILITARIAS GLOBALES
@@ -125,6 +94,14 @@ get_salario_minimo <<- function(anio) {
 }
 
 #' Obtener umbral del Fondo Bienestar para un ano
+#'
+#' Para anos conocidos (2024-2026) usa valores oficiales/estimados.
+#' Para anos futuros (>2026) extrapola al 3.5% anual desde el ultimo
+#' valor conocido. Simplificacion documentada: el IMSS ajusta en base
+#' al SBC promedio real, que historicamente crece ~3-4% real.
+#'
+#' @param anio Ano para el cual obtener el umbral
+#' @return Umbral mensual en pesos
 get_umbral_fondo_bienestar <<- function(anio) {
   umbrales <- c(
     "2024" = 16777.68,
@@ -134,7 +111,16 @@ get_umbral_fondo_bienestar <<- function(anio) {
   if (as.character(anio) %in% names(umbrales)) {
     return(umbrales[as.character(anio)])
   }
-  return(umbrales[length(umbrales)])
+  # Extrapolacion: 3.5% anual desde ultimo valor conocido
+  ultimo_anio <- 2026
+  ultimo_valor <- 18050
+  tasa_crecimiento <- 0.035
+  if (anio > ultimo_anio) {
+    return(ultimo_valor * (1 + tasa_crecimiento)^(anio - ultimo_anio))
+  }
+  # Para anos antes de 2024, usar 2024
+
+  return(umbrales["2024"])
 }
 
 # ============================================================================
