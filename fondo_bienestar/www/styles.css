@@ -2205,6 +2205,175 @@ input[type="number"]:hover::-webkit-outer-spin-button {
   }
 }
 
+/* -----------------------------------------------------------------------------
+   CSS Grid Sensitivity Layout (3x2)
+   ----------------------------------------------------------------------------- */
+.sensitivity-layout {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "antes-despues  chart"
+    "sliders        chart";
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.sensitivity-antes-despues {
+  grid-area: antes-despues;
+}
+
+.sensitivity-sliders {
+  grid-area: sliders;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sensitivity-chart {
+  grid-area: chart;
+  position: sticky;
+  top: 1rem;
+  overflow: hidden;
+}
+
+.sensitivity-chart .chart-container {
+  margin-top: 0;
+}
+
+/* -----------------------------------------------------------------------------
+   Antes / Despues Comparison Box
+   ----------------------------------------------------------------------------- */
+.antes-despues-box {
+  border: 2px solid var(--color-primary-600);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  margin-bottom: var(--space-3);
+  transition: border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.antes-despues-box.positive {
+  border-color: var(--color-success);
+}
+
+.antes-despues-box.negative {
+  border-color: var(--color-danger);
+}
+
+.antes-despues-box.neutral {
+  border-color: var(--color-primary-500);
+}
+
+.antes-despues-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary-700);
+  margin-bottom: var(--space-2);
+  text-align: center;
+}
+
+.antes-despues-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.antes-col, .despues-col {
+  text-align: center;
+  flex: 1;
+}
+
+.antes-col .ad-label, .despues-col .ad-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-gray-500);
+  margin-bottom: 2px;
+}
+
+.antes-col .ad-amount {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+}
+
+.despues-col .ad-amount {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-primary-700);
+}
+
+.antes-despues-arrow {
+  font-size: 1.2rem;
+  color: var(--color-primary-600);
+  flex-shrink: 0;
+}
+
+.antes-despues-diff {
+  text-align: center;
+  margin-top: var(--space-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding-top: var(--space-2);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.antes-despues-diff.positive {
+  color: var(--color-success);
+}
+
+.antes-despues-diff.negative {
+  color: var(--color-danger);
+}
+
+.antes-despues-neutral-msg {
+  text-align: center;
+  color: var(--color-gray-500);
+  font-size: 0.9rem;
+  padding: var(--space-2) 0;
+}
+
+/* Fade-in animation for antes/despues updates */
+.antes-despues-box {
+  animation: adFadeIn 0.2s ease-out;
+}
+
+@keyframes adFadeIn {
+  from { opacity: 0.7; }
+  to { opacity: 1; }
+}
+
+/* Responsive: grid -> single column on tablet */
+@media (max-width: 768px) {
+  .sensitivity-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "antes-despues"
+      "sliders"
+      "chart";
+  }
+
+  .sensitivity-chart {
+    position: static;
+  }
+}
+
+/* Responsive: antes/despues vertical on small screens */
+@media (max-width: 576px) {
+  .antes-despues-body {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .antes-despues-arrow {
+    transform: rotate(90deg);
+  }
+}
+
 /* Accessibility: respect reduced-motion preference */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

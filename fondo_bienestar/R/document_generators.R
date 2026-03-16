@@ -354,7 +354,7 @@ generate_methodology_pdf <- function(md_file, output_file) {
     # Add YAML header for PDF
     yaml_header <- c(
       "---",
-      "title: 'Metodologia del Simulador de Pension IMSS'",
+      "title: 'Metodología del Simulador de Pensión IMSS'",
       "subtitle: 'Documentacion Tecnica'",
       paste0("date: '", format(Sys.Date(), "%d de %B de %Y"), "'"),
       "output:",
@@ -414,7 +414,7 @@ generate_basic_rmd <- function(resultado) {
   # YAML header
   yaml_header <- paste0(
     "---\n",
-    "title: 'Tu Pension Estimada'\n",
+    "title: 'Tu Pensión Estimada'\n",
     "subtitle: 'Simulador IMSS + Fondo Bienestar'\n",
     "date: '", format(Sys.Date(), "%d de %B de %Y"), "'\n",
     "output:\n",
@@ -429,8 +429,8 @@ generate_basic_rmd <- function(resultado) {
 
   # Aviso importante
   aviso <- paste0(
-    "**IMPORTANTE:** Esta es una estimacion educativa, NO una garantia. ",
-    "Las leyes y politicas pueden cambiar.\n\n"
+    "**IMPORTANTE:** Esta es una estimación educativa, NO una garantía. ",
+    "Las leyes y políticas pueden cambiar.\n\n"
   )
 
   # Datos ingresados
@@ -439,15 +439,15 @@ generate_basic_rmd <- function(resultado) {
     "| Variable | Valor |\n",
     "|----------|-------|\n",
     "| Salario mensual | ", format_currency_latex(entrada$salario_mensual), " |\n",
-    "| Edad actual | ", entrada$edad_actual, " anos |\n",
-    "| Edad de retiro | ", entrada$edad_retiro, " anos |\n"
+    "| Edad actual | ", entrada$edad_actual, " años |\n",
+    "| Edad de retiro | ", entrada$edad_retiro, " años |\n"
   )
 
   if (!es_ley73) {
     datos <- paste0(datos,
       "| Saldo AFORE actual | ", format_currency_latex(entrada$saldo_actual), " |\n",
       "| AFORE | ", entrada$afore, " |\n",
-      "| Aportacion voluntaria | ", format_currency_latex(entrada$aportacion_voluntaria), "/mes |\n"
+      "| Aportación voluntaria | ", format_currency_latex(entrada$aportacion_voluntaria), "/mes |\n"
     )
   }
   datos <- paste0(datos, "\n\n")
@@ -455,16 +455,16 @@ generate_basic_rmd <- function(resultado) {
   # Pension estimada
   if (es_ley73) {
     pension <- paste0(
-      "# Tu Pension Estimada\n\n",
-      "## Ley 73 - Pension Definida\n\n",
-      "**Pension mensual:** ", format_currency_latex(resultado$pension_base$pension_mensual), "\n\n",
+      "# Tu Pensión Estimada\n\n",
+      "## Ley 73 - Pensión Definida\n\n",
+      "**Pensión mensual:** ", format_currency_latex(resultado$pension_base$pension_mensual), "\n\n",
       "**Tasa de reemplazo:** ", round(resultado$pension_base$tasa_reemplazo * 100, 1), "% de tu salario\n\n"
     )
   } else {
     pension <- paste0(
-      "# Tu Pension Estimada\n\n",
+      "# Tu Pensión Estimada\n\n",
       "## Solo AFORE\n\n",
-      "**Pension mensual:** ", format_currency_latex(resultado$solo_sistema$pension_mensual), "\n\n",
+      "**Pensión mensual:** ", format_currency_latex(resultado$solo_sistema$pension_mensual), "\n\n",
       "**Tasa de reemplazo:** ", round(resultado$solo_sistema$tasa_reemplazo * 100, 1), "% de tu salario\n\n"
     )
 
@@ -472,27 +472,27 @@ generate_basic_rmd <- function(resultado) {
       pension <- paste0(pension,
         "## Con Fondo Bienestar\n\n",
         "Eres elegible para el Fondo de Pensiones para el Bienestar.\n\n",
-        "**Pension total:** ", format_currency_latex(resultado$con_fondo$pension_total), "/mes\n\n"
+        "**Pensión total:** ", format_currency_latex(resultado$con_fondo$pension_total), "/mes\n\n"
       )
     }
 
     pension <- paste0(pension,
       "## Con Tus Aportaciones Voluntarias\n\n",
-      "**Pension AFORE proyectada:** ", format_currency_latex(resultado$con_acciones$pension_afore), "/mes\n\n"
+      "**Pensión AFORE proyectada:** ", format_currency_latex(resultado$con_acciones$pension_afore), "/mes\n\n"
     )
   }
 
   # Recomendacion
   recomendacion <- paste0(
     "# Recomendacion\n\n",
-    "Tus aportaciones voluntarias son la parte **MAS SEGURA** de tu pension. ",
+    "Tus aportaciones voluntarias son la parte **MAS SEGURA** de tu pensión.",
     "Enfoca tu energia en lo que controlas.\n\n",
     "El Fondo Bienestar puede ayudar, pero es un programa nuevo (2024) y su futuro es incierto.\n\n"
   )
 
   # Links
   links <- paste0(
-    "# Para Mas Informacion\n\n",
+    "# Para Más Información\n\n",
     "- IMSS: https://www.imss.gob.mx/\n",
     "- CONSAR: https://www.consar.gob.mx/\n",
     "- e-SAR: https://www.e-sar.com.mx/\n\n",
@@ -527,7 +527,7 @@ generate_technical_rmd <- function(resultado) {
   # YAML header
   yaml_header <- paste0(
     "---\n",
-    "title: 'Documento Tecnico - Estimacion de Pension'\n",
+    "title: 'Documento Técnico - Estimación de Pensión'\n",
     "subtitle: 'Simulador IMSS + Fondo Bienestar'\n",
     "date: '", format(Sys.Date(), "%d de %B de %Y"), "'\n",
     "output:\n",
@@ -549,24 +549,24 @@ generate_technical_rmd <- function(resultado) {
   # Resumen ejecutivo
   resumen <- paste0(
     "# Resumen Ejecutivo\n\n",
-    "**Regimen:** ", if(es_ley73) "Ley 73 (1973)" else "Ley 97 (AFORE)", "\n\n"
+    "**Régimen:** ", if(es_ley73) "Ley 73 (1973)" else "Ley 97 (AFORE)", "\n\n"
   )
 
   if (es_ley73) {
     resumen <- paste0(resumen,
-      "**Pension mensual estimada:** ", format_currency_latex(resultado$pension_base$pension_mensual), "\n\n",
+      "**Pensión mensual estimada:** ", format_currency_latex(resultado$pension_base$pension_mensual), "\n\n",
       "**Tasa de reemplazo:** ", round(resultado$pension_base$tasa_reemplazo * 100, 1), "% del salario\n\n",
       "**Elegibilidad:** ", if(resultado$pension_base$elegible) "Cumple requisitos" else "No cumple requisitos", "\n\n"
     )
   } else {
     resumen <- paste0(resumen,
-      "**Pension mensual estimada (solo AFORE):** ", format_currency_latex(resultado$solo_sistema$pension_mensual), "\n\n",
+      "**Pensión mensual estimada (solo AFORE):** ", format_currency_latex(resultado$solo_sistema$pension_mensual), "\n\n",
       "**Tasa de reemplazo:** ", round(resultado$solo_sistema$tasa_reemplazo * 100, 1), "% del salario\n\n",
       "**Elegibilidad Fondo Bienestar:** ", if(resultado$con_fondo$elegible) "Si" else "No", "\n\n"
     )
     if (resultado$con_fondo$elegible) {
       resumen <- paste0(resumen,
-        "**Pension con Fondo Bienestar:** ", format_currency_latex(resultado$con_fondo$pension_total), "\n\n"
+        "**Pensión con Fondo Bienestar:** ", format_currency_latex(resultado$con_fondo$pension_total), "\n\n"
       )
     }
   }
@@ -577,8 +577,8 @@ generate_technical_rmd <- function(resultado) {
     "| Variable | Valor |\n",
     "|----------|-------|\n",
     "| Salario mensual | ", format_currency_latex(entrada$salario_mensual), " |\n",
-    "| Edad actual | ", entrada$edad_actual, " anos |\n",
-    "| Edad de retiro | ", entrada$edad_retiro, " anos |\n",
+    "| Edad actual | ", entrada$edad_actual, " años |\n",
+    "| Edad de retiro | ", entrada$edad_retiro, " años |\n",
     "| Semanas cotizadas | ", format(entrada$semanas_actuales, big.mark = ","), " |\n",
     "| Genero | ", if(entrada$genero == "M") "Masculino" else "Femenino", " |\n"
   )
@@ -587,7 +587,7 @@ generate_technical_rmd <- function(resultado) {
     datos_entrada <- paste0(datos_entrada,
       "| Saldo actual AFORE | ", format_currency_latex(entrada$saldo_actual), " |\n",
       "| AFORE | ", entrada$afore, " |\n",
-      "| Aportacion voluntaria | ", format_currency_latex(entrada$aportacion_voluntaria), "/mes |\n",
+      "| Aportación voluntaria | ", format_currency_latex(entrada$aportacion_voluntaria), "/mes |\n",
       "| Escenario | ", entrada$escenario %||% "base", " |\n"
     )
   }
@@ -597,15 +597,15 @@ generate_technical_rmd <- function(resultado) {
   # Metodologia
   if (es_ley73) {
     metodologia <- paste0(
-      "# Metodologia\n\n",
-      "## Calculo Ley 73\n\n",
-      "La pension Ley 73 se calcula como una pension definida basada en:\n\n",
-      "- Salario promedio de las ultimas 250 semanas cotizadas\n",
-      "- Porcentaje segun tabla del Articulo 167 de la LSS 1973\n",
-      "- Factor de cesantia (si se jubila antes de los 65 anos)\n\n",
-      "**Formula:**\n\n",
-      "$$Pension = SBC_{promedio} \\times Factor_{Art.167} \\times Factor_{Cesantia}$$\n\n",
-      "### Factor de Cesantia por Edad\n\n",
+      "# Metodología\n\n",
+      "## Cálculo Ley 73\n\n",
+      "La pensión Ley 73 se calcula como una pensión definida basada en:\n\n",
+      "- Salario promedio de las últimas 250 semanas cotizadas\n",
+      "- Porcentaje según tabla del Artículo 167 de la LSS 1973\n",
+      "- Factor de cesantía (si se jubila antes de los 65 años)\n\n",
+      "**Fórmula:**\n\n",
+      "$$Pensión = SBC_{promedio} \\times Factor_{Art.167} \\times Factor_{Cesantía}$$\n\n",
+      "### Factor de Cesantía por Edad\n\n",
       "| Edad | Factor |\n",
       "|------|--------|\n",
       "| 60 | 75% |\n",
@@ -617,21 +617,21 @@ generate_technical_rmd <- function(resultado) {
     )
   } else {
     metodologia <- paste0(
-      "# Metodologia\n\n",
-      "## Calculo Ley 97 (AFORE)\n\n",
-      "La pension Ley 97 se basa en el saldo acumulado en la cuenta individual:\n\n",
+      "# Metodología\n\n",
+      "## Cálculo Ley 97 (AFORE)\n\n",
+      "La pensión Ley 97 se basa en el saldo acumulado en la cuenta individual:\n\n",
       "$$Saldo_{Final} = Saldo_{Actual} \\times (1 + r)^n + Aportaciones_{Futuras}$$\n\n",
       "Donde:\n\n",
       "- **r** = Rendimiento real anual (3-5% segun escenario)\n",
       "- **n** = Anos hasta el retiro\n\n",
-      "## Pension Mensual (Retiro Programado)\n\n",
-      "$$Pension_{Mensual} = \\frac{Saldo_{Final}}{Esperanza_{Vida} \\times 12}$$\n\n",
+      "## Pensión Mensual (Retiro Programado)\n\n",
+      "$$Pensión_{Mensual} = \\frac{Saldo_{Final}}{Esperanza_{Vida} \\times 12}$$\n\n",
       "## Fondo de Pensiones para el Bienestar\n\n",
-      "El Fondo complementa la pension hasta el 100% del ultimo salario si:\n\n",
-      "- El trabajador tiene 65 anos o mas\n",
+      "El Fondo complementa la pensión hasta el 100% del último salario si:\n\n",
+      "- El trabajador tiene 65 años o más\n",
       "- El salario promedio es menor o igual al umbral ($17,364/mes en 2025)\n",
-      "- La pension AFORE es menor al 100% del salario\n\n",
-      "$$Complemento = min(Salario - Pension_{AFORE}, Pension_{Garantizada})$$\n\n"
+      "- La pensión AFORE es menor al 100% del salario\n\n",
+      "$$Complemento = min(Salario - Pensión_{AFORE}, Pensión_{Garantizada})$$\n\n"
     )
   }
 
@@ -642,9 +642,9 @@ generate_technical_rmd <- function(resultado) {
       "| Concepto | Valor |\n",
       "|----------|-------|\n",
       "| Semanas cotizadas | ", format(resultado$entrada$semanas_actuales %||% 0, big.mark = ","), " |\n",
-      "| Porcentaje Articulo 167 | ", round((resultado$pension_base$porcentaje_total %||% 0) * 100, 2), "% |\n",
-      "| Factor de cesantia | ", round((resultado$pension_base$factor_edad %||% 1) * 100, 1), "% |\n",
-      "| Pension mensual | ", format_currency_latex(resultado$pension_base$pension_mensual), " |\n",
+      "| Porcentaje Artículo 167 | ", round((resultado$pension_base$porcentaje_total %||% 0) * 100, 2), "% |\n",
+      "| Factor de cesantía | ", round((resultado$pension_base$factor_edad %||% 1) * 100, 1), "% |\n",
+      "| Pensión mensual | ", format_currency_latex(resultado$pension_base$pension_mensual), " |\n",
       "| Tasa de reemplazo | ", round(resultado$pension_base$tasa_reemplazo * 100, 1), "% |\n\n"
     )
   } else {
@@ -655,7 +655,7 @@ generate_technical_rmd <- function(resultado) {
       "|----------|-------|\n",
       "| Saldo actual | ", format_currency_latex(entrada$saldo_actual), " |\n",
       "| Saldo proyectado al retiro | ", format_currency_latex(resultado$solo_sistema$saldo_proyectado %||% 0), " |\n",
-      "| Pension mensual | ", format_currency_latex(resultado$solo_sistema$pension_mensual), " |\n",
+      "| Pensión mensual | ", format_currency_latex(resultado$solo_sistema$pension_mensual), " |\n",
       "| Tasa de reemplazo | ", round(resultado$solo_sistema$tasa_reemplazo * 100, 1), "% |\n\n",
       "## Con Fondo Bienestar\n\n",
       "| Concepto | Valor |\n",
@@ -665,7 +665,7 @@ generate_technical_rmd <- function(resultado) {
     if (resultado$con_fondo$elegible) {
       resultados_det <- paste0(resultados_det,
         "| Complemento mensual | ", format_currency_latex(resultado$con_fondo$complemento), " |\n",
-        "| Pension total | ", format_currency_latex(resultado$con_fondo$pension_total), " |\n\n"
+        "| Pensión total | ", format_currency_latex(resultado$con_fondo$pension_total), " |\n\n"
       )
     } else {
       resultados_det <- paste0(resultados_det,
@@ -676,17 +676,17 @@ generate_technical_rmd <- function(resultado) {
       "## Con Acciones Propias\n\n",
       "| Concepto | Valor |\n",
       "|----------|-------|\n",
-      "| Aportacion voluntaria mensual | ", format_currency_latex(entrada$aportacion_voluntaria), " |\n",
+      "| Aportación voluntaria mensual | ", format_currency_latex(entrada$aportacion_voluntaria), " |\n",
       "| Saldo proyectado | ", format_currency_latex(resultado$con_acciones$saldo_proyectado %||% 0), " |\n",
-      "| Pension AFORE | ", format_currency_latex(resultado$con_acciones$pension_afore), " |\n",
-      "| Pension total | ", format_currency_latex(resultado$con_acciones$pension_total), " |\n\n"
+      "| Pensión AFORE | ", format_currency_latex(resultado$con_acciones$pension_afore), " |\n",
+      "| Pensión total | ", format_currency_latex(resultado$con_acciones$pension_total), " |\n\n"
     )
   }
 
   # Supuestos y limitaciones
   supuestos <- paste0(
     "# Supuestos y Limitaciones\n\n",
-    "**IMPORTANTE:** Esta es una estimacion educativa, NO una garantia. Los resultados reales pueden variar significativamente.\n\n",
+    "**IMPORTANTE:** Esta es una estimación educativa, NO una garantía. Los resultados reales pueden variar significativamente.\n\n",
     "## Supuestos del Modelo\n\n",
     "- Rendimiento real anual: ", switch(entrada$escenario %||% "base",
       "conservador" = "3%",
@@ -694,16 +694,16 @@ generate_technical_rmd <- function(resultado) {
       "optimista" = "5%",
       "4%"), "\n",
     "- UMA 2025: $113.14/dia\n",
-    "- Salario minimo 2025: $278.80/dia\n",
+    "- Salario mínimo 2025: $278.80/día\n",
     "- Umbral Fondo Bienestar: $17,364/mes\n",
     "- Esperanza de vida: Tablas CONAPO simplificadas\n",
-    "- Densidad de cotizacion futura: 100% (asume empleo continuo)\n\n",
+    "- Densidad de cotización futura: 100% (asume empleo continuo)\n\n",
     "## Limitaciones\n\n",
     "- No considera inflacion futura variable\n",
     "- No incluye beneficios adicionales (matrimonio, hijos, etc.)\n",
     "- El Fondo Bienestar es un programa nuevo (2024) con sostenibilidad incierta\n",
     "- Los rendimientos pasados no garantizan rendimientos futuros\n",
-    "- Las leyes y politicas pueden cambiar\n\n"
+    "- Las leyes y políticas pueden cambiar\n\n"
   )
 
   # Fuentes de datos
@@ -711,9 +711,9 @@ generate_technical_rmd <- function(resultado) {
     "# Fuentes de Datos\n\n",
     "| Dato | Fuente | Fecha |\n",
     "|------|--------|-------|\n",
-    "| Tabla Articulo 167 | Ley del Seguro Social 1973 | Vigente |\n",
+    "| Tabla Artículo 167 | Ley del Seguro Social 1973 | Vigente |\n",
     "| UMA | INEGI / DOF | Enero 2025 |\n",
-    "| Salario Minimo | CONASAMI | Enero 2025 |\n",
+    "| Salario Mínimo | CONASAMI | Enero 2025 |\n",
     "| Comisiones AFORE | CONSAR | 2024-2025 |\n",
     "| Mortalidad | CONAPO / CNSF | Simplificada |\n",
     "| Umbral Fondo Bienestar | DOF / IMSS | 2025 |\n\n"
@@ -725,9 +725,9 @@ generate_technical_rmd <- function(resultado) {
     "| Termino | Definicion |\n",
     "|---------|------------|\n",
     "| UMA | Unidad de Medida y Actualizacion |\n",
-    "| SBC | Salario Base de Cotizacion |\n",
-    "| Tasa de reemplazo | Porcentaje del ultimo salario que representa la pension |\n",
-    "| Cesantia | Pension anticipada entre los 60 y 64 anos |\n",
+    "| SBC | Salario Base de Cotización |\n",
+    "| Tasa de reemplazo | Porcentaje del último salario que representa la pensión |\n",
+    "| Cesantía | Pensión anticipada entre los 60 y 64 años |\n",
     "| IRN | Indicador de Rendimiento Neto |\n\n"
   )
 
@@ -771,19 +771,19 @@ generate_technical_report <- function(resultado) {
     "<head>",
     "<meta charset='UTF-8'>",
     "<meta name='viewport' content='width=device-width, initial-scale=1.0'>",
-    "<title>Documento Tecnico - Estimacion de Pension</title>",
+    "<title>Documento Técnico - Estimación de Pensión</title>",
     "<style>", css, "</style>",
     "</head>",
     "<body>",
     "<div class='document-container'>",
 
     # Encabezado
-    "<h1 class='doc-title'>Documento Tecnico</h1>",
-    "<p class='doc-subtitle'>Estimacion de Pension - Simulador IMSS + Fondo Bienestar</p>",
+    "<h1 class='doc-title'>Documento Técnico</h1>",
+    "<p class='doc-subtitle'>Estimación de Pensión - Simulador IMSS + Fondo Bienestar</p>",
 
     "<div class='data-card' style='text-align: center;'>",
     "<strong>Fecha de generacion:</strong> ", format(Sys.Date(), "%d de %B de %Y"), "<br>",
-    "<strong>Regimen:</strong> ", if(es_ley73) "Ley 73 (1973)" else "Ley 97 (AFORE)", "<br>",
+    "<strong>Régimen:</strong> ", if(es_ley73) "Ley 73 (1973)" else "Ley 97 (AFORE)", "<br>",
     "<strong>Version del modelo:</strong> 1.0",
     "</div>",
 
@@ -796,7 +796,7 @@ generate_technical_report <- function(resultado) {
     if (es_ley73) {
       paste0(
         "<div class='highlight-box'>",
-        "<div class='pension-label'>Pension mensual estimada</div>",
+        "<div class='pension-label'>Pensión mensual estimada</div>",
         "<div class='pension-amount'>", format_currency(resultado$pension_base$pension_mensual), "<span class='pension-period'>/mes</span></div>",
         "<div style='margin-top: 15px; color: #64748b;'>",
         round(resultado$pension_base$tasa_reemplazo * 100, 1), "% del salario | ",
@@ -807,7 +807,7 @@ generate_technical_report <- function(resultado) {
     } else {
       paste0(
         "<div class='highlight-box'>",
-        "<div class='pension-label'>Pension mensual estimada (solo AFORE)</div>",
+        "<div class='pension-label'>Pensión mensual estimada (solo AFORE)</div>",
         "<div class='pension-amount'>", format_currency(resultado$solo_sistema$pension_mensual), "<span class='pension-period'>/mes</span></div>",
         "<div style='margin-top: 15px; color: #64748b;'>",
         round(resultado$solo_sistema$tasa_reemplazo * 100, 1), "% del salario | ",
@@ -829,8 +829,8 @@ generate_technical_report <- function(resultado) {
     "<table class='styled-table'>",
     "<tr><th>Variable</th><th>Valor</th></tr>",
     "<tr><td>Salario mensual</td><td><strong>", format_currency(entrada$salario_mensual), "</strong></td></tr>",
-    "<tr><td>Edad actual</td><td>", entrada$edad_actual, " anos</td></tr>",
-    "<tr><td>Edad de retiro</td><td>", entrada$edad_retiro, " anos</td></tr>",
+    "<tr><td>Edad actual</td><td>", entrada$edad_actual, " años</td></tr>",
+    "<tr><td>Edad de retiro</td><td>", entrada$edad_retiro, " años</td></tr>",
     "<tr><td>Semanas cotizadas</td><td>", format(entrada$semanas_actuales, big.mark = ","), "</td></tr>",
     "<tr><td>Genero</td><td>", if(entrada$genero == "M") "Masculino" else "Femenino", "</td></tr>",
 
@@ -838,7 +838,7 @@ generate_technical_report <- function(resultado) {
       paste0(
         "<tr><td>Saldo actual AFORE</td><td>", format_currency(entrada$saldo_actual), "</td></tr>",
         "<tr><td>AFORE</td><td>", entrada$afore, "</td></tr>",
-        "<tr><td>Aportacion voluntaria</td><td>", format_currency(entrada$aportacion_voluntaria), "/mes</td></tr>",
+        "<tr><td>Aportación voluntaria</td><td>", format_currency(entrada$aportacion_voluntaria), "/mes</td></tr>",
         "<tr><td>Escenario</td><td>", entrada$escenario, "</td></tr>"
       )
     } else "",
@@ -848,22 +848,22 @@ generate_technical_report <- function(resultado) {
     # Seccion 3: Metodologia
     "<div class='section-header'>",
     "<div class='section-icon'>3</div>",
-    "<span>Metodologia</span>",
+    "<span>Metodología</span>",
     "</div>",
 
     if (es_ley73) {
       paste0(
-        "<h3>3.1 Calculo Ley 73</h3>",
-        "<p>La pension Ley 73 se calcula como una pension definida basada en:</p>",
+        "<h3>3.1 Cálculo Ley 73</h3>",
+        "<p>La pensión Ley 73 se calcula como una pensión definida basada en:</p>",
         "<ul>",
         "<li>Salario promedio de las ultimas 250 semanas cotizadas</li>",
-        "<li>Porcentaje segun tabla del Articulo 167 de la LSS 1973</li>",
-        "<li>Factor de cesantia (si se jubila antes de los 65 anos)</li>",
+        "<li>Porcentaje según tabla del Artículo 167 de la LSS 1973</li>",
+        "<li>Factor de cesantía (si se jubila antes de los 65 años)</li>",
         "</ul>",
         "<div class='formula-box'>",
-        "Pension = SBC_promedio x Factor_Articulo_167 x Factor_Cesantia",
+        "Pensión = SBC_promedio x Factor_Artículo_167 x Factor_Cesantía",
         "</div>",
-        "<h3>Factor de Cesantia por Edad:</h3>",
+        "<h3>Factor de Cesantía por Edad:</h3>",
         "<table class='styled-table' style='max-width: 300px;'>",
         "<tr><th>Edad</th><th>Factor</th></tr>",
         "<tr><td>60</td><td>75%</td></tr>",
@@ -876,8 +876,8 @@ generate_technical_report <- function(resultado) {
       )
     } else {
       paste0(
-        "<h3>3.1 Calculo Ley 97 (AFORE)</h3>",
-        "<p>La pension Ley 97 se basa en el saldo acumulado en la cuenta individual:</p>",
+        "<h3>3.1 Cálculo Ley 97 (AFORE)</h3>",
+        "<p>La pensión Ley 97 se basa en el saldo acumulado en la cuenta individual:</p>",
         "<div class='formula-box'>",
         "Saldo_Final = Saldo_Actual x (1 + r)^n + Aportaciones_Futuras",
         "</div>",
@@ -886,16 +886,16 @@ generate_technical_report <- function(resultado) {
         "<li><strong>r</strong> = Rendimiento real anual (3-5% segun escenario)</li>",
         "<li><strong>n</strong> = Anos hasta el retiro</li>",
         "</ul>",
-        "<h3>3.2 Pension Mensual (Retiro Programado)</h3>",
+        "<h3>3.2 Pensión Mensual (Retiro Programado)</h3>",
         "<div class='formula-box'>",
         "Pension_Mensual = Saldo_Final / (Esperanza_Vida_Meses)",
         "</div>",
         "<h3>3.3 Fondo de Pensiones para el Bienestar</h3>",
-        "<p>El Fondo complementa la pension hasta el 100% del ultimo salario si:</p>",
+        "<p>El Fondo complementa la pensión hasta el 100% del último salario si:</p>",
         "<ul>",
-        "<li>El trabajador tiene 65 anos o mas</li>",
+        "<li>El trabajador tiene 65 años o más</li>",
         "<li>El salario promedio es menor o igual al umbral ($17,364/mes en 2025)</li>",
-        "<li>La pension AFORE es menor al 100% del salario</li>",
+        "<li>La pensión AFORE es menor al 100% del salario</li>",
         "</ul>",
         "<div class='formula-box'>",
         "Complemento = min(Salario - Pension_AFORE, Pension_Garantizada)",
@@ -914,9 +914,9 @@ generate_technical_report <- function(resultado) {
         "<table class='styled-table'>",
         "<tr><th>Concepto</th><th>Valor</th></tr>",
         "<tr><td>Semanas cotizadas</td><td>", format(resultado$entrada$semanas_actuales %||% 0, big.mark = ","), "</td></tr>",
-        "<tr><td>Porcentaje Articulo 167</td><td>", round((resultado$pension_base$porcentaje_total %||% 0) * 100, 2), "%</td></tr>",
-        "<tr><td>Factor de cesantia</td><td>", round((resultado$pension_base$factor_edad %||% 1) * 100, 1), "%</td></tr>",
-        "<tr><td>Pension mensual</td><td><strong>", format_currency(resultado$pension_base$pension_mensual), "</strong></td></tr>",
+        "<tr><td>Porcentaje Artículo 167</td><td>", round((resultado$pension_base$porcentaje_total %||% 0) * 100, 2), "%</td></tr>",
+        "<tr><td>Factor de cesantía</td><td>", round((resultado$pension_base$factor_edad %||% 1) * 100, 1), "%</td></tr>",
+        "<tr><td>Pensión mensual</td><td><strong>", format_currency(resultado$pension_base$pension_mensual), "</strong></td></tr>",
         "<tr><td>Tasa de reemplazo</td><td>", round(resultado$pension_base$tasa_reemplazo * 100, 1), "%</td></tr>",
         "</table>"
       )
@@ -927,7 +927,7 @@ generate_technical_report <- function(resultado) {
         "<tr><th>Concepto</th><th>Valor</th></tr>",
         "<tr><td>Saldo actual</td><td>", format_currency(entrada$saldo_actual), "</td></tr>",
         "<tr><td>Saldo proyectado al retiro</td><td>", format_currency(resultado$solo_sistema$saldo_proyectado %||% 0), "</td></tr>",
-        "<tr><td>Pension mensual</td><td><strong>", format_currency(resultado$solo_sistema$pension_mensual), "</strong></td></tr>",
+        "<tr><td>Pensión mensual</td><td><strong>", format_currency(resultado$solo_sistema$pension_mensual), "</strong></td></tr>",
         "<tr><td>Tasa de reemplazo</td><td>", round(resultado$solo_sistema$tasa_reemplazo * 100, 1), "%</td></tr>",
         "</table>",
 
@@ -938,7 +938,7 @@ generate_technical_report <- function(resultado) {
         if (resultado$con_fondo$elegible) {
           paste0(
             "<tr><td>Complemento mensual</td><td>", format_currency(resultado$con_fondo$complemento), "</td></tr>",
-            "<tr><td>Pension total</td><td><strong>", format_currency(resultado$con_fondo$pension_total), "</strong></td></tr>"
+            "<tr><td>Pensión total</td><td><strong>", format_currency(resultado$con_fondo$pension_total), "</strong></td></tr>"
           )
         } else {
           paste0("<tr><td>Razon</td><td>", resultado$fondo_bienestar$razon_no_elegible, "</td></tr>")
@@ -948,10 +948,10 @@ generate_technical_report <- function(resultado) {
         "<h3>4.3 Con Acciones Propias</h3>",
         "<table class='styled-table'>",
         "<tr><th>Concepto</th><th>Valor</th></tr>",
-        "<tr><td>Aportacion voluntaria mensual</td><td>", format_currency(entrada$aportacion_voluntaria), "</td></tr>",
+        "<tr><td>Aportación voluntaria mensual</td><td>", format_currency(entrada$aportacion_voluntaria), "</td></tr>",
         "<tr><td>Saldo proyectado</td><td>", format_currency(resultado$con_acciones$saldo_proyectado %||% 0), "</td></tr>",
-        "<tr><td>Pension AFORE</td><td><strong>", format_currency(resultado$con_acciones$pension_afore), "</strong></td></tr>",
-        "<tr><td>Pension total</td><td><strong>", format_currency(resultado$con_acciones$pension_total), "</strong></td></tr>",
+        "<tr><td>Pensión AFORE</td><td><strong>", format_currency(resultado$con_acciones$pension_afore), "</strong></td></tr>",
+        "<tr><td>Pensión total</td><td><strong>", format_currency(resultado$con_acciones$pension_total), "</strong></td></tr>",
         "</table>"
       )
     },
@@ -963,7 +963,7 @@ generate_technical_report <- function(resultado) {
     "</div>",
 
     "<div class='warning-box'>",
-    "<strong>Importante:</strong> Esta es una estimacion educativa, NO una garantia. ",
+    "<strong>Importante:</strong> Esta es una estimación educativa, NO una garantía. ",
     "Los resultados reales pueden variar significativamente.",
     "</div>",
 
@@ -975,10 +975,10 @@ generate_technical_report <- function(resultado) {
       "optimista" = "5%",
       "4%"), "</li>",
     "<li>UMA 2025: $113.14/dia</li>",
-    "<li>Salario minimo 2025: $278.80/dia</li>",
+    "<li>Salario mínimo 2025: $278.80/día</li>",
     "<li>Umbral Fondo Bienestar: $17,364/mes</li>",
     "<li>Esperanza de vida: Tablas CONAPO simplificadas</li>",
-    "<li>Densidad de cotizacion futura: 100% (asume empleo continuo)</li>",
+    "<li>Densidad de cotización futura: 100% (asume empleo continuo)</li>",
     "</ul>",
 
     "<h3>5.2 Limitaciones</h3>",
@@ -987,7 +987,7 @@ generate_technical_report <- function(resultado) {
     "<li>No incluye beneficios adicionales (matrimonio, hijos, etc.)</li>",
     "<li>El Fondo Bienestar es un programa nuevo (2024) con sostenibilidad incierta</li>",
     "<li>Los rendimientos pasados no garantizan rendimientos futuros</li>",
-    "<li>Las leyes y politicas pueden cambiar</li>",
+    "<li>Las leyes y políticas pueden cambiar</li>",
     "</ul>",
 
     # Seccion 6: Fuentes de Datos
@@ -998,9 +998,9 @@ generate_technical_report <- function(resultado) {
 
     "<table class='styled-table'>",
     "<tr><th>Dato</th><th>Fuente</th><th>Fecha</th></tr>",
-    "<tr><td>Tabla Articulo 167</td><td>Ley del Seguro Social 1973</td><td>Vigente</td></tr>",
+    "<tr><td>Tabla Artículo 167</td><td>Ley del Seguro Social 1973</td><td>Vigente</td></tr>",
     "<tr><td>UMA</td><td>INEGI / DOF</td><td>Enero 2025</td></tr>",
-    "<tr><td>Salario Minimo</td><td>CONASAMI</td><td>Enero 2025</td></tr>",
+    "<tr><td>Salario Mínimo</td><td>CONASAMI</td><td>Enero 2025</td></tr>",
     "<tr><td>Comisiones AFORE</td><td>CONSAR</td><td>2024-2025</td></tr>",
     "<tr><td>Mortalidad</td><td>CONAPO / CNSF</td><td>Simplificada</td></tr>",
     "<tr><td>Umbral Fondo Bienestar</td><td>DOF / IMSS</td><td>2025</td></tr>",
@@ -1014,17 +1014,17 @@ generate_technical_report <- function(resultado) {
 
     "<table class='styled-table'>",
     "<tr><th>Termino</th><th>Definicion</th></tr>",
-    "<tr><td>UMA</td><td>Unidad de Medida y Actualizacion. Indicador que reemplaza al salario minimo para calculos oficiales.</td></tr>",
-    "<tr><td>SBC</td><td>Salario Base de Cotizacion. El salario registrado ante el IMSS.</td></tr>",
-    "<tr><td>Tasa de reemplazo</td><td>Porcentaje del ultimo salario que representa la pension.</td></tr>",
-    "<tr><td>Cesantia</td><td>Pension anticipada entre los 60 y 64 anos.</td></tr>",
+    "<tr><td>UMA</td><td>Unidad de Medida y Actualización. Indicador que reemplaza al salario mínimo para cálculos oficiales.</td></tr>",
+    "<tr><td>SBC</td><td>Salario Base de Cotización. El salario registrado ante el IMSS.</td></tr>",
+    "<tr><td>Tasa de reemplazo</td><td>Porcentaje del último salario que representa la pensión.</td></tr>",
+    "<tr><td>Cesantía</td><td>Pensión anticipada entre los 60 y 64 años.</td></tr>",
     "<tr><td>IRN</td><td>Indicador de Rendimiento Neto. Mide el rendimiento de una AFORE descontando comisiones.</td></tr>",
     "</table>",
 
     # Footer
     "<div class='doc-footer'>",
-    "<p>Documento generado automaticamente por el Simulador de Pension IMSS + Fondo Bienestar</p>",
-    "<p>Para mas informacion, consulta: <a href='https://www.imss.gob.mx/'>IMSS</a> | ",
+    "<p>Documento generado automáticamente por el Simulador de Pensión IMSS + Fondo Bienestar</p>",
+    "<p>Para más información, consulta: <a href='https://www.imss.gob.mx/'>IMSS</a> | ",
     "<a href='https://www.consar.gob.mx/'>CONSAR</a> | ",
     "<a href='https://www.e-sar.com.mx/'>e-SAR</a></p>",
     "</div>",
@@ -1068,20 +1068,20 @@ generate_basic_report <- function(resultado) {
     "<head>",
     "<meta charset='UTF-8'>",
     "<meta name='viewport' content='width=device-width, initial-scale=1.0'>",
-    "<title>Reporte Basico - Pension Estimada</title>",
+    "<title>Reporte Básico - Pensión Estimada</title>",
     "<style>", css, "</style>",
     "</head>",
     "<body>",
     "<div class='document-container'>",
 
     # Header
-    "<h1 class='doc-title'>Tu Pension Estimada</h1>",
-    "<p class='doc-subtitle'>Reporte basico para impresion</p>",
+    "<h1 class='doc-title'>Tu Pensión Estimada</h1>",
+    "<p class='doc-subtitle'>Reporte básico para impresión</p>",
     "<p class='doc-date'>Generado el ", format(Sys.Date(), "%d de %B de %Y"), "</p>",
 
     # Big pension number
     "<div class='highlight-box'>",
-    "<div class='pension-label'>Pension mensual estimada</div>",
+    "<div class='pension-label'>Pensión mensual estimada</div>",
     "<div class='pension-amount'>", format_currency(pension_principal), "<span class='pension-period'>/mes</span></div>",
     "<div style='margin-top: 15px; color: #64748b;'>",
     round(tasa_reemplazo * 100), "% de tu salario actual",
@@ -1090,7 +1090,7 @@ generate_basic_report <- function(resultado) {
 
     # Warning
     "<div class='warning-box'>",
-    "<strong>Importante:</strong> Esta es una estimacion educativa, NO una garantia. ",
+    "<strong>Importante:</strong> Esta es una estimación educativa, NO una garantía. ",
     "Las leyes y programas pueden cambiar.",
     "</div>",
 
@@ -1103,14 +1103,14 @@ generate_basic_report <- function(resultado) {
     "<table class='styled-table'>",
     "<tr><th>Concepto</th><th>Valor</th></tr>",
     "<tr><td>Salario mensual</td><td><strong>", format_currency(entrada$salario_mensual), "</strong></td></tr>",
-    "<tr><td>Edad actual</td><td>", entrada$edad_actual, " anos</td></tr>",
-    "<tr><td>Edad de retiro</td><td>", entrada$edad_retiro, " anos</td></tr>",
-    "<tr><td>Regimen</td><td>", if(es_ley73) "Ley 73" else "Ley 97 (AFORE)", "</td></tr>",
+    "<tr><td>Edad actual</td><td>", entrada$edad_actual, " años</td></tr>",
+    "<tr><td>Edad de retiro</td><td>", entrada$edad_retiro, " años</td></tr>",
+    "<tr><td>Régimen</td><td>", if(es_ley73) "Ley 73" else "Ley 97 (AFORE)", "</td></tr>",
 
     if (!es_ley73) {
       paste0(
         "<tr><td>Saldo actual AFORE</td><td>", format_currency(entrada$saldo_actual), "</td></tr>",
-        "<tr><td>Aportacion voluntaria</td><td>", format_currency(entrada$aportacion_voluntaria), "/mes</td></tr>"
+        "<tr><td>Aportación voluntaria</td><td>", format_currency(entrada$aportacion_voluntaria), "/mes</td></tr>"
       )
     } else "",
 
@@ -1128,7 +1128,7 @@ generate_basic_report <- function(resultado) {
         "<div class='card'>",
         "<div class='card-label'>Solo AFORE</div>",
         "<div class='card-value'>", format_currency(resultado$solo_sistema$pension_mensual), "</div>",
-        "<div class='card-subtitle'>Tu pension base</div>",
+        "<div class='card-subtitle'>Tu pensión base</div>",
         "</div>",
         "<div class='card'>",
         "<div class='card-label'>+ Fondo Bienestar</div>",
@@ -1149,10 +1149,10 @@ generate_basic_report <- function(resultado) {
     } else {
       paste0(
         "<div class='data-card' style='text-align: center;'>",
-        "<div style='font-size: 14px; color: #64748b; margin-bottom: 10px;'>PENSION LEY 73</div>",
+        "<div style='font-size: 14px; color: #64748b; margin-bottom: 10px;'>PENSIÓN LEY 73</div>",
         "<div style='font-size: 36px; font-weight: 700; color: #0f766e;'>",
         format_currency(resultado$pension_base$pension_mensual), "/mes</div>",
-        "<div style='margin-top: 10px; color: #64748b;'>Pension definida basada en semanas y salario</div>",
+        "<div style='margin-top: 10px; color: #64748b;'>Pensión definida basada en semanas y salario</div>",
         "</div>"
       )
     },
@@ -1165,7 +1165,7 @@ generate_basic_report <- function(resultado) {
 
     "<div class='action-box'>",
     "<div class='action-title'>Recuerda</div>",
-    "<p>Tus <strong>aportaciones voluntarias</strong> son la parte MAS SEGURA de tu pension. ",
+    "<p>Tus <strong>aportaciones voluntarias</strong> son la parte MAS SEGURA de tu pensión. ",
     "El Fondo Bienestar es un programa nuevo (2024) y su futuro es incierto.</p>",
     "</div>",
 
@@ -1179,7 +1179,7 @@ generate_basic_report <- function(resultado) {
 
     # Footer
     "<div class='doc-footer'>",
-    "<p>Simulador de Pension IMSS + Fondo Bienestar</p>",
+    "<p>Simulador de Pensión IMSS + Fondo Bienestar</p>",
     "<p>Este documento es para uso personal e informativo.</p>",
     "</div>",
 
@@ -1234,23 +1234,23 @@ generate_methodology_html <- function() {
     "<head>",
     "<meta charset='UTF-8'>",
     "<meta name='viewport' content='width=device-width, initial-scale=1.0'>",
-    "<title>Metodologia - Simulador de Pension IMSS</title>",
+    "<title>Metodología - Simulador de Pensión IMSS</title>",
     "<style>", css, extra_css, "</style>",
     "</head>",
     "<body>",
     "<div class='document-container'>",
 
     # Header
-    "<h1 class='doc-title'>Metodologia del Simulador</h1>",
-    "<p class='doc-subtitle'>Como calculamos tu pension estimada</p>",
+    "<h1 class='doc-title'>Metodología del Simulador</h1>",
+    "<p class='doc-subtitle'>Cómo calculamos tu pensión estimada</p>",
     "<p class='doc-date'>Version 1.0 - 2025</p>",
 
     # Table of Contents
     "<div class='toc'>",
     "<div class='toc-title'>Contenido</div>",
     "<a href='#intro'>1. Introduccion</a>",
-    "<a href='#ley73'>2. Calculo Ley 73</a>",
-    "<a href='#ley97'>3. Calculo Ley 97 (AFORE)</a>",
+    "<a href='#ley73'>2. Cálculo Ley 73</a>",
+    "<a href='#ley97'>3. Cálculo Ley 97 (AFORE)</a>",
     "<a href='#fondo'>4. Fondo de Pensiones para el Bienestar</a>",
     "<a href='#supuestos'>5. Supuestos y Limitaciones</a>",
     "<a href='#fuentes'>6. Fuentes de Datos</a>",
@@ -1264,61 +1264,61 @@ generate_methodology_html <- function() {
 
     "<p>Este simulador proporciona <strong>estimaciones educativas</strong> para ayudar ",
     "a los trabajadores mexicanos a entender y planificar su retiro bajo los diferentes ",
-    "regimenes del sistema de seguridad social mexicano.</p>",
+    "regímenes del sistema de seguridad social mexicano.</p>",
 
     "<div class='info-box'>",
     "<strong>Alcance:</strong> El simulador cubre Ley 73, Ley 97 (AFORE), y el Fondo de ",
-    "Pensiones para el Bienestar (2024). Los resultados son estimaciones, no garantias.",
+    "Pensiones para el Bienestar (2024). Los resultados son estimaciones, no garantías.",
     "</div>",
 
     # Section 2: Ley 73
     "<div class='section-header' id='ley73'>",
     "<div class='section-icon'>2</div>",
-    "<span>Calculo Ley 73</span>",
+    "<span>Cálculo Ley 73</span>",
     "</div>",
 
-    "<p>La Ley del Seguro Social de 1973 establece un sistema de <strong>pension definida</strong> ",
+    "<p>La Ley del Seguro Social de 1973 establece un sistema de <strong>pensión definida</strong> ",
     "donde el monto depende de:</p>",
 
     "<ul>",
-    "<li>Salario Base de Cotizacion promedio (ultimas 250 semanas)</li>",
-    "<li>Semanas cotizadas (minimo 500)</li>",
+    "<li>Salario Base de Cotización promedio (últimas 250 semanas)</li>",
+    "<li>Semanas cotizadas (mínimo 500)</li>",
     "<li>Edad al momento del retiro</li>",
     "</ul>",
 
-    "<h3>Formula de Pension</h3>",
+    "<h3>Fórmula de Pensión</h3>",
     "<div class='formula-box'>",
-    "Pension = SBC_Promedio x Porcentaje_Articulo_167 x Factor_Cesantia",
+    "Pensión = SBC_Promedio x Porcentaje_Artículo_167 x Factor_Cesantía",
     "</div>",
 
-    "<h3>Factor de Cesantia por Edad</h3>",
-    "<p>Para retiros antes de los 65 anos:</p>",
+    "<h3>Factor de Cesantía por Edad</h3>",
+    "<p>Para retiros antes de los 65 años:</p>",
 
     "<table class='styled-table factor-table'>",
     "<tr><th>Edad</th><th>Factor</th></tr>",
-    "<tr><td>60 anos</td><td>75%</td></tr>",
-    "<tr><td>61 anos</td><td>80%</td></tr>",
-    "<tr><td>62 anos</td><td>85%</td></tr>",
-    "<tr><td>63 anos</td><td>90%</td></tr>",
-    "<tr><td>64 anos</td><td>95%</td></tr>",
-    "<tr><td>65+ anos</td><td>100%</td></tr>",
+    "<tr><td>60 años</td><td>75%</td></tr>",
+    "<tr><td>61 años</td><td>80%</td></tr>",
+    "<tr><td>62 años</td><td>85%</td></tr>",
+    "<tr><td>63 años</td><td>90%</td></tr>",
+    "<tr><td>64 años</td><td>95%</td></tr>",
+    "<tr><td>65+ años</td><td>100%</td></tr>",
     "</table>",
 
     "<h3>Requisitos</h3>",
     "<ul>",
-    "<li>Minimo 500 semanas cotizadas</li>",
-    "<li>Edad minima: 60 anos (cesantia) o 65 anos (vejez)</li>",
+    "<li>Mínimo 500 semanas cotizadas</li>",
+    "<li>Edad mínima: 60 años (cesantía) o 65 años (vejez)</li>",
     "<li>Haber comenzado a cotizar antes del 1 de julio de 1997</li>",
     "</ul>",
 
     # Section 3: Ley 97
     "<div class='section-header' id='ley97'>",
     "<div class='section-icon'>3</div>",
-    "<span>Calculo Ley 97 (AFORE)</span>",
+    "<span>Cálculo Ley 97 (AFORE)</span>",
     "</div>",
 
     "<p>La Ley de 1997 establece un sistema de <strong>cuentas individuales</strong> ",
-    "administradas por AFOREs. La pension depende del saldo acumulado.</p>",
+    "administradas por AFOREs. La pensión depende del saldo acumulado.</p>",
 
     "<h3>Proyeccion del Saldo</h3>",
     "<div class='formula-box'>",
@@ -1331,7 +1331,7 @@ generate_methodology_html <- function() {
     "<li><strong>n</strong> = Anos hasta el retiro</li>",
     "</ul>",
 
-    "<h3>Pension Mensual (Retiro Programado)</h3>",
+    "<h3>Pensión Mensual (Retiro Programado)</h3>",
     "<div class='formula-box'>",
     "Pension_Mensual = Saldo_Final / (Esperanza_de_Vida x 12)",
     "</div>",
@@ -1340,7 +1340,7 @@ generate_methodology_html <- function() {
     "<table class='styled-table'>",
     "<tr><th>Concepto</th><th>% del SBC</th></tr>",
     "<tr><td>Patron (RCV)</td><td>5.15%</td></tr>",
-    "<tr><td>Patron (Cesantia)</td><td>3.15%</td></tr>",
+    "<tr><td>Patrón (Cesantía)</td><td>3.15%</td></tr>",
     "<tr><td>Trabajador</td><td>1.125%</td></tr>",
     "<tr><td>Gobierno</td><td>0.225%</td></tr>",
     "<tr><td><strong>Total</strong></td><td><strong>9.65%</strong></td></tr>",
@@ -1353,24 +1353,24 @@ generate_methodology_html <- function() {
     "</div>",
 
     "<p>Creado en 2024, el Fondo complementa pensiones de trabajadores que cumplen ciertos requisitos ",
-    "hasta alcanzar el 100% de su ultimo salario.</p>",
+    "hasta alcanzar el 100% de su último salario.</p>",
 
     "<h3>Requisitos de Elegibilidad</h3>",
     "<ul>",
-    "<li>Tener 65 anos o mas al momento de jubilarse</li>",
+    "<li>Tener 65 años o más al momento de jubilarse</li>",
     "<li>Salario promedio menor o igual al umbral ($17,364/mes en 2025)</li>",
-    "<li>La pension AFORE sea menor al 100% del salario</li>",
+    "<li>La pensión AFORE sea menor al 100% del salario</li>",
     "</ul>",
 
-    "<h3>Calculo del Complemento</h3>",
+    "<h3>Cálculo del Complemento</h3>",
     "<div class='formula-box'>",
     "Complemento = min(Salario - Pension_AFORE, Pension_Garantizada_Maxima)",
     "</div>",
 
     "<div class='warning-box'>",
     "<strong>Importante:</strong> El Fondo Bienestar es un programa nuevo (2024) y su ",
-    "sostenibilidad a largo plazo no esta garantizada. Tus aportaciones voluntarias son ",
-    "la parte mas segura de tu pension.",
+    "sostenibilidad a largo plazo no está garantizada. Tus aportaciones voluntarias son ",
+    "la parte más segura de tu pensión.",
     "</div>",
 
     # Section 5: Supuestos
@@ -1382,7 +1382,7 @@ generate_methodology_html <- function() {
     "<h3>Supuestos del Modelo</h3>",
     "<ul>",
     "<li>Rendimientos: 3% (conservador), 4% (base), 5% (optimista) real anual</li>",
-    "<li>Densidad de cotizacion futura: 100% (empleo continuo)</li>",
+    "<li>Densidad de cotización futura: 100% (empleo continuo)</li>",
     "<li>Esperanza de vida: Tablas CONAPO simplificadas</li>",
     "<li>Inflacion incorporada en rendimientos reales</li>",
     "</ul>",
@@ -1392,7 +1392,7 @@ generate_methodology_html <- function() {
     "<li>No considera variaciones en la inflacion futura</li>",
     "<li>No incluye beneficios adicionales (matrimonio, hijos, etc.)</li>",
     "<li>Los rendimientos pasados no garantizan rendimientos futuros</li>",
-    "<li>Las leyes y politicas pueden cambiar</li>",
+    "<li>Las leyes y políticas pueden cambiar</li>",
     "</ul>",
 
     # Section 6: Sources
@@ -1403,9 +1403,9 @@ generate_methodology_html <- function() {
 
     "<table class='styled-table'>",
     "<tr><th>Dato</th><th>Fuente</th></tr>",
-    "<tr><td>Tabla Articulo 167</td><td>Ley del Seguro Social 1973</td></tr>",
+    "<tr><td>Tabla Artículo 167</td><td>Ley del Seguro Social 1973</td></tr>",
     "<tr><td>UMA 2025</td><td>INEGI / DOF ($113.14/dia)</td></tr>",
-    "<tr><td>Salario Minimo 2025</td><td>CONASAMI ($278.80/dia)</td></tr>",
+    "<tr><td>Salario Mínimo 2025</td><td>CONASAMI ($278.80/día)</td></tr>",
     "<tr><td>Comisiones AFORE</td><td>CONSAR 2024-2025</td></tr>",
     "<tr><td>Tablas de Mortalidad</td><td>CONAPO / CNSF</td></tr>",
     "<tr><td>Umbral Fondo Bienestar</td><td>DOF / IMSS ($17,364/mes)</td></tr>",
@@ -1422,8 +1422,8 @@ generate_methodology_html <- function() {
 
     # Footer
     "<div class='doc-footer'>",
-    "<p>Simulador de Pension IMSS + Fondo Bienestar - Version 1.0</p>",
-    "<p>Documento generado automaticamente para fines educativos.</p>",
+    "<p>Simulador de Pensión IMSS + Fondo Bienestar - Versión 1.0</p>",
+    "<p>Documento generado automáticamente para fines educativos.</p>",
     "</div>",
 
     "</div>", # End container
@@ -1457,7 +1457,7 @@ generate_summary_rmd <- function(resultado) {
   # YAML header
   yaml_header <- paste0(
     "---\n",
-    "title: 'Resumen Ejecutivo - Tu Pension'\n",
+    "title: 'Resumen Ejecutivo - Tu Pensión'\n",
     "date: '", format(Sys.Date(), "%d de %B de %Y"), "'\n",
     "output:\n",
     "  pdf_document:\n",
@@ -1472,7 +1472,7 @@ generate_summary_rmd <- function(resultado) {
   # Pension principal
   pension_section <- paste0(
     "# ", format_currency_latex(pension_principal), "/mes\n\n",
-    "Tu pension estimada representa el **", round(tasa_reemplazo * 100), "%** de tu salario actual (",
+    "Tu pensión estimada representa el **", round(tasa_reemplazo * 100), "%** de tu salario actual (",
     format_currency_latex(entrada$salario_mensual), ")\n\n"
   )
 
@@ -1482,7 +1482,7 @@ generate_summary_rmd <- function(resultado) {
     comparacion <- paste0(
       "---\n\n",
       "## Tres Escenarios\n\n",
-      "| Escenario | Pension Mensual |\n",
+      "| Escenario | Pensión Mensual |\n",
       "|-----------|----------------|\n",
       "| Solo AFORE | ", format_currency_latex(resultado$solo_sistema$pension_mensual), " |\n",
       "| + Fondo Bienestar | ",
@@ -1496,9 +1496,9 @@ generate_summary_rmd <- function(resultado) {
   mensaje <- paste0(
     "---\n\n",
     "## Lo Que Debes Saber\n\n",
-    "**IMPORTANTE:** Esta es una estimacion educativa, NO una garantia.\n\n",
+    "**IMPORTANTE:** Esta es una estimación educativa, NO una garantía.\n\n",
     "El Fondo Bienestar es un programa nuevo (2024) y su futuro es incierto.\n\n",
-    "Tus aportaciones voluntarias son la parte **MAS SEGURA** de tu pension.\n\n"
+    "Tus aportaciones voluntarias son la parte **MAS SEGURA** de tu pensión.\n\n"
   )
 
   # Acciones
@@ -1519,7 +1519,7 @@ generate_summary_rmd <- function(resultado) {
     "- e-SAR: https://www.e-sar.com.mx/\n",
     "- IMSS Digital: https://serviciosdigitales.imss.gob.mx/\n\n",
     "---\n\n",
-    "*Generado por el Simulador de Pension IMSS + Fondo Bienestar*\n"
+    "*Generado por el Simulador de Pensión IMSS + Fondo Bienestar*\n"
   )
 
   # Combinar
@@ -1567,20 +1567,20 @@ generate_summary_report <- function(resultado) {
     "<head>",
     "<meta charset='UTF-8'>",
     "<meta name='viewport' content='width=device-width, initial-scale=1.0'>",
-    "<title>Tu Pension - Resumen Ejecutivo</title>",
+    "<title>Tu Pensión - Resumen Ejecutivo</title>",
     "<style>", css, "</style>",
     "</head>",
     "<body>",
     "<div class='document-container'>",
 
     # Encabezado
-    "<h1 class='doc-title'>Tu Pension Estimada</h1>",
+    "<h1 class='doc-title'>Tu Pensión Estimada</h1>",
     "<p class='doc-subtitle'>Resumen ejecutivo para ti y tu familia</p>",
     "<p class='doc-date'>", format(Sys.Date(), "%d de %B de %Y"), "</p>",
 
     # Numero grande
     "<div class='highlight-box'>",
-    "<div class='pension-label'>Tu pension mensual estimada</div>",
+    "<div class='pension-label'>Tu pensión mensual estimada</div>",
     "<div class='pension-amount'>",
     format_currency(pension_principal),
     "<span class='pension-period'>/mes</span>",
@@ -1595,7 +1595,7 @@ generate_summary_report <- function(resultado) {
     "</div>",
     "<div class='comparison-arrow'>→</div>",
     "<div class='comparison-item'>",
-    "<div class='card-label'>Tu pension base</div>",
+    "<div class='card-label'>Tu pensión base</div>",
     "<div class='card-value' style='color: #0d9488;'>", round(tasa_reemplazo * 100), "% del salario</div>",
     "</div>",
     "</div>",
@@ -1607,7 +1607,7 @@ generate_summary_report <- function(resultado) {
         "<div class='card'>",
         "<div class='card-label'>Solo AFORE</div>",
         "<div class='card-value'>", format_currency(resultado$solo_sistema$pension_mensual), "</div>",
-        "<div class='card-subtitle'>Lo minimo que tendras</div>",
+        "<div class='card-subtitle'>Lo mínimo que tendrás</div>",
         "</div>",
         "<div class='card'>",
         "<div class='card-label'>+ Fondo Bienestar</div>",
@@ -1629,7 +1629,7 @@ generate_summary_report <- function(resultado) {
 
     # Mensaje clave
     "<div class='warning-box'>",
-    "<strong>Recuerda:</strong> Esta es una estimacion educativa. Las leyes y programas ",
+    "<strong>Recuerda:</strong> Esta es una estimación educativa. Las leyes y programas ",
     "pueden cambiar. El Fondo Bienestar es nuevo (2024) y su futuro es incierto.",
     "</div>",
 
@@ -1637,7 +1637,7 @@ generate_summary_report <- function(resultado) {
     "<div class='action-box'>",
     "<div class='action-title'>3 Cosas que Puedes Hacer HOY</div>",
     "<ol style='margin: 0; padding-left: 25px;'>",
-    "<li style='margin: 12px 0;'><strong>Aportaciones voluntarias:</strong> Incluso $500/mes hacen diferencia. Es la parte MAS SEGURA de tu pension.</li>",
+    "<li style='margin: 12px 0;'><strong>Aportaciones voluntarias:</strong> Incluso $500/mes hacen diferencia. Es la parte MAS SEGURA de tu pensión.</li>",
     "<li style='margin: 12px 0;'><strong>Revisa tu AFORE:</strong> Compara rendimientos en CONSAR. Un mejor AFORE puede darte miles de pesos mas.</li>",
     "<li style='margin: 12px 0;'><strong>Consulta tus semanas:</strong> Verifica en IMSS Digital que tengas todas tus semanas registradas.</li>",
     "</ol>",
@@ -1654,7 +1654,7 @@ generate_summary_report <- function(resultado) {
 
     # Footer
     "<div class='doc-footer'>",
-    "<p>Generado por el Simulador de Pension IMSS + Fondo Bienestar</p>",
+    "<p>Generado por el Simulador de Pensión IMSS + Fondo Bienestar</p>",
     "<p>Este documento es para uso personal e informativo.</p>",
     "</div>",
 

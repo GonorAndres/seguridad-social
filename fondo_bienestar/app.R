@@ -23,7 +23,7 @@ ui <- bslib::page_fluid(
   tags$head(
     tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
     tags$link(rel = "icon", type = "image/svg+xml", href = "favicon.svg"),
-    tags$meta(name = "description", content = "Simulador de pension IMSS. Calcula tu pension de Ley 73, Ley 97 y Fondo Bienestar en 5 minutos."),
+    tags$meta(name = "description", content = "Simulador de pensión IMSS. Calcula tu pensión de Ley 73, Ley 97 y Fondo Bienestar en 5 minutos."),
     tags$link(
       rel = "stylesheet",
       href = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
@@ -84,16 +84,16 @@ ui <- bslib::page_fluid(
 
       // Re-enable button when results load
       $(document).on('shiny:value', function(event) {
-        if (event.name === 'result_cards') {
+        if (event.name === 'result_cards_frozen') {
           var btn = $('#calcular');
           btn.prop('disabled', false);
-          btn.html('<i class=\"bi bi-calculator me-2\"></i>Calcular pension');
+          btn.html('<i class=\"bi bi-calculator me-2\"></i>Calcular pensión');
         }
       });
 
       // Smooth scroll to top of results
       $(document).on('shiny:value', function(event) {
-        if (event.name === 'result_cards') {
+        if (event.name === 'result_cards_frozen') {
           setTimeout(function() {
             $('html, body').animate({ scrollTop: $('#step4_panel').offset().top - 20 }, 400);
           }, 100);
@@ -128,10 +128,10 @@ ui <- bslib::page_fluid(
       # Header de la aplicacion (wizard mode)
       tags$div(
         class = "app-header wizard-mode",
-        tags$h1(class = "app-title", "Simulador de Pension IMSS"),
+        tags$h1(class = "app-title", "Simulador de Pensión IMSS"),
         tags$p(
           class = "app-subtitle",
-          "Conoce tu pension. Actua donde puedas."
+          "Conoce tu pensión. Actúa donde puedas."
         )
       ),
 
@@ -198,7 +198,7 @@ ui <- bslib::page_fluid(
                   "fecha_nacimiento",
                   label = tagList(
                     "Fecha de nacimiento",
-                    help_tooltip("Tu fecha de nacimiento determina tu edad actual y anos restantes al retiro")
+                    help_tooltip("Tu fecha de nacimiento determina tu edad actual y años restantes al retiro")
                   ),
                   value = "1985-01-15",
                   min = "1940-01-01",
@@ -212,8 +212,8 @@ ui <- bslib::page_fluid(
                 radioButtons(
                   "genero",
                   label = tagList(
-                    "Genero",
-                    help_tooltip("Afecta la esperanza de vida usada en los calculos de pension")
+                    "Género",
+                    help_tooltip("Afecta la esperanza de vida usada en los cálculos de pensión")
                   ),
                   choices = c("Masculino" = "M", "Femenino" = "F"),
                   selected = "M",
@@ -228,7 +228,7 @@ ui <- bslib::page_fluid(
                   "edad_retiro",
                   label = tagList(
                     "Edad de retiro deseada",
-                    help_tooltip("Entre 60 y 70 anos. A los 65 tienes acceso al Fondo Bienestar")
+                    help_tooltip("Entre 60 y 70 años. A los 65 tienes acceso al Fondo Bienestar")
                   ),
                   value = 65,
                   min = 60,
@@ -243,7 +243,7 @@ ui <- bslib::page_fluid(
                   tags$small(
                     class = "text-muted",
                     tags$i(class = "bi bi-info-circle me-1"),
-                    "El Fondo Bienestar requiere 65 anos minimo"
+                    "El Fondo Bienestar requiere 65 años mínimo"
                   )
                 )
               )
@@ -286,7 +286,7 @@ ui <- bslib::page_fluid(
                     "fecha_inicio_cotizacion",
                     label = tagList(
                       "Cuando empezaste a cotizar en el IMSS?",
-                      help_tooltip("Fecha aproximada de tu primer empleo formal. Determina automaticamente tu regimen de pension.")
+                      help_tooltip("Fecha aproximada de tu primer empleo formal. Determina automáticamente tu régimen de pensión.")
                     ),
                     value = NULL,
                     min = "1950-01-01",
@@ -304,7 +304,7 @@ ui <- bslib::page_fluid(
                       style = "display: none;",
                       selectInput("regimen_manual", label = NULL,
                         choices = c("Ley 73 (antes julio 1997)" = "ley73",
-                                    "Ley 97 (despues julio 1997)" = "ley97"),
+                                    "Ley 97 (después julio 1997)" = "ley97"),
                         selected = "ley97"
                       )
                     )
@@ -400,7 +400,7 @@ ui <- bslib::page_fluid(
                   tags$i(class = "bi bi-info-circle"),
                   tags$div(
                     tags$strong("Ley 73: "),
-                    "Tu pension principal se calcula por formula (Art. 167), no por saldo AFORE. ",
+                    "Tu pensión principal se calcula por fórmula (Art. 167), no por saldo AFORE. ",
                     "Sin embargo, si tienes saldo acumulado en tu AFORE, puedes retirarlo como complemento."
                   )
                 )
@@ -451,8 +451,8 @@ ui <- bslib::page_fluid(
                     numericInput(
                       "aportacion_voluntaria",
                       label = tagList(
-                        "Aportacion voluntaria mensual",
-                        help_tooltip("Dinero adicional que TU decides aportar. Es la mejor herramienta para mejorar tu pension")
+                        "Aportación voluntaria mensual",
+                        help_tooltip("Dinero adicional que TU decides aportar. Es la mejor herramienta para mejorar tu pensión")
                       ),
                       value = 0,
                       min = 0,
@@ -494,7 +494,7 @@ ui <- bslib::page_fluid(
               ),
               actionButton(
                 "calcular",
-                tagList(tags$i(class = "bi bi-calculator me-2"), "Calcular pension"),
+                tagList(tags$i(class = "bi bi-calculator me-2"), "Calcular pensión"),
                 class = "btn btn-primary btn-lg"
               )
             )
@@ -509,14 +509,14 @@ ui <- bslib::page_fluid(
 
             tags$div(
               class = "card-header bg-surface border-0 pt-4",
-              tags$h4(class = "card-title mb-0", "Tu Pension Estimada")
+              tags$h4(class = "card-title mb-0", "Tu Pensión Estimada")
             ),
 
             tags$div(
               class = "card-body",
 
-              # Results: Hero + Breakdown + Fondo status
-              uiOutput("result_cards"),
+              # Results: Hero + Breakdown + Fondo status (FROZEN -- shows original)
+              uiOutput("result_cards_frozen"),
 
               # Separador
               tags$hr(class = "my-4"),
@@ -531,14 +531,26 @@ ui <- bslib::page_fluid(
                 ),
                 tags$p(
                   class = "sensitivity-subtitle",
-                  "Mueve los controles para ver como cada cambio afecta tu pension. ",
+                  "Mueve los controles para ver cómo cada cambio afecta tu pensión. ",
                   "El impacto se muestra debajo de cada control."
                 )
               ),
 
-              # Row 1: Tu dinero (Salario + Voluntaria)
-              fluidRow(
-                column(6,
+              # Grid layout: antes/despues + sliders LEFT, chart RIGHT
+              tags$div(
+                class = "sensitivity-layout",
+
+                # GRID AREA: antes-despues (row 0, col 0)
+                tags$div(
+                  class = "sensitivity-antes-despues",
+                  uiOutput("antes_despues_box")
+                ),
+
+                # GRID AREA: sliders (row 1+, col 0)
+                tags$div(
+                  class = "sensitivity-sliders",
+
+                  # Slider: Salario
                   tags$div(
                     class = "slider-container",
                     tags$div(
@@ -556,40 +568,37 @@ ui <- bslib::page_fluid(
                       ticks = FALSE
                     ),
                     tags$div(class = "slider-impact", id = "salario_impact", "")
-                  )
-                ),
+                  ),
 
-                column(6, id = "vol_slider_col",
-                  tags$div(
-                    class = "slider-container",
+                  # Slider: Voluntaria (hidden for Ley 73)
+                  tags$div(id = "vol_slider_col",
                     tags$div(
-                      class = "slider-label",
-                      tags$span(class = "label-text", "Aportacion voluntaria"),
-                      tags$span(class = "label-value", id = "vol_value", "$0/mes")
-                    ),
-                    sliderInput(
-                      "slider_voluntaria",
-                      label = NULL,
-                      min = 0,
-                      max = 5000,
-                      value = 0,
-                      step = 100,
-                      ticks = FALSE
-                    ),
-                    tags$div(class = "slider-impact", id = "vol_impact", "")
-                  )
-                )
-              ),
+                      class = "slider-container",
+                      tags$div(
+                        class = "slider-label",
+                        tags$span(class = "label-text", "Aportación voluntaria"),
+                        tags$span(class = "label-value", id = "vol_value", "$0/mes")
+                      ),
+                      sliderInput(
+                        "slider_voluntaria",
+                        label = NULL,
+                        min = 0,
+                        max = 5000,
+                        value = 0,
+                        step = 100,
+                        ticks = FALSE
+                      ),
+                      tags$div(class = "slider-impact", id = "vol_impact", "")
+                    )
+                  ),
 
-              # Row 2: Tu situacion (Edad + Semanas)
-              fluidRow(
-                column(6,
+                  # Slider: Edad de retiro
                   tags$div(
                     class = "slider-container",
                     tags$div(
                       class = "slider-label",
                       tags$span(class = "label-text", "Edad de retiro"),
-                      tags$span(class = "label-value", id = "age_value", "65 anos")
+                      tags$span(class = "label-value", id = "age_value", "65 años")
                     ),
                     sliderInput(
                       "slider_edad",
@@ -601,10 +610,9 @@ ui <- bslib::page_fluid(
                       ticks = FALSE
                     ),
                     tags$div(class = "slider-impact", id = "age_impact", "")
-                  )
-                ),
+                  ),
 
-                column(6,
+                  # Slider: Semanas cotizadas
                   tags$div(
                     class = "slider-container",
                     tags$div(
@@ -622,48 +630,51 @@ ui <- bslib::page_fluid(
                       ticks = FALSE
                     ),
                     tags$div(class = "slider-impact", id = "semanas_impact", "")
-                  )
-                )
-              ),
+                  ),
 
-              # Row 3: AFORE (hidden for Ley 73)
-              fluidRow(id = "afore_slider_row",
-                column(6,
-                  tags$div(
-                    class = "slider-container",
+                  # AFORE selector (hidden for Ley 73)
+                  tags$div(id = "afore_slider_row",
                     tags$div(
-                      class = "slider-label",
-                      tags$span(class = "label-text", "Cambiar AFORE a"),
-                      uiOutput("afore_value_display")
-                    ),
-                    uiOutput("afore_selector_results"),
-                    tags$div(class = "slider-impact", id = "afore_impact", "")
+                      class = "slider-container",
+                      tags$div(
+                        class = "slider-label",
+                        tags$span(class = "label-text", "Cambiar AFORE a"),
+                        uiOutput("afore_value_display")
+                      ),
+                      uiOutput("afore_selector_results"),
+                      tags$div(class = "slider-impact", id = "afore_impact", "")
+                    )
+                  ),
+
+                  # Note for Ley 73 (hidden for Ley 97)
+                  tags$div(
+                    id = "ley73_sensitivity_note",
+                    class = "ley73-sensitivity-note",
+                    style = "display: none;",
+                    tags$i(class = "bi bi-info-circle me-2"),
+                    "Tu pensión Ley 73 se calcula por fórmula (Art. 167), no por saldo AFORE. ",
+                    "Las aportaciones voluntarias y la AFORE no afectan tu pensión principal."
+                  )
+                ),
+
+                # GRID AREA: chart (rows 0-1, col 1)
+                tags$div(
+                  class = "sensitivity-chart",
+
+                  # Grafico de proyeccion
+                  tags$div(
+                    class = "chart-container",
+                    tags$h6(class = "chart-title", "Proyección de tu saldo"),
+                    plotly::plotlyOutput("proyeccion_chart", height = "350px")
+                  ),
+
+                  # Key message
+                  key_message(
+                    "Recuerda: ",
+                    tags$strong("tus aportaciones voluntarias son la parte más segura"),
+                    " de tu pensión. El Fondo Bienestar puede ayudar, pero su futuro es incierto."
                   )
                 )
-              ),
-
-              # Note for Ley 73 (hidden for Ley 97)
-              tags$div(
-                id = "ley73_sensitivity_note",
-                class = "ley73-sensitivity-note",
-                style = "display: none;",
-                tags$i(class = "bi bi-info-circle me-2"),
-                "Tu pension Ley 73 se calcula por formula (Art. 167), no por saldo AFORE. ",
-                "Las aportaciones voluntarias y la AFORE no afectan tu pension principal."
-              ),
-
-              # Key message (advice, below sliders)
-              key_message(
-                "Recuerda: ",
-                tags$strong("tus aportaciones voluntarias son la parte mas segura"),
-                " de tu pension. El Fondo Bienestar puede ayudar, pero su futuro es incierto."
-              ),
-
-              # Grafico de proyeccion
-              tags$div(
-                class = "chart-container",
-                tags$h6(class = "chart-title", "Proyeccion de tu saldo"),
-                plotly::plotlyOutput("proyeccion_chart", height = "350px")
               ),
 
               # Panel tecnico
@@ -681,7 +692,7 @@ ui <- bslib::page_fluid(
                       `data-bs-toggle` = "collapse",
                       `data-bs-target` = "#technicalCollapse",
                       tags$i(class = "bi bi-gear me-2"),
-                      "Panel Tecnico (supuestos y formulas)"
+                      "Panel Técnico (supuestos y fórmulas)"
                     )
                   ),
                   tags$div(
@@ -709,7 +720,7 @@ ui <- bslib::page_fluid(
               ),
               actionButton(
                 "nueva_simulacion",
-                tagList(tags$i(class = "bi bi-arrow-clockwise me-2"), "Nueva simulacion"),
+                tagList(tags$i(class = "bi bi-arrow-clockwise me-2"), "Nueva simulación"),
                 class = "btn btn-outline-primary"
               )
             )
@@ -722,8 +733,8 @@ ui <- bslib::page_fluid(
           tags$p(
             tags$i(class = "bi bi-exclamation-triangle me-1"),
             "Esta es una ",
-            tags$strong("estimacion educativa"),
-            ", no una garantia. Las leyes y politicas pueden cambiar."
+            tags$strong("estimación educativa"),
+            ", no una garantía. Las leyes y políticas pueden cambiar."
           ),
           tags$p(
             "Consulta tu estado de cuenta oficial en ",
@@ -851,24 +862,24 @@ server <- function(input, output, session) {
     edad_actual <- as.numeric(difftime(Sys.Date(), input$fecha_nacimiento, units = "days")) / 365.25
 
     if (edad_actual < 18) {
-      showNotification("Debes tener al menos 18 anos", type = "error")
+      showNotification("Debes tener al menos 18 años", type = "error")
       return()
     }
 
     # Validate retirement age is in valid range (explicit checks)
     if (is.na(input$edad_retiro) || input$edad_retiro < 60) {
-      showNotification("La edad de retiro minima es 60 anos", type = "error")
+      showNotification("La edad de retiro mínima es 60 años", type = "error")
       return()
     }
     if (input$edad_retiro > 70) {
-      showNotification("La edad de retiro maxima es 70 anos", type = "error")
+      showNotification("La edad de retiro máxima es 70 años", type = "error")
       return()
     }
 
     # Validate retirement is in the future
     if (edad_actual >= input$edad_retiro) {
       showNotification(
-        paste0("Tu edad actual (", floor(edad_actual), " anos) ya supera o iguala la edad de retiro. ",
+        paste0("Tu edad actual (", floor(edad_actual), " años) ya supera o iguala la edad de retiro. ",
                "Ajusta la edad de retiro o verifica tu fecha de nacimiento."),
         type = "error",
         duration = 8
@@ -992,7 +1003,7 @@ server <- function(input, output, session) {
       badge_class <- "regime-badge ley73"
       icon <- "bi-shield-check"
       text <- "Ley 73"
-      desc <- "Pension definida"
+      desc <- "Pensión definida"
     } else {
       badge_class <- "regime-badge ley97"
       icon <- "bi-piggy-bank"
@@ -1026,7 +1037,7 @@ server <- function(input, output, session) {
       shinyjs::removeClass("semanas_estimate_text", "d-none")
       shinyjs::html("semanas_estimate_text",
         paste0("Estimado: ~", estimated, " semanas (",
-               round(years_working, 1), " anos x 60% cotizando). Ajusta segun tu caso."))
+               round(years_working, 1), " años x 60% cotizando). Ajusta según tu caso."))
     }
   })
 
@@ -1060,7 +1071,7 @@ server <- function(input, output, session) {
 
     # Validate voluntary contribution is not negative
     if (is.na(input$aportacion_voluntaria) || input$aportacion_voluntaria < 0) {
-      showNotification("La aportacion voluntaria no puede ser negativa", type = "error")
+      showNotification("La aportación voluntaria no puede ser negativa", type = "error")
       return()
     }
 
@@ -1170,16 +1181,22 @@ server <- function(input, output, session) {
   # RENDERIZADO DE RESULTADOS
   # ==========================================================================
 
-  # Results: Hero + Breakdown
-  output$result_cards <- renderUI({
-    req(resultados())
-    res <- resultados()
+  # Results: Hero + Breakdown (FROZEN -- uses original results, not slider-modified)
+  output$result_cards_frozen <- renderUI({
+    req(resultados_originales())
+    res <- resultados_originales()
 
     if (res$regimen == "ley73") {
       render_results_hero_ley73(res)
     } else {
       render_results_hero(res)
     }
+  })
+
+  # Antes / Despues comparison box (updates with slider changes)
+  output$antes_despues_box <- renderUI({
+    req(resultados(), resultados_originales())
+    render_antes_despues_box(resultados_originales(), resultados())
   })
 
   # Fondo message and encouragement are now integrated into result_cards hero component
@@ -1208,7 +1225,7 @@ server <- function(input, output, session) {
 
   observe({
     req(input$slider_edad)
-    shinyjs::html("age_value", paste0(input$slider_edad, " anos"))
+    shinyjs::html("age_value", paste0(input$slider_edad, " años"))
   })
 
   observe({
@@ -1251,7 +1268,7 @@ server <- function(input, output, session) {
         if (!is.null(prev_eligible) && prev_eligible != new_eligible) {
           if (!new_eligible) {
             showNotification(
-              "Con estos cambios pierdes elegibilidad para el Fondo de Bienestar",
+              "Con estos cambios pierdes la elegibilidad para el Fondo de Bienestar",
               type = "warning", duration = 5
             )
           } else {
@@ -1269,7 +1286,7 @@ server <- function(input, output, session) {
         if (!is.null(prev_minimo) && prev_minimo != new_minimo) {
           if (new_minimo) {
             showNotification(
-              "Tu pension ahora aplica el piso minimo garantizado",
+              "Tu pensión ahora aplica el piso mínimo garantizado",
               type = "warning", duration = 5
             )
           }
@@ -1279,7 +1296,7 @@ server <- function(input, output, session) {
         resultados(res)
       }, error = function(e) {
         message("[Sensitivity] Recalculation error: ", e$message)
-        showNotification("Error en recalculo de sensibilidad", type = "warning", duration = 5)
+        showNotification("Error en recálculo de sensibilidad", type = "warning", duration = 5)
         NULL
       })
     } else {
@@ -1324,7 +1341,7 @@ server <- function(input, output, session) {
         resultados(res)
       }, error = function(e) {
         message("[Sensitivity] Recalculation error: ", e$message)
-        showNotification("Error en recalculo de sensibilidad", type = "warning", duration = 5)
+        showNotification("Error en recálculo de sensibilidad", type = "warning", duration = 5)
         NULL
       })
     }
@@ -1503,7 +1520,7 @@ server <- function(input, output, session) {
           paste0(signo, format_currency(dif_saldo), " en saldo al retiro"))
         shinyjs::addClass(selector = "#afore_impact", class = clase)
       } else {
-        shinyjs::html("afore_impact", "Comisiones similares, impacto minimo")
+        shinyjs::html("afore_impact", "Comisiones similares, impacto mínimo")
       }
     }, error = function(e) {
       message("[Impact] Error calculating AFORE impact: ", e$message)
@@ -1721,14 +1738,14 @@ server <- function(input, output, session) {
         hovertemplate = "Edad %{x}: %{y:$,.0f}/mes (%{text})<extra></extra>"
       ) |>
         layout(
-          title = list(text = "Factor de Cesantia por Edad de Retiro", x = 0.5),
+          title = list(text = "Factor de Cesantía por Edad de Retiro", x = 0.5),
           xaxis = list(
             title = "Edad de retiro",
             tickvals = 60:65,
             dtick = 1
           ),
           yaxis = list(
-            title = "Pension mensual estimada",
+            title = "Pensión mensual estimada",
             tickformat = "$,.0f"
           ),
           plot_bgcolor = "#fffbf0",
@@ -1758,9 +1775,9 @@ server <- function(input, output, session) {
           y = tray_orig$saldo,
           type = "scatter",
           mode = "lines",
-          name = "Calculo original",
+          name = "Cálculo original",
           line = list(color = "#c4a67a", dash = "dot", width = 2),
-          hovertemplate = "Ano %{x}: $%{y:,.0f}<extra></extra>"
+          hovertemplate = "Año %{x}: $%{y:,.0f}<extra></extra>"
         ) |>
         add_trace(
           x = tray_cambios$anio,
@@ -1769,7 +1786,7 @@ server <- function(input, output, session) {
           mode = "lines",
           name = "Con cambios",
           line = list(color = "#0f766e", dash = "dash", width = 2),
-          hovertemplate = "Ano %{x}: $%{y:,.0f}<extra></extra>"
+          hovertemplate = "Año %{x}: $%{y:,.0f}<extra></extra>"
         ) |>
         add_trace(
           x = tray_vol$anio,
@@ -1780,11 +1797,11 @@ server <- function(input, output, session) {
           line = list(color = "#0f766e", width = 3),
           fill = "tonexty",
           fillcolor = "rgba(15, 118, 110, 0.1)",
-          hovertemplate = "Ano %{x}: $%{y:,.0f}<extra></extra>"
+          hovertemplate = "Año %{x}: $%{y:,.0f}<extra></extra>"
         ) |>
         layout(
           xaxis = list(
-            title = "Anos hasta retiro",
+            title = "Años hasta retiro",
             gridcolor = "#fde6c4"
           ),
           yaxis = list(
@@ -1796,12 +1813,13 @@ server <- function(input, output, session) {
             orientation = "h",
             x = 0.5,
             xanchor = "center",
-            y = -0.15
+            y = -0.25,
+            font = list(size = 11)
           ),
           hovermode = "x unified",
           plot_bgcolor = "#fffbf0",
           paper_bgcolor = "#fffbf0",
-          margin = list(t = 20)
+          margin = list(t = 20, b = 80)
         ) |>
         config(
           displayModeBar = TRUE,
@@ -1834,27 +1852,27 @@ server <- function(input, output, session) {
     tagList(
       tags$h6("Supuestos utilizados:"),
       tags$ul(
-        tags$li(paste0("Regimen: ", if (res$regimen == "ley73") "Ley 73" else "Ley 97 (AFORE)")),
+        tags$li(paste0("Régimen: ", if (res$regimen == "ley73") "Ley 73" else "Ley 97 (AFORE)")),
         tags$li(paste0("Rendimiento proyectado: ", rendimiento_texto)),
         if (res$regimen == "ley97") tags$li(paste0("AFORE: ", res$entrada$afore)),
         tags$li(paste0("Umbral Fondo Bienestar 2025: ", format_currency(UMBRAL_FONDO_BIENESTAR_2025))),
         tags$li(paste0("UMA diaria 2025: ", format_currency(UMA_DIARIA_2025))),
-        tags$li(paste0("Salario minimo 2025: ", format_currency(SM_DIARIO_2025), "/dia"))
+        tags$li(paste0("Salario mínimo 2025: ", format_currency(SM_DIARIO_2025), "/día"))
       ),
 
       tags$h6(class = "mt-3", "Fuentes de datos:"),
       tags$ul(
         tags$li("Tabla Articulo 167: Ley del Seguro Social 1973"),
         tags$li("UMA: INEGI / DOF"),
-        tags$li("Salario minimo: CONASAMI"),
+        tags$li("Salario mínimo: CONASAMI"),
         tags$li("Comisiones AFORE: CONSAR"),
         tags$li("Mortalidad: CONAPO / CNSF (simplificada)")
       ),
 
       tags$h6(class = "mt-3", "Limitaciones:"),
       tags$ul(
-        tags$li("Esta es una estimacion educativa, NO una garantia"),
-        tags$li("Las leyes y politicas pueden cambiar"),
+        tags$li("Esta es una estimación educativa, NO una garantía"),
+        tags$li("Las leyes y políticas pueden cambiar"),
         tags$li("El Fondo Bienestar (2024) tiene sostenibilidad incierta"),
         tags$li("Los rendimientos pasados no garantizan rendimientos futuros"),
         tags$li("No incluye efectos de inflacion futura no proyectada")
@@ -1947,7 +1965,7 @@ server <- function(input, output, session) {
       open_report_in_tab(html_content, "tecnico", "#0f766e", "#0d9488")
     }, error = function(e) {
       message("[Report] Error generating technical report: ", e$message)
-      showNotification("Error al generar el reporte tecnico", type = "error", duration = 5)
+      showNotification("Error al generar el reporte técnico", type = "error", duration = 5)
     })
   })
 
@@ -1971,7 +1989,7 @@ server <- function(input, output, session) {
       open_report_in_tab(html_content, "reporte", "#0f766e", "#0d9488")
     }, error = function(e) {
       message("[Report] Error generating basic report: ", e$message)
-      showNotification("Error al generar el reporte basico", type = "error", duration = 5)
+      showNotification("Error al generar el reporte básico", type = "error", duration = 5)
     })
   })
 
@@ -1982,7 +2000,7 @@ server <- function(input, output, session) {
       open_report_in_tab(html_content, "metodologia", "#0f766e", "#0d9488")
     }, error = function(e) {
       message("[Report] Error generating methodology: ", e$message)
-      showNotification("Error al generar la metodologia", type = "error", duration = 5)
+      showNotification("Error al generar la metodología", type = "error", duration = 5)
     })
   })
 

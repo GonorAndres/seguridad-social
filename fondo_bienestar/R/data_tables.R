@@ -5,20 +5,20 @@
 # TABLA ARTICULO 167 - LEY 73
 # ============================================================================
 
-#' Buscar cuantia basica e incremento anual segun grupo salarial
-#' @param grupo_salarial Salario expresado en veces el salario minimo
-#' @param tabla Data frame con la tabla del Articulo 167
-#' @return Lista con cuantia_basica e incremento_anual
+#' Buscar cuantía básica e incremento anual según grupo salarial
+#' @param grupo_salarial Salario expresado en veces el salario mínimo
+#' @param tabla Data frame con la tabla del Artículo 167
+#' @return Lista con cuantía_basica e incremento_anual
 lookup_articulo_167 <- function(grupo_salarial, tabla = articulo_167_tabla) {
   # Encontrar la fila correspondiente al grupo salarial
   idx <- which(grupo_salarial >= tabla$grupo_min & grupo_salarial <= tabla$grupo_max)
 
   if (length(idx) == 0) {
-    # Si el grupo excede el maximo, usar la ultima fila
+    # Si el grupo excede el máximo, usar la última fila
     if (grupo_salarial > max(tabla$grupo_max)) {
       idx <- nrow(tabla)
     } else {
-      # Si es menor al minimo, usar la primera fila
+      # Si es menor al mínimo, usar la primera fila
       idx <- 1
     }
   }
@@ -39,10 +39,10 @@ get_afore_names <- function() {
   return(afore_data$afore)
 }
 
-#' Obtener comision de una AFORE para un ano
+#' Obtener comisión de una AFORE para un año
 #' @param afore_nombre Nombre de la AFORE
-#' @param anio Ano (2024 o 2025)
-#' @return Comision como decimal (ej: 0.0053 para 0.53%)
+#' @param anio Año (2024 o 2025)
+#' @return Comisión como decimal (ej: 0.0053 para 0.53%)
 get_afore_comision <- function(afore_nombre, anio = 2025) {
   row <- afore_data[afore_data$afore == afore_nombre, ]
   if (nrow(row) == 0) {
@@ -99,7 +99,7 @@ get_esperanza_vida <- function(edad, genero = "M") {
   }
 
   if (genero == "F") {
-    # Mujeres viven ~5 anos mas en promedio
+    # Mujeres viven ~5 años más en promedio
     base <- c(
       "60" = 24.5, "61" = 23.6, "62" = 22.7, "63" = 21.8, "64" = 20.9,
       "65" = 20.0, "66" = 19.2, "67" = 18.3, "68" = 17.5, "69" = 16.7,
@@ -119,7 +119,7 @@ get_esperanza_vida <- function(edad, genero = "M") {
     return(base[edad_str])
   }
 
-  # Interpolacion lineal para edades no listadas
+  # Interpolación lineal para edades no listadas
   edades <- as.numeric(names(base))
   valores <- as.numeric(base)
 
@@ -149,16 +149,16 @@ get_esperanza_vida <- function(edad, genero = "M") {
 #' Validar datos de entrada del usuario
 #' @param edad Edad actual
 #' @param semanas Semanas cotizadas
-#' @param sbc Salario Base de Cotizacion mensual
-#' @param fecha_primera_cotizacion Fecha de primera cotizacion (opcional)
-#' @return Lista con errores (vacia si todo es valido) y advertencias
+#' @param sbc Salario Base de Cotización mensual
+#' @param fecha_primera_cotizacion Fecha de primera cotización (opcional)
+#' @return Lista con errores (vacía si todo es válido) y advertencias
 validar_entrada <- function(edad, semanas, sbc, fecha_primera_cotizacion = NULL) {
   errores <- c()
   advertencias <- c()
 
   # Validar edad
   if (is.na(edad) || edad < 18 || edad > 90) {
-    errores <- c(errores, "La edad debe estar entre 18 y 90 anos")
+    errores <- c(errores, "La edad debe estar entre 18 y 90 años")
   }
 
   # Validar semanas
@@ -166,7 +166,7 @@ validar_entrada <- function(edad, semanas, sbc, fecha_primera_cotizacion = NULL)
     errores <- c(errores, "Las semanas cotizadas no pueden ser negativas")
   }
   if (!is.na(semanas) && semanas > 3000) {
-    advertencias <- c(advertencias, "Mas de 3000 semanas es inusual, verifica el dato")
+    advertencias <- c(advertencias, "Más de 3000 semanas es inusual, verifica el dato")
   }
 
   # Validar SBC
@@ -179,17 +179,17 @@ validar_entrada <- function(edad, semanas, sbc, fecha_primera_cotizacion = NULL)
     max_semanas_posibles <- (edad - EDAD_MINIMA_TRABAJO) * SEMANAS_POR_ANO
     if (semanas > max_semanas_posibles) {
       errores <- c(errores,
-        paste0("Con ", edad, " anos, el maximo de semanas posibles es ",
+        paste0("Con ", edad, " años, el máximo de semanas posibles es ",
                max_semanas_posibles))
     }
   }
 
-  # Advertencia sobre tope de cotizacion
+  # Advertencia sobre tope de cotización
   if (!is.na(sbc)) {
     tope_mensual <- TOPE_SBC_DIARIO * DIAS_POR_MES
     if (sbc > tope_mensual) {
       advertencias <- c(advertencias,
-        paste0("Tu salario excede el tope de cotizacion ($",
+        paste0("Tu salario excede el tope de cotización ($",
                format(round(tope_mensual, 0), big.mark = ","),
                "). Solo se considera hasta el tope."))
     }
@@ -202,9 +202,9 @@ validar_entrada <- function(edad, semanas, sbc, fecha_primera_cotizacion = NULL)
   ))
 }
 
-#' Determinar regimen de ley segun fecha de primera cotizacion
+#' Determinar régimen de ley según fecha de primera cotización
 #' @param fecha_primera_cotizacion Fecha en formato Date o string "YYYY-MM-DD"
-#' @return "ley73" si es antes de julio 1997, "ley97" si es despues
+#' @return "ley73" si es antes de julio 1997, "ley97" si es después
 determinar_regimen <- function(fecha_primera_cotizacion) {
   if (is.character(fecha_primera_cotizacion)) {
     fecha <- as.Date(fecha_primera_cotizacion)
@@ -233,12 +233,12 @@ validar_consistencia_fechas <- function(fecha_nacimiento, fecha_primera_cotizaci
   if (edad_inicio < 15) {
     return(list(is_consistent = FALSE,
       message = paste0("Tu fecha sugiere que empezaste a cotizar a los ", round(edad_inicio),
-                       " anos. Verifica que sea correcta.")))
+                       " años. Verifica que sea correcta.")))
   }
   if (edad_inicio > 35) {
     return(list(is_consistent = FALSE,
       message = paste0("Tu fecha sugiere que empezaste a cotizar a los ", round(edad_inicio),
-                       " anos, lo cual es inusual. Verifica la fecha.")))
+                       " años, lo cual es inusual. Verifica la fecha.")))
   }
   return(list(is_consistent = TRUE, message = NULL))
 }
