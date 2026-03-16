@@ -766,7 +766,7 @@ server <- function(input, output, session) {
   # ==========================================================================
   # RESOURCE PATHS
   # ==========================================================================
-  addResourcePath("docs", "docs")
+  if (dir.exists("docs")) addResourcePath("docs", "docs")
 
   # ==========================================================================
   # ERROR HANDLING - Log errors to console
