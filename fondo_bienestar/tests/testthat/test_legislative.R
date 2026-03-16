@@ -375,15 +375,19 @@ test_that("LF2: Fondo requires age >= 65", {
   expect_true(result2$elegible)
 })
 
-test_that("LF3: Fondo requires >= minimum weeks for retirement year", {
-  # In 2025, minimum is 850 weeks (transitional)
-  min_weeks <- unname(get_semanas_minimas_ley97(2025))
-  result <- check_fondo_eligibility("ley97", edad = 65, semanas = min_weeks - 1,
-                                     sbc_promedio_mensual = 15000)
+test_that("LF3: Fondo requires fixed 1000 weeks (NOT transitional Ley 97 schedule)", {
+  # DOF 01/05/2024: Fondo Bienestar requires 1000 weeks, regardless of year
+  result <- check_fondo_eligibility("ley97", edad = 65, semanas = 999,
+                                     sbc_promedio_mensual = 15000, anio = 2025)
   expect_false(result$elegible)
-  result2 <- check_fondo_eligibility("ley97", edad = 65, semanas = min_weeks,
-                                      sbc_promedio_mensual = 15000)
+  result2 <- check_fondo_eligibility("ley97", edad = 65, semanas = 1000,
+                                      sbc_promedio_mensual = 15000, anio = 2025)
   expect_true(result2$elegible)
+
+  # Even in 2028 (where transitional would be 925), Fondo still requires 1000
+  result3 <- check_fondo_eligibility("ley97", edad = 65, semanas = 950,
+                                      sbc_promedio_mensual = 15000, anio = 2028)
+  expect_false(result3$elegible)
 })
 
 test_that("LF4: Fondo requires salary <= umbral", {
@@ -573,22 +577,19 @@ test_that("LH3: Large vol contribs can push pension above Fondo cap", {
 # SECTION LI: AFORE Impact Visibility (Bug 2 tests)
 # ============================================================================
 
-test_that("LI1: Different AFOREs produce different final saldo", {
-  afores <- get_afore_names()
-  if (length(afores) >= 2) {
-    r1 <- calculate_ley97_pension(
-      saldo_actual = 200000, salario_mensual = 20000,
-      edad_actual = 35, edad_retiro = 65, semanas_actuales = 500,
-      afore_nombre = afores[1]
-    )
-    r2 <- calculate_ley97_pension(
-      saldo_actual = 200000, salario_mensual = 20000,
-      edad_actual = 35, edad_retiro = 65, semanas_actuales = 500,
-      afore_nombre = afores[length(afores)]
-    )
-    # First and last AFORE should produce different balances
-    expect_false(round(r1$saldo_proyectado) == round(r2$saldo_proyectado))
-  }
+test_that("LI1: AFOREs with different commissions produce different final saldo", {
+  # PensionISSSTE (0.52%) vs XXI Banorte (0.55%) -- only pair with different commissions in 2025
+  r1 <- calculate_ley97_pension(
+    saldo_actual = 200000, salario_mensual = 20000,
+    edad_actual = 35, edad_retiro = 65, semanas_actuales = 500,
+    afore_nombre = "PensionISSSTE"
+  )
+  r2 <- calculate_ley97_pension(
+    saldo_actual = 200000, salario_mensual = 20000,
+    edad_actual = 35, edad_retiro = 65, semanas_actuales = 500,
+    afore_nombre = "XXI Banorte"
+  )
+  expect_false(round(r1$saldo_proyectado) == round(r2$saldo_proyectado))
 })
 
 test_that("LI2: AFORE commission differences affect Fondo complement", {
@@ -752,12 +753,13 @@ test_that("LM2: Worker retiring in 2026 needs 875 weeks, not 1000", {
   expect_true(result$elegible)
 })
 
-test_that("LM3: Fondo eligibility uses transitional weeks for retirement year", {
-  # Phase 2: transitional minimum weeks now implemented
-  # Worker retiring in 2025 needs 850 weeks for Fondo, not 1000
+test_that("LM3: Fondo requires fixed 1000 weeks regardless of year", {
+  # DOF 01/05/2024: Fondo Bienestar always requires 1000 weeks
+  # A worker with 900 weeks in 2025 is NOT Fondo-eligible (even though Ley 97
+  # transitional minimum is only 850 in 2025)
   result <- check_fondo_eligibility(
     "ley97", edad = 65, semanas = 900,
     sbc_promedio_mensual = 15000, anio = 2025
   )
-  expect_true(result$elegible)
+  expect_false(result$elegible)
 })

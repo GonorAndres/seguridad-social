@@ -86,40 +86,35 @@ get_all_afores <- function() {
 #' @param edad Edad actual
 #' @param genero "M" para masculino, "F" para femenino
 #' @return Anos de esperanza de vida restante
-get_esperanza_vida <- function(edad, genero = "M") {
-  # Esperanza de vida simplificada basada en CONAPO
-  # Estos valores son aproximados para fines educativos
+# Esperanza de vida simplificada basada en CONAPO (valores aproximados, fines educativos)
+ESPERANZA_VIDA_F <- c(
+  "60" = 24.5, "61" = 23.6, "62" = 22.7, "63" = 21.8, "64" = 20.9,
+  "65" = 20.0, "66" = 19.2, "67" = 18.3, "68" = 17.5, "69" = 16.7,
+  "70" = 15.9, "75" = 12.5, "80" = 9.5, "85" = 7.0, "90" = 5.0
+)
+ESPERANZA_VIDA_M <- c(
+  "60" = 21.0, "61" = 20.2, "62" = 19.4, "63" = 18.6, "64" = 17.8,
+  "65" = 17.0, "66" = 16.3, "67" = 15.5, "68" = 14.8, "69" = 14.1,
+  "70" = 13.4, "75" = 10.5, "80" = 8.0, "85" = 5.8, "90" = 4.2
+)
 
+get_esperanza_vida <- function(edad, genero = "M") {
   # Validate inputs
- if (is.null(genero) || length(genero) == 0 || is.na(genero)) {
+  if (is.null(genero) || length(genero) == 0 || is.na(genero)) {
     genero <- "M"
   }
   if (is.null(edad) || length(edad) == 0 || is.na(edad)) {
     edad <- 65
   }
 
-  if (genero == "F") {
-    # Mujeres viven ~5 años más en promedio
-    base <- c(
-      "60" = 24.5, "61" = 23.6, "62" = 22.7, "63" = 21.8, "64" = 20.9,
-      "65" = 20.0, "66" = 19.2, "67" = 18.3, "68" = 17.5, "69" = 16.7,
-      "70" = 15.9, "75" = 12.5, "80" = 9.5, "85" = 7.0, "90" = 5.0
-    )
-  } else {
-    # Hombres
-    base <- c(
-      "60" = 21.0, "61" = 20.2, "62" = 19.4, "63" = 18.6, "64" = 17.8,
-      "65" = 17.0, "66" = 16.3, "67" = 15.5, "68" = 14.8, "69" = 14.1,
-      "70" = 13.4, "75" = 10.5, "80" = 8.0, "85" = 5.8, "90" = 4.2
-    )
-  }
+  base <- if (genero == "F") ESPERANZA_VIDA_F else ESPERANZA_VIDA_M
 
   edad_str <- as.character(edad)
   if (edad_str %in% names(base)) {
     return(base[edad_str])
   }
 
-  # Interpolación lineal para edades no listadas
+  # Interpolacion lineal para edades no listadas
   edades <- as.numeric(names(base))
   valores <- as.numeric(base)
 
@@ -130,7 +125,6 @@ get_esperanza_vida <- function(edad, genero = "M") {
     return(max(2, valores[length(valores)] - (edad - max(edades)) * 0.5))
   }
 
-  # Interpolar
   idx_inf <- max(which(edades <= edad))
   idx_sup <- min(which(edades >= edad))
 
@@ -215,9 +209,9 @@ determinar_regimen <- function(fecha_primera_cotizacion) {
   fecha_corte <- as.Date("1997-07-01")
 
   if (fecha < fecha_corte) {
-    return("ley73")
+    return(REGIMEN_LEY73)
   } else {
-    return("ley97")
+    return(REGIMEN_LEY97)
   }
 }
 

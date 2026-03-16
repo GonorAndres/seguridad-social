@@ -2,6 +2,20 @@
 # Simulador de Pension IMSS + Fondo Bienestar - Version 1.0
 
 # ============================================================================
+# SHARED HELPERS FOR DOCUMENT GENERATORS
+# ============================================================================
+
+#' Format rendimiento label from escenario name
+#' @param escenario Scenario name string
+#' @return Formatted percentage string
+format_rendimiento_escenario <- function(escenario) {
+  esc <- escenario %||% ESCENARIO_BASE
+  r <- RENDIMIENTO_POR_ESCENARIO[esc]
+  if (is.na(r)) r <- RENDIMIENTO_BASE
+  paste0(round(r * 100), "%")
+}
+
+# ============================================================================
 # SHARED CSS STYLES FOR PROFESSIONAL HTML REPORTS
 # ============================================================================
 
@@ -331,6 +345,81 @@ get_document_css <- function() {
 }
 
 # ============================================================================
+# HTML REPORT SKELETON
+# ============================================================================
+
+#' Wrap report body content in a complete HTML document
+#' @param title Document title (for <title> and heading)
+#' @param subtitle Document subtitle
+#' @param body_content HTML string with the report body
+#' @param footer_lines Character vector of footer paragraphs
+#' @param extra_css Additional CSS string (optional)
+#' @return Complete HTML document string
+html_report_skeleton <- function(title, body_content, extra_css = "") {
+  css <- get_document_css()
+  paste0(
+    "<!DOCTYPE html>",
+    "<html lang='es'>",
+    "<head>",
+    "<meta charset='UTF-8'>",
+    "<meta name='viewport' content='width=device-width, initial-scale=1.0'>",
+    "<title>", title, "</title>",
+    "<style>", css, extra_css, "</style>",
+    "</head>",
+    "<body>",
+    "<div class='document-container'>",
+    body_content,
+    "</div>",
+    "</body>",
+    "</html>"
+  )
+}
+
+# ============================================================================
+# SHARED CONTENT BLOCKS
+# ============================================================================
+
+#' Generate supuestos HTML list items for reports
+#' @param entrada Input list from resultado$entrada
+#' @return HTML string with <li> elements
+generate_supuestos_html <- function(entrada) {
+  paste0(
+    "<li>Rendimiento real anual: ", format_rendimiento_escenario(entrada$escenario), "</li>",
+    "<li>UMA ", ANIO_ACTUAL, ": $", UMA_DIARIA_2025, "/dia</li>",
+    "<li>Salario m&iacute;nimo ", ANIO_ACTUAL, ": $", SM_DIARIO_2025, "/d&iacute;a</li>",
+    "<li>Umbral Fondo Bienestar: $", format(UMBRAL_FONDO_BIENESTAR_2025, big.mark = ","), "/mes</li>",
+    "<li>Esperanza de vida: Tablas CONAPO simplificadas</li>",
+    "<li>Densidad de cotizaci&oacute;n futura: 100% (asume empleo continuo)</li>"
+  )
+}
+
+#' Generate data sources HTML table rows for reports
+#' @return HTML string with table rows
+generate_fuentes_html <- function() {
+  paste0(
+    "<tr><td>Art. 167 LSS</td><td>Tabla de cuant&iacute;as b&aacute;sicas e incrementos</td></tr>",
+    "<tr><td>INEGI/DOF</td><td>UMA ", ANIO_ACTUAL, ": $", UMA_DIARIA_2025, "/d&iacute;a</td></tr>",
+    "<tr><td>CONASAMI</td><td>Salario M&iacute;nimo ", ANIO_ACTUAL, ": $", SM_DIARIO_2025, "/d&iacute;a</td></tr>",
+    "<tr><td>CONSAR</td><td>Comisiones y rendimientos por AFORE</td></tr>",
+    "<tr><td>CONAPO</td><td>Tablas de mortalidad simplificadas</td></tr>",
+    "<tr><td>DOF/IMSS</td><td>Umbral Fondo Bienestar: $", format(UMBRAL_FONDO_BIENESTAR_2025, big.mark = ","), "/mes</td></tr>"
+  )
+}
+
+#' Generate warning box HTML for reports
+#' @return HTML string with disclaimer
+generate_aviso_html <- function() {
+  paste0(
+    "<div class='warning-box'>",
+    "<strong>&#9888; AVISO IMPORTANTE</strong><br>",
+    "Este documento es una <strong>estimaci&oacute;n educativa</strong>, ",
+    "NO una garant&iacute;a de pensi&oacute;n. Los resultados reales pueden variar. ",
+    "Consulta a un profesional financiero antes de tomar decisiones.",
+    "</div>"
+  )
+}
+
+# ============================================================================
 # METODOLOGIA PDF
 # ============================================================================
 
@@ -408,7 +497,7 @@ generate_methodology_pdf <- function(md_file, output_file) {
 #' @param resultado Resultado del calculo de pension
 #' @return String con contenido Rmd
 generate_basic_rmd <- function(resultado) {
-  es_ley73 <- resultado$regimen == "ley73"
+  es_ley73 <- resultado$regimen == REGIMEN_LEY73
   entrada <- resultado$entrada
 
   # YAML header
@@ -521,7 +610,7 @@ generate_basic_rmd <- function(resultado) {
 #' @param resultado Resultado del calculo de pension
 #' @return String con contenido Rmd
 generate_technical_rmd <- function(resultado) {
-  es_ley73 <- resultado$regimen == "ley73"
+  es_ley73 <- resultado$regimen == REGIMEN_LEY73
   entrada <- resultado$entrada
 
   # YAML header
@@ -688,12 +777,8 @@ generate_technical_rmd <- function(resultado) {
     "# Supuestos y Limitaciones\n\n",
     "**IMPORTANTE:** Esta es una estimación educativa, NO una garantía. Los resultados reales pueden variar significativamente.\n\n",
     "## Supuestos del Modelo\n\n",
-    "- Rendimiento real anual: ", switch(entrada$escenario %||% "base",
-      "conservador" = "3%",
-      "base" = "4%",
-      "optimista" = "5%",
-      "4%"), "\n",
-    "- UMA 2025: $113.14/dia\n",
+    "- Rendimiento real anual: ", format_rendimiento_escenario(entrada$escenario), "\n",
+    "- UMA 2025: $", UMA_DIARIA_2025, "/dia\n",
     "- Salario mínimo 2025: $278.80/día\n",
     "- Umbral Fondo Bienestar: $17,364/mes\n",
     "- Esperanza de vida: Tablas CONAPO simplificadas\n",
@@ -755,31 +840,16 @@ generate_technical_rmd <- function(resultado) {
 #' @return String HTML del documento
 generate_technical_report <- function(resultado) {
 
-  # CSS para el documento (using shared styles)
-  css <- get_document_css()
-
   # Determinar tipo de regimen
-  es_ley73 <- resultado$regimen == "ley73"
+  es_ley73 <- resultado$regimen == REGIMEN_LEY73
 
   # Datos de entrada
   entrada <- resultado$entrada
 
-  # Construir HTML
-  html <- paste0(
-    "<!DOCTYPE html>",
-    "<html lang='es'>",
-    "<head>",
-    "<meta charset='UTF-8'>",
-    "<meta name='viewport' content='width=device-width, initial-scale=1.0'>",
-    "<title>Documento Técnico - Estimación de Pensión</title>",
-    "<style>", css, "</style>",
-    "</head>",
-    "<body>",
-    "<div class='document-container'>",
-
-    # Encabezado
-    "<h1 class='doc-title'>Documento Técnico</h1>",
-    "<p class='doc-subtitle'>Estimación de Pensión - Simulador IMSS + Fondo Bienestar</p>",
+  # Construir body content
+  body <- paste0(
+    "<h1 class='doc-title'>Documento T&eacute;cnico</h1>",
+    "<p class='doc-subtitle'>Estimaci&oacute;n de Pensi&oacute;n - Simulador IMSS + Fondo Bienestar</p>",
 
     "<div class='data-card' style='text-align: center;'>",
     "<strong>Fecha de generacion:</strong> ", format(Sys.Date(), "%d de %B de %Y"), "<br>",
@@ -968,18 +1038,7 @@ generate_technical_report <- function(resultado) {
     "</div>",
 
     "<h3>5.1 Supuestos del Modelo</h3>",
-    "<ul>",
-    "<li>Rendimiento real anual: ", switch(entrada$escenario %||% "base",
-      "conservador" = "3%",
-      "base" = "4%",
-      "optimista" = "5%",
-      "4%"), "</li>",
-    "<li>UMA 2025: $113.14/dia</li>",
-    "<li>Salario mínimo 2025: $278.80/día</li>",
-    "<li>Umbral Fondo Bienestar: $17,364/mes</li>",
-    "<li>Esperanza de vida: Tablas CONAPO simplificadas</li>",
-    "<li>Densidad de cotización futura: 100% (asume empleo continuo)</li>",
-    "</ul>",
+    "<ul>", generate_supuestos_html(entrada), "</ul>",
 
     "<h3>5.2 Limitaciones</h3>",
     "<ul>",
@@ -1023,17 +1082,14 @@ generate_technical_report <- function(resultado) {
 
     # Footer
     "<div class='doc-footer'>",
-    "<p>Documento generado automáticamente por el Simulador de Pensión IMSS + Fondo Bienestar</p>",
-    "<p>Para más información, consulta: <a href='https://www.imss.gob.mx/'>IMSS</a> | ",
+    "<p>Documento generado autom&aacute;ticamente por el Simulador de Pensi&oacute;n IMSS + Fondo Bienestar</p>",
+    "<p>Para m&aacute;s informaci&oacute;n, consulta: <a href='https://www.imss.gob.mx/'>IMSS</a> | ",
     "<a href='https://www.consar.gob.mx/'>CONSAR</a> | ",
     "<a href='https://www.e-sar.com.mx/'>e-SAR</a></p>",
-    "</div>",
-
-    "</div>", # End container
-    "</body>",
-    "</html>"
+    "</div>"
   )
 
+  html <- html_report_skeleton("Documento T\u00e9cnico - Estimaci\u00f3n de Pensi\u00f3n", body)
   return(html)
 }
 
@@ -1046,10 +1102,8 @@ generate_technical_report <- function(resultado) {
 #' @return String HTML del documento
 generate_basic_report <- function(resultado) {
 
-  css <- get_document_css()
-
   # Determinar tipo de regimen
-  es_ley73 <- resultado$regimen == "ley73"
+  es_ley73 <- resultado$regimen == REGIMEN_LEY73
   entrada <- resultado$entrada
 
   # Pension principal
@@ -1061,22 +1115,10 @@ generate_basic_report <- function(resultado) {
     tasa_reemplazo <- resultado$solo_sistema$tasa_reemplazo %||% 0
   }
 
-  # Construir HTML
-  html <- paste0(
-    "<!DOCTYPE html>",
-    "<html lang='es'>",
-    "<head>",
-    "<meta charset='UTF-8'>",
-    "<meta name='viewport' content='width=device-width, initial-scale=1.0'>",
-    "<title>Reporte Básico - Pensión Estimada</title>",
-    "<style>", css, "</style>",
-    "</head>",
-    "<body>",
-    "<div class='document-container'>",
-
-    # Header
-    "<h1 class='doc-title'>Tu Pensión Estimada</h1>",
-    "<p class='doc-subtitle'>Reporte básico para impresión</p>",
+  # Construir body content
+  body <- paste0(
+    "<h1 class='doc-title'>Tu Pensi&oacute;n Estimada</h1>",
+    "<p class='doc-subtitle'>Reporte b&aacute;sico para impresi&oacute;n</p>",
     "<p class='doc-date'>Generado el ", format(Sys.Date(), "%d de %B de %Y"), "</p>",
 
     # Big pension number
@@ -1179,15 +1221,12 @@ generate_basic_report <- function(resultado) {
 
     # Footer
     "<div class='doc-footer'>",
-    "<p>Simulador de Pensión IMSS + Fondo Bienestar</p>",
+    "<p>Simulador de Pensi&oacute;n IMSS + Fondo Bienestar</p>",
     "<p>Este documento es para uso personal e informativo.</p>",
-    "</div>",
-
-    "</div>", # End container
-    "</body>",
-    "</html>"
+    "</div>"
   )
 
+  html <- html_report_skeleton("Reporte B\u00e1sico - Pensi\u00f3n Estimada", body)
   return(html)
 }
 
@@ -1198,8 +1237,6 @@ generate_basic_report <- function(resultado) {
 #' Generar documento HTML de metodologia
 #' @return String HTML del documento
 generate_methodology_html <- function() {
-
-  css <- get_document_css()
 
   # Additional CSS for methodology
   extra_css <- "
@@ -1228,21 +1265,9 @@ generate_methodology_html <- function() {
     }
   "
 
-  html <- paste0(
-    "<!DOCTYPE html>",
-    "<html lang='es'>",
-    "<head>",
-    "<meta charset='UTF-8'>",
-    "<meta name='viewport' content='width=device-width, initial-scale=1.0'>",
-    "<title>Metodología - Simulador de Pensión IMSS</title>",
-    "<style>", css, extra_css, "</style>",
-    "</head>",
-    "<body>",
-    "<div class='document-container'>",
-
-    # Header
-    "<h1 class='doc-title'>Metodología del Simulador</h1>",
-    "<p class='doc-subtitle'>Cómo calculamos tu pensión estimada</p>",
+  body <- paste0(
+    "<h1 class='doc-title'>Metodolog&iacute;a del Simulador</h1>",
+    "<p class='doc-subtitle'>C&oacute;mo calculamos tu pensi&oacute;n estimada</p>",
     "<p class='doc-date'>Version 1.0 - 2025</p>",
 
     # Table of Contents
@@ -1404,11 +1429,11 @@ generate_methodology_html <- function() {
     "<table class='styled-table'>",
     "<tr><th>Dato</th><th>Fuente</th></tr>",
     "<tr><td>Tabla Artículo 167</td><td>Ley del Seguro Social 1973</td></tr>",
-    "<tr><td>UMA 2025</td><td>INEGI / DOF ($113.14/dia)</td></tr>",
-    "<tr><td>Salario Mínimo 2025</td><td>CONASAMI ($278.80/día)</td></tr>",
+    "<tr><td>UMA ", ANIO_ACTUAL, "</td><td>INEGI / DOF ($", UMA_DIARIA_2025, "/dia)</td></tr>",
+    "<tr><td>Salario M&iacute;nimo ", ANIO_ACTUAL, "</td><td>CONASAMI ($", SM_DIARIO_2025, "/d&iacute;a)</td></tr>",
     "<tr><td>Comisiones AFORE</td><td>CONSAR 2024-2025</td></tr>",
     "<tr><td>Tablas de Mortalidad</td><td>CONAPO / CNSF</td></tr>",
-    "<tr><td>Umbral Fondo Bienestar</td><td>DOF / IMSS ($17,364/mes)</td></tr>",
+    "<tr><td>Umbral Fondo Bienestar</td><td>DOF / IMSS ($", format(UMBRAL_FONDO_BIENESTAR_2025, big.mark = ","), "/mes)</td></tr>",
     "</table>",
 
     # Links
@@ -1422,15 +1447,12 @@ generate_methodology_html <- function() {
 
     # Footer
     "<div class='doc-footer'>",
-    "<p>Simulador de Pensión IMSS + Fondo Bienestar - Versión 1.0</p>",
-    "<p>Documento generado automáticamente para fines educativos.</p>",
-    "</div>",
-
-    "</div>", # End container
-    "</body>",
-    "</html>"
+    "<p>Simulador de Pensi&oacute;n IMSS + Fondo Bienestar - Versi&oacute;n 1.0</p>",
+    "<p>Documento generado autom&aacute;ticamente para fines educativos.</p>",
+    "</div>"
   )
 
+  html <- html_report_skeleton("Metodolog\u00eda - Simulador de Pensi\u00f3n IMSS", body, extra_css = extra_css)
   return(html)
 }
 
@@ -1442,7 +1464,7 @@ generate_methodology_html <- function() {
 #' @param resultado Resultado del calculo de pension
 #' @return String con contenido Rmd
 generate_summary_rmd <- function(resultado) {
-  es_ley73 <- resultado$regimen == "ley73"
+  es_ley73 <- resultado$regimen == REGIMEN_LEY73
   entrada <- resultado$entrada
 
   # Pension principal a mostrar (with NULL handling)
@@ -1544,11 +1566,8 @@ generate_summary_rmd <- function(resultado) {
 #' @return String HTML del documento
 generate_summary_report <- function(resultado) {
 
-  # CSS para el documento (using shared styles)
-  css <- get_document_css()
-
   # Determinar tipo de regimen
-  es_ley73 <- resultado$regimen == "ley73"
+  es_ley73 <- resultado$regimen == REGIMEN_LEY73
   entrada <- resultado$entrada
 
   # Pension principal a mostrar (with NULL handling)
@@ -1560,21 +1579,9 @@ generate_summary_report <- function(resultado) {
     tasa_reemplazo <- resultado$solo_sistema$tasa_reemplazo %||% 0
   }
 
-  # Construir HTML
-  html <- paste0(
-    "<!DOCTYPE html>",
-    "<html lang='es'>",
-    "<head>",
-    "<meta charset='UTF-8'>",
-    "<meta name='viewport' content='width=device-width, initial-scale=1.0'>",
-    "<title>Tu Pensión - Resumen Ejecutivo</title>",
-    "<style>", css, "</style>",
-    "</head>",
-    "<body>",
-    "<div class='document-container'>",
-
-    # Encabezado
-    "<h1 class='doc-title'>Tu Pensión Estimada</h1>",
+  # Construir body content
+  body <- paste0(
+    "<h1 class='doc-title'>Tu Pensi&oacute;n Estimada</h1>",
     "<p class='doc-subtitle'>Resumen ejecutivo para ti y tu familia</p>",
     "<p class='doc-date'>", format(Sys.Date(), "%d de %B de %Y"), "</p>",
 
@@ -1654,14 +1661,11 @@ generate_summary_report <- function(resultado) {
 
     # Footer
     "<div class='doc-footer'>",
-    "<p>Generado por el Simulador de Pensión IMSS + Fondo Bienestar</p>",
+    "<p>Generado por el Simulador de Pensi&oacute;n IMSS + Fondo Bienestar</p>",
     "<p>Este documento es para uso personal e informativo.</p>",
-    "</div>",
-
-    "</div>", # End container
-    "</body>",
-    "</html>"
+    "</div>"
   )
 
+  html <- html_report_skeleton("Tu Pensi\u00f3n - Resumen Ejecutivo", body)
   return(html)
 }

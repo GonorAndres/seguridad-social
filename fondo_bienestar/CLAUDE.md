@@ -33,7 +33,7 @@ Libraries must be in BOTH app.R and global.R (plotlyOutput etc. needed during UI
 Global `<<-` assignment required for Shiny scoping rules.
 
 ### Data Files
-- `articulo_167_tabla.csv`: Art. 167 pension table (24 salary groups, cuantia + incremento)
+- `articulo_167_tabla.csv`: Art. 167 pension table (22 salary groups, cuantia + incremento)
 - `afore_comisiones.csv`: 11 AFOREs with commissions and IRN
 - `uma_historico.csv`: UMA values 2016-2025
 - `salario_minimo.csv`: Minimum wage 2016-2025

@@ -29,12 +29,13 @@ check_fondo_eligibility <- function(regimen,
                                      anio = ANIO_ACTUAL) {
 
   umbral <- get_umbral_fondo_bienestar(anio)
+  semanas_min <- SEMANAS_MIN_FONDO_BIENESTAR
 
   # Lista de verificaciones
   checks <- list(
     regimen_valido = list(
-      cumple = (regimen == "ley97"),
-      mensaje = if (regimen == "ley97") {
+      cumple = (regimen == REGIMEN_LEY97),
+      mensaje = if (regimen == REGIMEN_LEY97) {
         "Régimen Ley 97: Elegible"
       } else {
         "Régimen Ley 73: NO elegible (tu pensión ya es mejor)"
@@ -49,12 +50,12 @@ check_fondo_eligibility <- function(regimen,
       }
     ),
     semanas_minimas = list(
-      cumple = (semanas >= get_semanas_minimas_ley97(anio)),
-      mensaje = if (semanas >= get_semanas_minimas_ley97(anio)) {
-        paste0("Cumples con las ", format(get_semanas_minimas_ley97(anio), big.mark = ","),
+      cumple = (semanas >= semanas_min),
+      mensaje = if (semanas >= semanas_min) {
+        paste0("Cumples con las ", format(semanas_min, big.mark = ","),
                " semanas mínimas cotizadas")
       } else {
-        paste0("Necesitas al menos ", format(get_semanas_minimas_ley97(anio), big.mark = ","),
+        paste0("Necesitas al menos ", format(semanas_min, big.mark = ","),
                " semanas cotizadas para retiro en ", anio, ". Hoy llevas ",
                format(round(semanas), big.mark = ","), ".")
       }
@@ -199,7 +200,7 @@ calculate_pension_with_fondo <- function(saldo_actual,
   # Usamos año de retiro para el umbral proyectado del Fondo
   anio_retiro <- ANIO_ACTUAL + años_restantes
   elegibilidad <- check_fondo_eligibility(
-    regimen = "ley97",
+    regimen = REGIMEN_LEY97,
     edad = edad_retiro,
     semanas = semanas_al_retiro,
     sbc_promedio_mensual = salario_mensual,

@@ -303,9 +303,9 @@ ui <- bslib::page_fluid(
                       id = "regimen_override_container",
                       style = "display: none;",
                       selectInput("regimen_manual", label = NULL,
-                        choices = c("Ley 73 (antes julio 1997)" = "ley73",
-                                    "Ley 97 (después julio 1997)" = "ley97"),
-                        selected = "ley97"
+                        choices = c("Ley 73 (antes julio 1997)" = REGIMEN_LEY73,
+                                    "Ley 97 (después julio 1997)" = REGIMEN_LEY97),
+                        selected = REGIMEN_LEY97
                       )
                     )
                   )
@@ -474,11 +474,11 @@ ui <- bslib::page_fluid(
                         help_tooltip("Conservador: 3% real. Base: 4% real. Optimista: 5% real")
                       ),
                       choices = c(
-                        "Conservador (3% real)" = "conservador",
-                        "Base (4% real)" = "base",
-                        "Optimista (5% real)" = "optimista"
+                        "Conservador (3% real)" = ESCENARIO_CONSERVADOR,
+                        "Base (4% real)" = ESCENARIO_BASE,
+                        "Optimista (5% real)" = ESCENARIO_OPTIMISTA
                       ),
-                      selected = "base"
+                      selected = ESCENARIO_BASE
                     )
                   )
                 )
@@ -792,7 +792,7 @@ server <- function(input, output, session) {
   resultados_originales <- reactiveVal(NULL)
 
   # Regimen seleccionado (reactivo)
-  regimen_actual <- reactiveVal("ley97")
+  regimen_actual <- reactiveVal(REGIMEN_LEY97)
 
   # Track previous eligibility state for cliff notifications
   prev_fondo_eligible <- reactiveVal(NULL)
@@ -999,7 +999,7 @@ server <- function(input, output, session) {
 
   output$regimen_badge <- renderUI({
     req(regimen_actual())
-    if (regimen_actual() == "ley73") {
+    if (regimen_actual() == REGIMEN_LEY73) {
       badge_class <- "regime-badge ley73"
       icon <- "bi-shield-check"
       text <- "Ley 73"
@@ -1047,7 +1047,7 @@ server <- function(input, output, session) {
 
   observe({
     req(regimen_actual())
-    if (regimen_actual() == "ley73") {
+    if (regimen_actual() == REGIMEN_LEY73) {
       shinyjs::addClass("afore_fields_container", "dimmed-fields")
       shinyjs::show("ley73_afore_note")
     } else {
@@ -1082,7 +1082,7 @@ server <- function(input, output, session) {
     regimen <- regimen_actual()
 
     # Realizar calculo
-    if (regimen == "ley73") {
+    if (regimen == REGIMEN_LEY73) {
       # Calcular pension Ley 73
       sbc_diario <- input$salario_mensual / DIAS_POR_MES
       anios_restantes <- max(0, input$edad_retiro - floor(edad_actual))
@@ -1110,7 +1110,7 @@ server <- function(input, output, session) {
       }
 
       res <- list(
-        regimen = "ley73",
+        regimen = REGIMEN_LEY73,
         pension_base = resultado_base,
         pension_m40 = resultado_m40,
         fondo_aplica = FALSE,
@@ -1137,7 +1137,7 @@ server <- function(input, output, session) {
         afore_nombre = input$afore_actual,
         escenario = input$escenario
       )
-      res$regimen <- "ley97"
+      res$regimen <- REGIMEN_LEY97
       res$fondo_aplica <- TRUE
     }
 
@@ -1145,7 +1145,7 @@ server <- function(input, output, session) {
     resultados_originales(res)
 
     # Initialize cliff notification trackers
-    if (res$regimen == "ley97") {
+    if (res$regimen == REGIMEN_LEY97) {
       prev_fondo_eligible(res$con_fondo$elegible)
       prev_aplico_minimo(res$solo_sistema$aplico_minimo %||% FALSE)
     } else {
@@ -1160,7 +1160,7 @@ server <- function(input, output, session) {
     updateSliderInput(session, "slider_semanas", value = input$semanas_cotizadas)
 
     # Show/hide sensitivity elements based on regime
-    if (regimen == "ley73") {
+    if (regimen == REGIMEN_LEY73) {
       shinyjs::hide("vol_slider_col")
       shinyjs::hide("afore_slider_row")
       shinyjs::show("ley73_sensitivity_note")
@@ -1186,7 +1186,7 @@ server <- function(input, output, session) {
     req(resultados_originales())
     res <- resultados_originales()
 
-    if (res$regimen == "ley73") {
+    if (res$regimen == REGIMEN_LEY73) {
       render_results_hero_ley73(res)
     } else {
       render_results_hero(res)
@@ -1246,7 +1246,7 @@ server <- function(input, output, session) {
     afore_actual <- afore_debounced() %||% res_orig$entrada$afore %||% "XXI Banorte"
     salario_slider <- salario_debounced() %||% res_orig$entrada$salario_mensual
 
-    if (res_orig$regimen == "ley97") {
+    if (res_orig$regimen == REGIMEN_LEY97) {
       tryCatch({
         res <- calculate_pension_with_fondo(
           saldo_actual = res_orig$entrada$saldo_actual,
@@ -1257,9 +1257,9 @@ server <- function(input, output, session) {
           genero = res_orig$entrada$genero %||% "M",
           aportacion_voluntaria = vol_actual,
           afore_nombre = afore_actual,
-          escenario = res_orig$entrada$escenario %||% "base"
+          escenario = res_orig$entrada$escenario %||% ESCENARIO_BASE
         )
-        res$regimen <- "ley97"
+        res$regimen <- REGIMEN_LEY97
         res$fondo_aplica <- TRUE
 
         # Cliff notifications for Fondo eligibility
@@ -1326,7 +1326,7 @@ server <- function(input, output, session) {
         }
 
         res <- list(
-          regimen = "ley73",
+          regimen = REGIMEN_LEY73,
           pension_base = resultado_base,
           pension_m40 = resultado_m40,
           fondo_aplica = FALSE,
@@ -1347,50 +1347,77 @@ server <- function(input, output, session) {
     }
   })
 
+  # ---- Impact helper functions ----
+
+  # Render a pension diff label on an impact element
+  render_impact_label <- function(impact_id, pension_orig, pension_new) {
+    shinyjs::removeClass(selector = paste0("#", impact_id), class = "positive")
+    shinyjs::removeClass(selector = paste0("#", impact_id), class = "negative")
+    diferencia <- pension_new - pension_orig
+    if (is.null(diferencia) || length(diferencia) == 0 || diferencia == 0) {
+      shinyjs::html(impact_id, "")
+      return(invisible(NULL))
+    }
+    signo <- if (diferencia > 0) "+" else ""
+    clase <- if (diferencia > 0) "positive" else "negative"
+    shinyjs::html(impact_id, paste0(
+      format_currency(pension_orig), " &rarr; ",
+      format_currency(pension_new), "/mes (",
+      signo, format_currency(diferencia), ")"
+    ))
+    shinyjs::addClass(selector = paste0("#", impact_id), class = clase)
+  }
+
+  # Recalculate Ley 97 with overrides applied to original inputs
+  recalculate_ley97 <- function(res_orig, overrides = list()) {
+    args <- list(
+      saldo_actual = res_orig$entrada$saldo_actual,
+      salario_mensual = res_orig$entrada$salario_mensual,
+      edad_actual = res_orig$entrada$edad_actual,
+      edad_retiro = res_orig$entrada$edad_retiro,
+      semanas_actuales = res_orig$entrada$semanas_actuales,
+      genero = res_orig$entrada$genero %||% "M",
+      aportacion_voluntaria = 0,
+      afore_nombre = res_orig$entrada$afore %||% "XXI Banorte",
+      escenario = res_orig$entrada$escenario %||% ESCENARIO_BASE
+    )
+    args <- modifyList(args, overrides)
+    do.call(calculate_pension_with_fondo, args)
+  }
+
+  # Recalculate Ley 73 pension with optional overrides
+  recalculate_ley73 <- function(res_orig, edad_retiro = NULL,
+                                 semanas_actuales = NULL,
+                                 salario_mensual = NULL) {
+    sal <- salario_mensual %||% res_orig$entrada$salario_mensual
+    edad_ret <- edad_retiro %||% res_orig$entrada$edad_retiro
+    sem <- semanas_actuales %||% res_orig$entrada$semanas_actuales
+    sbc_diario <- sal / DIAS_POR_MES
+    anios_restantes <- max(0, edad_ret - res_orig$entrada$edad_actual)
+    semanas_al_retiro <- sem + (anios_restantes * SEMANAS_POR_ANO)
+    calculate_ley73_pension(
+      sbc_promedio_diario = sbc_diario,
+      semanas = semanas_al_retiro,
+      edad = edad_ret
+    )
+  }
+
+  # ---- Impact observers ----
+
   # Calcular impacto de voluntarias
   observe({
     req(resultados_originales(), vol_debounced())
     res <- resultados_originales()
-
     if (vol_debounced() == (res$entrada$aportacion_voluntaria %||% 0)) {
       shinyjs::html("vol_impact", "")
       return()
     }
-
-    if (res$regimen == "ley97") {
+    if (res$regimen == REGIMEN_LEY97) {
       tryCatch({
-        shinyjs::removeClass(selector = "#vol_impact", class = "positive")
-        shinyjs::removeClass(selector = "#vol_impact", class = "negative")
-
-        # Recalcular con nueva aportacion
-        nuevo <- calculate_pension_with_fondo(
-          saldo_actual = res$entrada$saldo_actual,
-          salario_mensual = res$entrada$salario_mensual,
-          edad_actual = res$entrada$edad_actual,
-          edad_retiro = res$entrada$edad_retiro,
-          semanas_actuales = res$entrada$semanas_actuales,
-          genero = res$entrada$genero %||% "M",
-          aportacion_voluntaria = vol_debounced(),
-          afore_nombre = res$entrada$afore %||% "XXI Banorte",
-          escenario = res$entrada$escenario %||% "base"
-        )
-
+        nuevo <- recalculate_ley97(res, list(aportacion_voluntaria = vol_debounced()))
         pension_orig <- unname(res$solo_sistema$pension_mensual)
         pension_new <- unname(nuevo$con_acciones$pension_afore %||% nuevo$solo_sistema$pension_mensual)
-        diferencia <- pension_new - pension_orig
-
-        if (!is.null(diferencia) && length(diferencia) > 0 && diferencia != 0) {
-          signo <- if (diferencia > 0) "+" else ""
-          clase <- if (diferencia > 0) "positive" else "negative"
-          shinyjs::html("vol_impact", paste0(
-            format_currency(pension_orig), " &rarr; ",
-            format_currency(pension_new), "/mes (",
-            signo, format_currency(diferencia), ")"
-          ))
-          shinyjs::addClass(selector = "#vol_impact", class = clase)
-        } else {
-          shinyjs::html("vol_impact", "")
-        }
+        render_impact_label("vol_impact", pension_orig, pension_new)
       }, error = function(e) {
         message("[Impact] Error calculating voluntary impact: ", e$message)
         shinyjs::html("vol_impact", "")
@@ -1403,60 +1430,21 @@ server <- function(input, output, session) {
     req(resultados_originales(), edad_debounced())
     res <- resultados_originales()
     edad_slider <- edad_debounced()
-
-    # Skip if same as original
     if (edad_slider == res$entrada$edad_retiro) {
       shinyjs::html("age_impact", "")
       return()
     }
-
     tryCatch({
-      shinyjs::removeClass(selector = "#age_impact", class = "positive")
-      shinyjs::removeClass(selector = "#age_impact", class = "negative")
-
-      if (res$regimen == "ley97") {
-        pension_orig <- unname(res$solo_sistema$pension_mensual)
-        # Recalcular con nueva edad
-        nuevo <- calculate_pension_with_fondo(
-          saldo_actual = res$entrada$saldo_actual,
-          salario_mensual = res$entrada$salario_mensual,
-          edad_actual = res$entrada$edad_actual,
-          edad_retiro = edad_slider,
-          semanas_actuales = res$entrada$semanas_actuales,
-          genero = res$entrada$genero %||% "M",
-          aportacion_voluntaria = 0,
-          afore_nombre = res$entrada$afore %||% "XXI Banorte",
-          escenario = res$entrada$escenario %||% "base"
-        )
-        pension_new <- unname(nuevo$solo_sistema$pension_mensual)
-        diferencia <- pension_new - pension_orig
+      if (res$regimen == REGIMEN_LEY97) {
+        nuevo <- recalculate_ley97(res, list(edad_retiro = edad_slider))
+        render_impact_label("age_impact",
+          unname(res$solo_sistema$pension_mensual),
+          unname(nuevo$solo_sistema$pension_mensual))
       } else {
-        pension_orig <- unname(res$pension_base$pension_mensual)
-        # Ley 73: recalcular con nueva edad
-        sbc_diario <- res$entrada$salario_mensual / DIAS_POR_MES
-        anios_restantes <- max(0, edad_slider - res$entrada$edad_actual)
-        semanas_al_retiro <- res$entrada$semanas_actuales + (anios_restantes * SEMANAS_POR_ANO)
-
-        nuevo <- calculate_ley73_pension(
-          sbc_promedio_diario = sbc_diario,
-          semanas = semanas_al_retiro,
-          edad = edad_slider
-        )
-        pension_new <- unname(nuevo$pension_mensual)
-        diferencia <- pension_new - pension_orig
-      }
-
-      if (!is.null(diferencia) && length(diferencia) > 0 && diferencia != 0) {
-        signo <- if (diferencia > 0) "+" else ""
-        clase <- if (diferencia > 0) "positive" else "negative"
-        shinyjs::html("age_impact", paste0(
-          format_currency(pension_orig), " &rarr; ",
-          format_currency(pension_new), "/mes (",
-          signo, format_currency(diferencia), ")"
-        ))
-        shinyjs::addClass(selector = "#age_impact", class = clase)
-      } else {
-        shinyjs::html("age_impact", "")
+        nuevo <- recalculate_ley73(res, edad_retiro = edad_slider)
+        render_impact_label("age_impact",
+          unname(res$pension_base$pension_mensual),
+          unname(nuevo$pension_mensual))
       }
     }, error = function(e) {
       message("[Impact] Error calculating age impact: ", e$message)
@@ -1468,59 +1456,34 @@ server <- function(input, output, session) {
   observe({
     req(resultados_originales(), input$afore_comparar)
     res <- resultados_originales()
-
-    # Only applies to Ley 97
-    if (res$regimen != "ley97") {
+    if (res$regimen != REGIMEN_LEY97) {
       shinyjs::html("afore_impact", "")
       return()
     }
-
-    # Skip if same as original
     if (input$afore_comparar == res$entrada$afore) {
       shinyjs::html("afore_impact", "")
       return()
     }
-
     tryCatch({
       shinyjs::removeClass(selector = "#afore_impact", class = "positive")
       shinyjs::removeClass(selector = "#afore_impact", class = "negative")
-
       pension_orig <- unname(res$solo_sistema$pension_mensual)
-
-      nuevo <- calculate_pension_with_fondo(
-        saldo_actual = res$entrada$saldo_actual,
-        salario_mensual = res$entrada$salario_mensual,
-        edad_actual = res$entrada$edad_actual,
-        edad_retiro = res$entrada$edad_retiro,
-        semanas_actuales = res$entrada$semanas_actuales,
-        genero = res$entrada$genero %||% "M",
-        aportacion_voluntaria = 0,
-        afore_nombre = input$afore_comparar,
-        escenario = res$entrada$escenario %||% "base"
-      )
-
+      nuevo <- recalculate_ley97(res, list(afore_nombre = input$afore_comparar))
       pension_new <- unname(nuevo$solo_sistema$pension_mensual)
       dif_pension <- pension_new - pension_orig
       dif_saldo <- (nuevo$solo_sistema$saldo_proyectado %||% 0) -
                    (res$solo_sistema$saldo_proyectado %||% 0)
 
       if (!is.null(dif_pension) && dif_pension != 0) {
-        signo <- if (dif_pension > 0) "+" else ""
-        clase <- if (dif_pension > 0) "positive" else "negative"
-        shinyjs::html("afore_impact", paste0(
-          format_currency(pension_orig), " &rarr; ",
-          format_currency(pension_new), "/mes (",
-          signo, format_currency(dif_pension), ")"
-        ))
-        shinyjs::addClass(selector = "#afore_impact", class = clase)
+        render_impact_label("afore_impact", pension_orig, pension_new)
       } else if (!is.null(dif_saldo) && abs(dif_saldo) > 0) {
         signo <- if (dif_saldo > 0) "+" else ""
         clase <- if (dif_saldo > 0) "positive" else "negative"
         shinyjs::html("afore_impact",
           paste0(signo, format_currency(dif_saldo), " en saldo al retiro"))
-        shinyjs::addClass(selector = "#afore_impact", class = clase)
+        shinyjs::addClass(selector = paste0("#afore_impact"), class = clase)
       } else {
-        shinyjs::html("afore_impact", "Comisiones similares, impacto mínimo")
+        shinyjs::html("afore_impact", "Comisiones similares, impacto m\u00ednimo")
       }
     }, error = function(e) {
       message("[Impact] Error calculating AFORE impact: ", e$message)
@@ -1533,48 +1496,21 @@ server <- function(input, output, session) {
     req(resultados_originales(), semanas_debounced())
     res <- resultados_originales()
     semanas_slider <- semanas_debounced()
-
-    # Skip if same as original
     if (semanas_slider == res$entrada$semanas_actuales) {
       shinyjs::html("semanas_impact", "")
       return()
     }
-
     tryCatch({
       shinyjs::removeClass(selector = "#semanas_impact", class = "positive")
       shinyjs::removeClass(selector = "#semanas_impact", class = "negative")
-
-      if (res$regimen == "ley97") {
+      if (res$regimen == REGIMEN_LEY97) {
         pension_orig <- unname(res$solo_sistema$pension_mensual)
-        # Ley 97: semanas affect eligibility, not AFORE balance directly
-        anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
-        nuevo_semanas_retiro <- semanas_slider + (anios_restantes * SEMANAS_POR_ANO)
-
-        # Recalculate to check pension and Fondo eligibility changes
-        nuevo <- calculate_pension_with_fondo(
-          saldo_actual = res$entrada$saldo_actual,
-          salario_mensual = res$entrada$salario_mensual,
-          edad_actual = res$entrada$edad_actual,
-          edad_retiro = res$entrada$edad_retiro,
-          semanas_actuales = semanas_slider,
-          genero = res$entrada$genero %||% "M",
-          aportacion_voluntaria = 0,
-          afore_nombre = res$entrada$afore %||% "XXI Banorte",
-          escenario = res$entrada$escenario %||% "base"
-        )
-
+        nuevo <- recalculate_ley97(res, list(semanas_actuales = semanas_slider))
         pension_new <- unname(nuevo$solo_sistema$pension_mensual)
         dif_pension <- pension_new - pension_orig
 
         if (dif_pension != 0) {
-          signo <- if (dif_pension > 0) "+" else ""
-          clase <- if (dif_pension > 0) "positive" else "negative"
-          shinyjs::html("semanas_impact", paste0(
-            format_currency(pension_orig), " &rarr; ",
-            format_currency(pension_new), "/mes (",
-            signo, format_currency(dif_pension), ")"
-          ))
-          shinyjs::addClass(selector = "#semanas_impact", class = clase)
+          render_impact_label("semanas_impact", pension_orig, pension_new)
         } else if (nuevo$con_fondo$elegible != res$con_fondo$elegible) {
           if (nuevo$con_fondo$elegible) {
             shinyjs::html("semanas_impact", "Elegible para Fondo Bienestar")
@@ -1584,37 +1520,16 @@ server <- function(input, output, session) {
             shinyjs::addClass(selector = "#semanas_impact", class = "negative")
           }
         } else {
+          anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
+          nuevo_semanas_retiro <- semanas_slider + (anios_restantes * SEMANAS_POR_ANO)
           shinyjs::html("semanas_impact",
             paste0(format(nuevo_semanas_retiro, big.mark = ","), " sem. al retiro"))
         }
-
       } else {
-        pension_orig <- unname(res$pension_base$pension_mensual)
-        # Ley 73: semanas directly affect pension via Art. 167
-        sbc_diario <- res$entrada$salario_mensual / DIAS_POR_MES
-        anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
-        semanas_al_retiro <- semanas_slider + (anios_restantes * SEMANAS_POR_ANO)
-
-        nuevo <- calculate_ley73_pension(
-          sbc_promedio_diario = sbc_diario,
-          semanas = semanas_al_retiro,
-          edad = res$entrada$edad_retiro
-        )
-        pension_new <- unname(nuevo$pension_mensual)
-        diferencia <- pension_new - pension_orig
-
-        if (!is.null(diferencia) && length(diferencia) > 0 && diferencia != 0) {
-          signo <- if (diferencia > 0) "+" else ""
-          clase <- if (diferencia > 0) "positive" else "negative"
-          shinyjs::html("semanas_impact", paste0(
-            format_currency(pension_orig), " &rarr; ",
-            format_currency(pension_new), "/mes (",
-            signo, format_currency(diferencia), ")"
-          ))
-          shinyjs::addClass(selector = "#semanas_impact", class = clase)
-        } else {
-          shinyjs::html("semanas_impact", "")
-        }
+        nuevo <- recalculate_ley73(res, semanas_actuales = semanas_slider)
+        render_impact_label("semanas_impact",
+          unname(res$pension_base$pension_mensual),
+          unname(nuevo$pension_mensual))
       }
     }, error = function(e) {
       message("[Impact] Error calculating semanas impact: ", e$message)
@@ -1627,56 +1542,21 @@ server <- function(input, output, session) {
     req(resultados_originales(), salario_debounced())
     res <- resultados_originales()
     salario_slider <- salario_debounced()
-
     if (salario_slider == res$entrada$salario_mensual) {
       shinyjs::html("salario_impact", "")
       return()
     }
-
     tryCatch({
-      shinyjs::removeClass(selector = "#salario_impact", class = "positive")
-      shinyjs::removeClass(selector = "#salario_impact", class = "negative")
-
-      if (res$regimen == "ley97") {
-        pension_orig <- unname(res$solo_sistema$pension_mensual)
-        nuevo <- calculate_pension_with_fondo(
-          saldo_actual = res$entrada$saldo_actual,
-          salario_mensual = salario_slider,
-          edad_actual = res$entrada$edad_actual,
-          edad_retiro = res$entrada$edad_retiro,
-          semanas_actuales = res$entrada$semanas_actuales,
-          genero = res$entrada$genero %||% "M",
-          aportacion_voluntaria = 0,
-          afore_nombre = res$entrada$afore %||% "XXI Banorte",
-          escenario = res$entrada$escenario %||% "base"
-        )
-        pension_new <- unname(nuevo$solo_sistema$pension_mensual)
-        diferencia <- pension_new - pension_orig
+      if (res$regimen == REGIMEN_LEY97) {
+        nuevo <- recalculate_ley97(res, list(salario_mensual = salario_slider))
+        render_impact_label("salario_impact",
+          unname(res$solo_sistema$pension_mensual),
+          unname(nuevo$solo_sistema$pension_mensual))
       } else {
-        pension_orig <- unname(res$pension_base$pension_mensual)
-        sbc_diario <- salario_slider / DIAS_POR_MES
-        anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
-        semanas_al_retiro <- res$entrada$semanas_actuales + (anios_restantes * SEMANAS_POR_ANO)
-        nuevo <- calculate_ley73_pension(
-          sbc_promedio_diario = sbc_diario,
-          semanas = semanas_al_retiro,
-          edad = res$entrada$edad_retiro
-        )
-        pension_new <- unname(nuevo$pension_mensual)
-        diferencia <- pension_new - pension_orig
-      }
-
-      if (!is.null(diferencia) && length(diferencia) > 0 && diferencia != 0) {
-        signo <- if (diferencia > 0) "+" else ""
-        clase <- if (diferencia > 0) "positive" else "negative"
-        shinyjs::html("salario_impact", paste0(
-          format_currency(pension_orig), " &rarr; ",
-          format_currency(pension_new), "/mes (",
-          signo, format_currency(diferencia), ")"
-        ))
-        shinyjs::addClass(selector = "#salario_impact", class = clase)
-      } else {
-        shinyjs::html("salario_impact", "")
+        nuevo <- recalculate_ley73(res, salario_mensual = salario_slider)
+        render_impact_label("salario_impact",
+          unname(res$pension_base$pension_mensual),
+          unname(nuevo$pension_mensual))
       }
     }, error = function(e) {
       message("[Impact] Error calculating salary impact: ", e$message)
@@ -1707,7 +1587,7 @@ server <- function(input, output, session) {
     res <- resultados()
     res_orig <- resultados_originales()
 
-    if (res$regimen == "ley73") {
+    if (res$regimen == REGIMEN_LEY73) {
       # Ley 73: bar chart with 3 color states
       edad_mostrar <- max(60, min(70, res$entrada$edad_retiro))
       edad_original <- res_orig$entrada$edad_retiro
@@ -1840,7 +1720,7 @@ server <- function(input, output, session) {
     # Handle NULL or missing escenario (e.g., for Ley 73)
     escenario_val <- res$entrada$escenario
     if (is.null(escenario_val) || length(escenario_val) != 1) {
-      escenario_val <- "base"
+      escenario_val <- ESCENARIO_BASE
     }
     rendimiento_texto <- switch(escenario_val,
       "conservador" = "3% real (conservador)",
@@ -1852,9 +1732,9 @@ server <- function(input, output, session) {
     tagList(
       tags$h6("Supuestos utilizados:"),
       tags$ul(
-        tags$li(paste0("Régimen: ", if (res$regimen == "ley73") "Ley 73" else "Ley 97 (AFORE)")),
+        tags$li(paste0("Régimen: ", if (res$regimen == REGIMEN_LEY73) "Ley 73" else "Ley 97 (AFORE)")),
         tags$li(paste0("Rendimiento proyectado: ", rendimiento_texto)),
-        if (res$regimen == "ley97") tags$li(paste0("AFORE: ", res$entrada$afore)),
+        if (res$regimen == REGIMEN_LEY97) tags$li(paste0("AFORE: ", res$entrada$afore)),
         tags$li(paste0("Umbral Fondo Bienestar 2025: ", format_currency(UMBRAL_FONDO_BIENESTAR_2025))),
         tags$li(paste0("UMA diaria 2025: ", format_currency(UMA_DIARIA_2025))),
         tags$li(paste0("Salario mínimo 2025: ", format_currency(SM_DIARIO_2025), "/día"))

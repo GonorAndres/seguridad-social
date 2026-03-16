@@ -338,105 +338,6 @@ key_message <- function(...) {
 # COMPONENTES DEL WIZARD
 # ============================================================================
 
-#' Crear encabezado del wizard con pasos
-#' @param current_step Paso actual (1-4)
-#' @return HTML del encabezado
-wizard_header <- function(current_step = 1) {
-  steps <- c(
-    "Datos Personales",
-    "Datos Laborales",
-    "AFORE y Aportaciones",
-    "Resultados"
-  )
-
-  tags$div(
-    class = "wizard-header",
-    tags$div(
-      class = "wizard-steps",
-      lapply(1:4, function(i) {
-        step_class <- "wizard-step"
-        if (i < current_step) step_class <- paste(step_class, "completed")
-        if (i == current_step) step_class <- paste(step_class, "active")
-
-        tagList(
-          if (i > 1) tags$span(class = "wizard-line"),
-          tags$div(
-            class = step_class,
-            id = paste0("step", i, "_indicator"),
-            tags$span(class = "step-number", i),
-            tags$span(class = "step-label d-none d-md-inline", steps[i])
-          )
-        )
-      })
-    )
-  )
-}
-
-#' Crear panel de un paso del wizard
-#' @param step_id ID del paso (ej: "step1")
-#' @param title Titulo del paso
-#' @param content Contenido del paso (tagList)
-#' @param show_prev Mostrar boton anterior
-#' @param show_next Mostrar boton siguiente
-#' @param next_label Texto del boton siguiente
-#' @param hidden Si TRUE, el panel inicia oculto
-#' @return HTML del panel
-wizard_panel <- function(step_id,
-                          title,
-                          content,
-                          show_prev = TRUE,
-                          show_next = TRUE,
-                          next_label = "Siguiente",
-                          hidden = FALSE) {
-
-  panel <- tags$div(
-    id = paste0(step_id, "_panel"),
-    class = "wizard-panel card shadow-sm",
-
-    tags$div(
-      class = "card-header bg-surface border-0 pt-4",
-      tags$h4(class = "card-title mb-0", title)
-    ),
-
-    tags$div(
-      class = "card-body",
-      content
-    ),
-
-    tags$div(
-      class = "card-footer bg-surface border-0 d-flex justify-content-between pb-4",
-
-      # Boton anterior
-      if (show_prev) {
-        actionButton(
-          paste0("prev_", step_id),
-          tagList(tags$i(class = "bi bi-arrow-left me-2"), "Anterior"),
-          class = "btn btn-outline-secondary"
-        )
-      } else {
-        tags$div()  # Placeholder vacio
-      },
-
-      # Boton siguiente
-      if (show_next) {
-        actionButton(
-          paste0("next_", step_id),
-          tagList(next_label, tags$i(class = "bi bi-arrow-right ms-2")),
-          class = "btn btn-primary"
-        )
-      } else {
-        tags$div()
-      }
-    )
-  )
-
-  if (hidden) {
-    shinyjs::hidden(panel)
-  } else {
-    panel
-  }
-}
-
 # ============================================================================
 # TARJETAS DE RESULTADOS
 # ============================================================================
@@ -497,15 +398,15 @@ detect_result_scenario <- function(resultado) {
   if (fondo_elegible && tiene_voluntarias &&
       resultado$con_acciones$pension_afore > resultado$con_fondo$pension_total) {
     # Voluntary contributions push AFORE pension above Fondo cap
-    return("ley97_fondo_voluntary")
+    return(SCENARIO_FONDO_VOLUNTARY)
   } else if (fondo_elegible) {
-    return("ley97_fondo_eligible")
+    return(SCENARIO_FONDO_ELIGIBLE)
   } else if (aplico_minimo_base && aplico_minimo_acciones && tiene_voluntarias) {
-    return("ley97_minimo")
+    return(SCENARIO_MINIMO)
   } else if (tiene_voluntarias && pension_diff > 0) {
-    return("ley97_voluntary_improvement")
+    return(SCENARIO_VOLUNTARY_IMPROVEMENT)
   } else {
-    return("ley97_base")
+    return(SCENARIO_BASE)
   }
 }
 
@@ -516,18 +417,18 @@ render_results_hero <- function(resultado) {
   scenario <- detect_result_scenario(resultado)
 
   # Determine hero amount and details based on scenario
-  if (scenario == "ley97_fondo_voluntary") {
+  if (scenario == SCENARIO_FONDO_VOLUNTARY) {
     # Voluntary contributions beat the Fondo cap
     hero_amount <- resultado$con_acciones$pension_afore
     hero_label <- "TU PENSION ESTIMADA (CON APORTACIONES)"
     tasa <- hero_amount / resultado$entrada$salario_mensual
     show_minimo_tag <- resultado$con_acciones$aplico_minimo %||% FALSE
-  } else if (scenario == "ley97_fondo_eligible") {
+  } else if (scenario == SCENARIO_FONDO_ELIGIBLE) {
     hero_amount <- resultado$con_fondo$pension_total
     hero_label <- "TU PENSION ESTIMADA (CON FONDO BIENESTAR)"
     tasa <- resultado$con_fondo$tasa_reemplazo
     show_minimo_tag <- FALSE
-  } else if (scenario == "ley97_voluntary_improvement") {
+  } else if (scenario == SCENARIO_VOLUNTARY_IMPROVEMENT) {
     hero_amount <- resultado$con_acciones$pension_afore
     hero_label <- "TU PENSION ESTIMADA (CON APORTACIONES)"
     tasa <- hero_amount / resultado$entrada$salario_mensual
@@ -566,7 +467,7 @@ render_results_hero <- function(resultado) {
   if (aplico_minimo_flag) {
     # When minimum applies, show detailed breakdown: calculated vs guaranteed
     pension_real <- resultado$solo_sistema$pension_calculada %||% resultado$solo_sistema$pension_mensual
-    pension_min <- resultado$solo_sistema$pension_minima %||% (UMA_MENSUAL_2025 * 2.5)
+    pension_min <- resultado$solo_sistema$pension_minima %||% PENSION_MINIMA_LEY97
     saldo_necesario <- resultado$solo_sistema$saldo_minimo_para_superar_garantia %||% 0
     saldo_actual_proy <- resultado$solo_sistema$saldo_proyectado %||% 0
     pct_del_minimo <- if (saldo_necesario > 0) min(100, round(saldo_actual_proy / saldo_necesario * 100)) else 100
@@ -657,7 +558,7 @@ render_results_hero <- function(resultado) {
   # Row 3: Fondo complement (only if eligible)
   fondo_elegible <- resultado$con_fondo$elegible
   if (fondo_elegible && resultado$con_fondo$complemento > 0) {
-    if (scenario == "ley97_fondo_voluntary") {
+    if (scenario == SCENARIO_FONDO_VOLUNTARY) {
       # Vol contribs exceed Fondo cap -- Fondo not needed
       breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
         class = "breakdown-row",
@@ -840,7 +741,7 @@ render_results_hero_ley73 <- function(res) {
     if (show_minimo) {
       # When minimum applies, show calculated vs guaranteed
       pension_sin_min <- res$pension_base$pension_sin_minimo %||% pension_base
-      pension_min_val <- SM_DIARIO_2025 * 30.4375  # 1 SM mensual
+      pension_min_val <- SM_DIARIO_2025 * DIAS_POR_MES  # 1 SM mensual
 
       breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
         class = "breakdown-row minimum-info",
@@ -961,8 +862,8 @@ render_results_hero_ley73 <- function(res) {
 #' Extract headline pension from a result object
 #' @param resultado Result list from calculate_pension_with_fondo or Ley 73 calc
 #' @return Single numeric pension amount (monthly)
-get_hero_pension <<- function(resultado) {
-  if (!is.null(resultado$regimen) && resultado$regimen == "ley73") {
+get_hero_pension <- function(resultado) {
+  if (!is.null(resultado$regimen) && resultado$regimen == REGIMEN_LEY73) {
     pension_base <- if (resultado$pension_base$elegible) resultado$pension_base$pension_mensual else 0
     pension_m40 <- if (!is.null(resultado$pension_m40)) resultado$pension_m40$pension_con_m40 else pension_base
     return(max(pension_base, pension_m40))
@@ -972,11 +873,11 @@ get_hero_pension <<- function(resultado) {
 
   scenario <- detect_result_scenario(resultado)
 
-  if (scenario == "ley97_fondo_voluntary") {
+  if (scenario == SCENARIO_FONDO_VOLUNTARY) {
     resultado$con_acciones$pension_afore
-  } else if (scenario == "ley97_fondo_eligible") {
+  } else if (scenario == SCENARIO_FONDO_ELIGIBLE) {
     resultado$con_fondo$pension_total
-  } else if (scenario == "ley97_voluntary_improvement") {
+  } else if (scenario == SCENARIO_VOLUNTARY_IMPROVEMENT) {
     resultado$con_acciones$pension_afore
   } else {
     resultado$solo_sistema$pension_mensual
@@ -987,7 +888,7 @@ get_hero_pension <<- function(resultado) {
 #' @param res_orig Original result (from resultados_originales)
 #' @param res_current Current result (from resultados, after slider changes)
 #' @return HTML div with comparison
-render_antes_despues_box <<- function(res_orig, res_current) {
+render_antes_despues_box <- function(res_orig, res_current) {
   pension_antes <- get_hero_pension(res_orig)
   pension_despues <- get_hero_pension(res_current)
   diferencia <- pension_despues - pension_antes
@@ -1273,73 +1174,6 @@ alert_message <- function(mensaje, tipo = "info", titulo = NULL, dismissible = F
 # ============================================================================
 # PANEL TECNICO
 # ============================================================================
-
-#' Crear panel tecnico colapsable con supuestos
-#' @param resultado Resultado de calculate_pension_with_fondo
-#' @return HTML del panel tecnico
-technical_panel <- function(resultado) {
-
-  tags$div(
-    class = "card mt-4",
-
-    tags$div(
-      class = "card-header bg-light",
-      tags$a(
-        class = "btn btn-link text-decoration-none",
-        `data-bs-toggle` = "collapse",
-        href = "#technicalCollapse",
-        role = "button",
-        tags$i(class = "bi bi-gear me-2"),
-        "Panel Técnico (ver supuestos y fórmulas)"
-      )
-    ),
-
-    tags$div(
-      id = "technicalCollapse",
-      class = "collapse",
-
-      tags$div(
-        class = "card-body",
-
-        tags$h6("Supuestos utilizados:"),
-        tags$ul(
-          tags$li(paste0("Rendimiento real: ", format_percent(resultado$entrada$escenario %>%
-            switch("conservador" = 0.03, "base" = 0.04, "optimista" = 0.05, 0.04)))),
-          tags$li(paste0("AFORE: ", resultado$entrada$afore)),
-          tags$li(paste0("Umbral Fondo Bienestar: ", format_currency(get_umbral_fondo_bienestar(ANIO_ACTUAL)))),
-          tags$li(paste0("UMA diaria ", ANIO_ACTUAL, ": ", format_currency(UMA_DIARIA_2025))),
-          tags$li(paste0("Salario mínimo ", ANIO_ACTUAL, ": ", format_currency(SM_DIARIO_2025)))
-        ),
-
-        tags$h6(class = "mt-3", "Notas importantes:"),
-        tags$ul(
-          tags$li("Esta es una estimación educativa, no una garantía."),
-          tags$li("Las leyes y políticas pueden cambiar."),
-          tags$li("El Fondo Bienestar es un programa nuevo (2024) con sostenibilidad incierta."),
-          tags$li("Consulta tu estado de cuenta oficial en IMSS y tu AFORE.")
-        ),
-
-        tags$div(
-          class = "mt-3",
-          tags$a(
-            href = "https://www.imss.gob.mx/",
-            target = "_blank",
-            class = "btn btn-outline-secondary btn-sm me-2",
-            tags$i(class = "bi bi-box-arrow-up-right me-1"),
-            "IMSS"
-          ),
-          tags$a(
-            href = "https://www.consar.gob.mx/",
-            target = "_blank",
-            class = "btn btn-outline-secondary btn-sm",
-            tags$i(class = "bi bi-box-arrow-up-right me-1"),
-            "CONSAR"
-          )
-        )
-      )
-    )
-  )
-}
 
 # ============================================================================
 # FORMATEO ESPECIAL
