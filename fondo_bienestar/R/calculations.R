@@ -276,50 +276,44 @@ calculate_aportacion_obligatoria <- function(salario_mensual, anio = 2025) {
   ))
 }
 
+#' Find matching bracket row index in tasas_reforma_data
+#' @param salario_uma Salary in UMA multiples
+#' @return Row index or NULL if data not loaded
+find_reforma_bracket_idx <- function(salario_uma) {
+  if (!exists("tasas_reforma_data") || is.null(tasas_reforma_data)) {
+    return(NULL)
+  }
+  idx <- which(salario_uma >= tasas_reforma_data$bracket_min_uma &
+               salario_uma <= tasas_reforma_data$bracket_max_uma)
+  if (length(idx) == 0) {
+    idx <- nrow(tasas_reforma_data)
+  }
+  idx[1]
+}
+
 #' Get tiered CEAV employer rate from DOF 2020 reform table
 #' @param salario_uma Salary in UMA multiples
 #' @param anio Year (2023-2030+)
 #' @return CEAV employer rate as decimal
 get_ceav_employer_rate <- function(salario_uma, anio) {
-  # Clamp year column
   anio_col <- min(max(anio, 2023), 2030)
   col_name <- paste0("ceav_", anio_col)
 
-  if (!exists("tasas_reforma_data") || is.null(tasas_reforma_data)) {
-    # Fallback if data not loaded (e.g., in some test environments)
-    return(0.0775)  # approximate 2025 average
-  }
+  idx <- find_reforma_bracket_idx(salario_uma)
+  if (is.null(idx)) return(0.0775)  # Fallback if data not loaded
 
-  # Find matching bracket
-  idx <- which(salario_uma >= tasas_reforma_data$bracket_min_uma &
-               salario_uma <= tasas_reforma_data$bracket_max_uma)
-  if (length(idx) == 0) {
-    # Default to highest bracket
-    idx <- nrow(tasas_reforma_data)
-  }
-
-  rate <- tasas_reforma_data[[col_name]][idx[1]]
-  return(rate / 100)  # Convert percentage to decimal
+  rate <- tasas_reforma_data[[col_name]][idx]
+  return(rate / 100)
 }
 
 #' Get monthly government cuota social based on salary bracket
 #' @param salario_uma Salary in UMA multiples
 #' @return Monthly cuota social in pesos
 get_cuota_social_mensual <- function(salario_uma) {
-  if (!exists("tasas_reforma_data") || is.null(tasas_reforma_data)) {
-    # Fallback
-    return(UMA_DIARIA_2025 * 0.05177 * DIAS_POR_MES)
-  }
+  idx <- find_reforma_bracket_idx(salario_uma)
+  if (is.null(idx)) return(UMA_DIARIA_2025 * 0.05177 * DIAS_POR_MES)  # Fallback
 
-  # Find matching bracket
-  idx <- which(salario_uma >= tasas_reforma_data$bracket_min_uma &
-               salario_uma <= tasas_reforma_data$bracket_max_uma)
-  if (length(idx) == 0) {
-    idx <- nrow(tasas_reforma_data)
-  }
-
-  cs_pct <- tasas_reforma_data$cs_pct_uma[idx[1]]
-  # Cuota social = percentage of UMA daily * DIAS_POR_MES
+  cs_pct <- tasas_reforma_data$cs_pct_uma[idx]
   return(UMA_DIARIA_2025 * (cs_pct / 100) * DIAS_POR_MES)
 }
 
@@ -386,7 +380,7 @@ calculate_retiro_programado <- function(saldo, edad, genero = "M") {
   # - Esto protege a trabajadores con saldos bajos
   # - Cuando aplica, enmascara diferencias por genero ya que ambos
   #   reciben el mismo monto minimo garantizado
-  pension_minima <- UMA_MENSUAL_2025 * 2.5  # ~$8,598.65 en 2025
+  pension_minima <- PENSION_MINIMA_LEY97
 
   aplico_minimo <- FALSE
   pension_mensual <- pension_calculada
@@ -430,7 +424,7 @@ calculate_ley97_pension <- function(saldo_actual,
                                      genero = "M",
                                      aportacion_voluntaria = 0,
                                      afore_nombre = "XXI Banorte",
-                                     escenario = "base") {
+                                     escenario = ESCENARIO_BASE) {
 
   # Validar semanas minimas (transitional schedule per DOF 2020 reform)
   anios_restantes <- edad_retiro - edad_actual
@@ -449,12 +443,8 @@ calculate_ley97_pension <- function(saldo_actual,
   }
 
   # Determinar rendimiento segun escenario
-  rendimiento <- switch(escenario,
-    "conservador" = RENDIMIENTO_CONSERVADOR,
-    "base" = RENDIMIENTO_BASE,
-    "optimista" = RENDIMIENTO_OPTIMISTA,
-    RENDIMIENTO_BASE
-  )
+  rendimiento <- RENDIMIENTO_POR_ESCENARIO[escenario]
+  if (is.na(rendimiento)) rendimiento <- RENDIMIENTO_BASE
 
   # Obtener comision de la AFORE
   comision <- get_afore_comision(afore_nombre)
@@ -639,7 +629,7 @@ calculate_all_scenarios <- function(regimen,
 
   anios_restantes <- edad_retiro - edad_actual
 
-  if (regimen == "ley73") {
+  if (regimen == REGIMEN_LEY73) {
     # ============ LEY 73 ============
 
     # Pension base
@@ -668,7 +658,7 @@ calculate_all_scenarios <- function(regimen,
     }
 
     return(list(
-      regimen = "ley73",
+      regimen = REGIMEN_LEY73,
       pension_base = pension_base,
       pension_m40 = pension_m40,
       fondo_bienestar_aplica = FALSE,
@@ -678,46 +668,26 @@ calculate_all_scenarios <- function(regimen,
   } else {
     # ============ LEY 97 ============
 
-    # Escenario conservador
-    pension_conservador <- calculate_ley97_pension(
-      saldo_actual = saldo_actual,
-      salario_mensual = salario_mensual,
-      edad_actual = edad_actual,
-      edad_retiro = edad_retiro,
-      semanas_actuales = semanas_actuales,
-      genero = genero,
-      aportacion_voluntaria = 0,
-      afore_nombre = afore_nombre,
-      escenario = "conservador"
+    # Three return scenarios with identical inputs except escenario
+    escenarios <- lapply(
+      c(ESCENARIO_CONSERVADOR, ESCENARIO_BASE, ESCENARIO_OPTIMISTA),
+      function(esc) {
+        calculate_ley97_pension(
+          saldo_actual = saldo_actual,
+          salario_mensual = salario_mensual,
+          edad_actual = edad_actual,
+          edad_retiro = edad_retiro,
+          semanas_actuales = semanas_actuales,
+          genero = genero,
+          aportacion_voluntaria = 0,
+          afore_nombre = afore_nombre,
+          escenario = esc
+        )
+      }
     )
+    names(escenarios) <- c(ESCENARIO_CONSERVADOR, ESCENARIO_BASE, ESCENARIO_OPTIMISTA)
 
-    # Escenario base
-    pension_base <- calculate_ley97_pension(
-      saldo_actual = saldo_actual,
-      salario_mensual = salario_mensual,
-      edad_actual = edad_actual,
-      edad_retiro = edad_retiro,
-      semanas_actuales = semanas_actuales,
-      genero = genero,
-      aportacion_voluntaria = 0,
-      afore_nombre = afore_nombre,
-      escenario = "base"
-    )
-
-    # Escenario optimista
-    pension_optimista <- calculate_ley97_pension(
-      saldo_actual = saldo_actual,
-      salario_mensual = salario_mensual,
-      edad_actual = edad_actual,
-      edad_retiro = edad_retiro,
-      semanas_actuales = semanas_actuales,
-      genero = genero,
-      aportacion_voluntaria = 0,
-      afore_nombre = afore_nombre,
-      escenario = "optimista"
-    )
-
-    # Escenario con aportaciones voluntarias
+    # Escenario con aportaciones voluntarias (base + voluntary)
     pension_con_voluntarias <- calculate_ley97_pension(
       saldo_actual = saldo_actual,
       salario_mensual = salario_mensual,
@@ -727,14 +697,14 @@ calculate_all_scenarios <- function(regimen,
       genero = genero,
       aportacion_voluntaria = aportacion_voluntaria,
       afore_nombre = afore_nombre,
-      escenario = "base"
+      escenario = ESCENARIO_BASE
     )
 
     return(list(
-      regimen = "ley97",
-      pension_conservador = pension_conservador,
-      pension_base = pension_base,
-      pension_optimista = pension_optimista,
+      regimen = REGIMEN_LEY97,
+      pension_conservador = escenarios[[ESCENARIO_CONSERVADOR]],
+      pension_base = escenarios[[ESCENARIO_BASE]],
+      pension_optimista = escenarios[[ESCENARIO_OPTIMISTA]],
       pension_con_voluntarias = pension_con_voluntarias,
       fondo_bienestar_aplica = TRUE
     ))

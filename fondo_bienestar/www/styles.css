@@ -575,6 +575,7 @@ body {
   background: var(--surface-base);
   margin-bottom: 1.5rem;
   animation: fadeInUp 0.3s ease-out;
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
 }
 
 .wizard-panel .card-header {
@@ -609,6 +610,12 @@ body {
   height: 100%;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  width: 100%;
 }
 
 .result-card:hover {
@@ -966,6 +973,7 @@ body {
   padding: 1.25rem;
   margin-bottom: 1rem;
   border: 1px solid var(--color-gray-100);
+  transition: box-shadow var(--transition-normal);
 }
 
 .slider-label {
@@ -1090,6 +1098,9 @@ input[type="range"]::-moz-range-thumb {
   border-radius: var(--radius-lg);
   border: none;
   padding: var(--space-4) var(--space-5);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
 }
 
 .alert-info {
@@ -1122,6 +1133,7 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: var(--shadow-sm);
   margin-top: var(--space-6);
   border: 1px solid var(--color-gray-100);
+  position: relative;
 }
 
 .chart-container .chart-title {
@@ -1193,7 +1205,8 @@ input[type="range"]::-moz-range-thumb {
 .app-footer {
   margin-top: var(--space-8);
   padding: var(--space-6);
-  background: var(--color-gray-100);
+  background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-gray-100) 100%);
+  border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-lg);
   text-align: center;
   font-size: 0.9rem;
@@ -1310,11 +1323,12 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .pension-amount {
-    font-size: 1.75rem;
+    font-size: 1.6rem;
   }
 
   .result-card {
-    padding: var(--space-4);
+    min-height: auto;
+    padding: var(--space-4) var(--space-3);
   }
 
   .radio-card-group {
@@ -1326,7 +1340,8 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .slider-container {
-    padding: var(--space-3);
+    padding: 0 var(--space-2);
+    margin-bottom: var(--space-3);
   }
 }
 
@@ -1882,15 +1897,6 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
 }
 
-.result-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 220px;
-  width: 100%;
-}
-
 .result-card .badge {
   font-size: 0.8rem;
   padding: 0.4em 0.8em;
@@ -1902,13 +1908,6 @@ input[type="range"]::-moz-range-thumb {
 .result-card .card-text {
   font-size: 0.88rem;
   line-height: 1.4;
-}
-
-/* -----------------------------------------------------------------------------
-   Slider Containers - Improved Layout
-   ----------------------------------------------------------------------------- */
-.slider-container {
-  transition: box-shadow var(--transition-normal);
 }
 
 .slider-container:hover {
@@ -1959,23 +1958,9 @@ input[type="range"]::-moz-range-thumb {
   display: none;
 }
 
-/* -----------------------------------------------------------------------------
-   Chart Container - Better Framing
-   ----------------------------------------------------------------------------- */
-.chart-container {
-  position: relative;
-}
-
 .chart-container .js-plotly-plot {
   border-radius: var(--radius-lg);
   overflow: hidden;
-}
-
-/* -----------------------------------------------------------------------------
-   Wizard Panel Transitions
-   ----------------------------------------------------------------------------- */
-.wizard-panel {
-  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
 }
 
 /* -----------------------------------------------------------------------------
@@ -2027,23 +2012,7 @@ input[type="number"]:hover::-webkit-outer-spin-button {
   transition: transform var(--transition-normal);
 }
 
-/* -----------------------------------------------------------------------------
-   Footer - Subtle Upgrade
-   ----------------------------------------------------------------------------- */
-.app-footer {
-  border: 1px solid var(--color-gray-200);
-  background: linear-gradient(135deg, var(--color-gray-50) 0%, var(--color-gray-100) 100%);
-}
-
-/* -----------------------------------------------------------------------------
-   Alert Improvements
-   ----------------------------------------------------------------------------- */
-.alert {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
+/* Alert icon styling */
 .alert i {
   font-size: 1.15rem;
   flex-shrink: 0;
@@ -2054,19 +2023,6 @@ input[type="number"]:hover::-webkit-outer-spin-button {
    Responsive - Improved Mobile Cards
    ----------------------------------------------------------------------------- */
 @media (max-width: 768px) {
-  .result-card {
-    min-height: auto;
-    padding: var(--space-4) var(--space-3);
-  }
-
-  .result-card .pension-amount {
-    font-size: 1.6rem;
-  }
-
-  .slider-container {
-    margin-bottom: var(--space-3);
-  }
-
   .download-section .btn {
     font-size: 0.9rem;
     padding: var(--space-3);
@@ -2189,9 +2145,6 @@ input[type="number"]:hover::-webkit-outer-spin-button {
 
 /* Mobile slider improvements */
 @media (max-width: 768px) {
-  .slider-container {
-    padding: 0 var(--space-2);
-  }
   .slider-impact {
     font-size: 0.8rem;
   }

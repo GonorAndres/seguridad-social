@@ -132,7 +132,4 @@ source("R/calculations.R")
 source("R/fondo_bienestar.R")
 source("R/ui_helpers.R")
 
-# Load document generators if available
-if (file.exists("R/document_generators.R")) {
-  source("R/document_generators.R")
-}
+source("R/document_generators.R")
