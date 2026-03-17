@@ -11,6 +11,7 @@ env:
   REGION: us-central1
   SERVICE_NAME: simulador-pension
   REPO_NAME: simulador-pension
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   id-token: write

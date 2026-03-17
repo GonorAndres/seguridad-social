@@ -687,20 +687,73 @@ render_results_hero <- function(resultado) {
 #' @param res Result list with regimen = "ley73"
 #' @return HTML tagList with hero card and breakdown
 render_results_hero_ley73 <- function(res) {
-  pension_base <- if (res$pension_base$elegible) res$pension_base$pension_mensual else 0
+  # Early return for ineligible workers (< 500 weeks or < 60 years)
+  if (!res$pension_base$elegible) {
+    semanas_actuales <- res$entrada$semanas_actuales %||% 0
+    edad_retiro <- res$entrada$edad_retiro %||% 65
+    anios_restantes <- max(0, edad_retiro - (res$entrada$edad_actual %||% 40))
+    semanas_al_retiro <- semanas_actuales + (anios_restantes * SEMANAS_POR_ANO)
+    semanas_faltantes <- max(0, 500 - semanas_al_retiro)
+
+    hero <- tags$div(
+      class = "result-hero",
+      tags$div(class = "result-hero-label", "RESULTADO DE TU SIMULACION"),
+      tags$div(
+        class = "result-hero-amount",
+        style = "font-size: 1.5rem;",
+        "Aun no cumples los requisitos"
+      ),
+      tags$div(class = "result-hero-badge", "No elegible para pension Ley 73")
+    )
+
+    reason <- tags$div(
+      class = "result-breakdown",
+      tags$div(class = "result-breakdown-header", "Que necesitas"),
+      tags$div(
+        class = "breakdown-row",
+        tags$span(
+          class = "breakdown-label",
+          tags$i(class = "bi bi-exclamation-triangle"),
+          res$pension_base$mensaje
+        )
+      ),
+      if (semanas_faltantes > 0) {
+        tags$div(
+          class = "breakdown-row",
+          tags$span(
+            class = "breakdown-label",
+            tags$i(class = "bi bi-calendar-check"),
+            paste0("Te faltan ", format(semanas_faltantes, big.mark = ","),
+                   " semanas (", round(semanas_faltantes / SEMANAS_POR_ANO, 1),
+                   " anos aprox.) para llegar al minimo de 500")
+          )
+        )
+      }
+    )
+
+    guidance <- tags$div(
+      class = "fondo-eligible-callout",
+      tags$i(class = "bi bi-lightbulb me-2"),
+      tags$strong("Modalidad 40: "),
+      "Si dejaste de cotizar, puedes inscribirte en Modalidad 40 para seguir ",
+      "sumando semanas y mejorar tu pension. Consulta con tu subdelegacion IMSS."
+    )
+
+    return(tagList(hero, reason, guidance))
+  }
+
+  pension_base <- res$pension_base$pension_mensual
   pension_m40 <- if (!is.null(res$pension_m40)) res$pension_m40$pension_con_m40 else pension_base
 
   # Hero shows the best available pension
   best_pension <- max(pension_base, pension_m40)
   m40_active <- !is.null(res$pension_m40) && pension_m40 > pension_base
-  tasa <- if (res$pension_base$elegible) {
-    if (m40_active) {
-      res$pension_m40$nueva_pension_detalle$tasa_reemplazo %||% res$pension_base$tasa_reemplazo
-    } else {
-      res$pension_base$tasa_reemplazo
-    }
-  } else 0
-  show_minimo <- if (res$pension_base$elegible) (res$pension_base$aplico_minimo %||% FALSE) else FALSE
+  tasa <- if (m40_active) {
+    res$pension_m40$nueva_pension_detalle$tasa_reemplazo %||% res$pension_base$tasa_reemplazo
+  } else {
+    res$pension_base$tasa_reemplazo
+  }
+  show_minimo <- res$pension_base$aplico_minimo %||% FALSE
 
   hero <- tags$div(
     class = "result-hero",
@@ -710,14 +763,10 @@ render_results_hero_ley73 <- function(res) {
       format_currency(best_pension),
       tags$span(class = "period", " /mes")
     ),
-    if (res$pension_base$elegible) {
-      tags$div(
-        class = "result-hero-badge",
-        paste0(round(tasa * 100), "% de tu salario")
-      )
-    } else {
-      tags$div(class = "result-hero-badge", "No elegible")
-    },
+    tags$div(
+      class = "result-hero-badge",
+      paste0(round(tasa * 100), "% de tu salario")
+    ),
     if (m40_active) {
       tags$div(class = "result-hero-tag m40-tag",
         tags$i(class = "bi bi-arrow-up-circle me-1"),
@@ -734,81 +783,73 @@ render_results_hero_ley73 <- function(res) {
     }
   )
 
-  # Breakdown
+  # Breakdown (only reached when elegible = TRUE, ineligible returns early above)
   breakdown_rows <- list()
 
-  if (res$pension_base$elegible) {
-    if (show_minimo) {
-      # When minimum applies, show calculated vs guaranteed
-      pension_sin_min <- res$pension_base$pension_sin_minimo %||% pension_base
-      pension_min_val <- SM_DIARIO_2025 * DIAS_POR_MES  # 1 SM mensual
+  if (show_minimo) {
+    # When minimum applies, show calculated vs guaranteed
+    pension_sin_min <- res$pension_base$pension_sin_minimo %||% pension_base
+    pension_min_val <- SM_DIARIO_2025 * DIAS_POR_MES  # 1 SM mensual
 
-      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
-        class = "breakdown-row minimum-info",
-        tags$span(
-          class = "breakdown-label",
-          tags$i(class = "bi bi-calculator"),
-          paste0("Pensión calculada Ley 73 (", res$pension_base$tipo_pension, ")")
-        ),
-        tags$span(class = "breakdown-value",
-          paste0(format_currency(pension_sin_min), "/mes"))
-      )
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row minimum-info",
+      tags$span(
+        class = "breakdown-label",
+        tags$i(class = "bi bi-calculator"),
+        paste0("Pensión calculada Ley 73 (", res$pension_base$tipo_pension, ")")
+      ),
+      tags$span(class = "breakdown-value",
+        paste0(format_currency(pension_sin_min), "/mes"))
+    )
 
-      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
-        class = "breakdown-row minimum-info",
-        tags$span(
-          class = "breakdown-label",
-          tags$i(class = "bi bi-shield-fill-check"),
-          "Pensión mínima garantizada (1 SM)"
-        ),
-        tags$span(class = "breakdown-value",
-          paste0(format_currency(pension_min_val), "/mes"))
-      )
-    } else {
-      # Normal view when pension exceeds minimum
-      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
-        class = "breakdown-row",
-        tags$span(
-          class = "breakdown-label",
-          tags$i(class = "bi bi-bank"),
-          paste0("Pension Ley 73 (", res$pension_base$tipo_pension, ")")
-        ),
-        tags$span(class = "breakdown-value",
-          paste0(format_currency(pension_base), "/mes"))
-      )
-    }
-
-    # Factor info
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row minimum-info",
+      tags$span(
+        class = "breakdown-label",
+        tags$i(class = "bi bi-shield-fill-check"),
+        "Pensión mínima garantizada (1 SM)"
+      ),
+      tags$span(class = "breakdown-value",
+        paste0(format_currency(pension_min_val), "/mes"))
+    )
+  } else {
+    # Normal view when pension exceeds minimum
     breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
       class = "breakdown-row",
       tags$span(
         class = "breakdown-label",
-        tags$i(class = "bi bi-percent"),
-        paste0("Factor de edad (", res$entrada$edad_retiro, " años)")
+        tags$i(class = "bi bi-bank"),
+        paste0("Pension Ley 73 (", res$pension_base$tipo_pension, ")")
       ),
       tags$span(class = "breakdown-value",
-        paste0(round(res$pension_base$factor_edad * 100), "%"))
+        paste0(format_currency(pension_base), "/mes"))
     )
+  }
 
-    # M40 improvement (if available and different from base)
-    if (!is.null(res$pension_m40) && res$pension_m40$incremento_mensual > 0) {
-      breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
-        class = "breakdown-row highlight",
-        tags$span(
-          class = "breakdown-label",
-          tags$i(class = "bi bi-arrow-up-circle"),
-          "Con Modalidad 40"
-        ),
-        tags$span(class = "breakdown-value",
-          paste0(format_currency(pension_m40), "/mes (+",
-            format_currency(res$pension_m40$incremento_mensual), ")"))
-      )
-    }
-  } else {
-    breakdown_rows[[1]] <- tags$div(
-      class = "breakdown-row",
-      tags$span(class = "breakdown-label", res$pension_base$mensaje),
-      tags$span(class = "breakdown-value", "$0.00")
+  # Factor info
+  breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+    class = "breakdown-row",
+    tags$span(
+      class = "breakdown-label",
+      tags$i(class = "bi bi-percent"),
+      paste0("Factor de edad (", res$entrada$edad_retiro, " años)")
+    ),
+    tags$span(class = "breakdown-value",
+      paste0(round(res$pension_base$factor_edad * 100), "%"))
+  )
+
+  # M40 improvement (if available and different from base)
+  if (!is.null(res$pension_m40) && res$pension_m40$incremento_mensual > 0) {
+    breakdown_rows[[length(breakdown_rows) + 1]] <- tags$div(
+      class = "breakdown-row highlight",
+      tags$span(
+        class = "breakdown-label",
+        tags$i(class = "bi bi-arrow-up-circle"),
+        "Con Modalidad 40"
+      ),
+      tags$span(class = "breakdown-value",
+        paste0(format_currency(pension_m40), "/mes (+",
+          format_currency(res$pension_m40$incremento_mensual), ")"))
     )
   }
 
