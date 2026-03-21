@@ -8,3 +8,7 @@ www/metodologia_*.html
 .Rhistory
 .RData
 .Rproj.user/
+
+# Audit 2026-03-21
+.playwright-mcp/
+*.png
