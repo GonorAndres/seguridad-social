@@ -18,7 +18,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  test-r:
+    name: R Unit Tests (818 tests)
     runs-on: ubuntu-latest
 
     steps:
@@ -34,13 +35,69 @@ jobs:
         run: |
           Rscript -e "install.packages(c('shiny', 'bslib', 'shinyjs', 'plotly', 'dplyr', 'scales', 'testthat'), repos = 'https://cloud.r-project.org')"
 
-      - name: Run tests
+      - name: Run R unit tests
         run: |
           cd fondo_bienestar
           Rscript tests/testthat.R
 
+  test-e2e:
+    name: Playwright E2E Tests (60 tests)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.3.3'
+
+      - name: Install R dependencies
+        run: |
+          Rscript -e "install.packages(c('shiny', 'bslib', 'shinyjs', 'plotly', 'dplyr', 'scales'), repos = 'https://cloud.r-project.org')"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright dependencies
+        run: |
+          cd fondo_bienestar/e2e
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Start Shiny app
+        run: |
+          cd fondo_bienestar
+          R -e "shiny::runApp('.', host='0.0.0.0', port=3838, launch.browser=FALSE)" &
+          # Wait for app to be ready
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:3838/ | grep -q 200; then
+              echo "App ready after ${i}s"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Run Playwright E2E tests
+        run: |
+          cd fondo_bienestar/e2e
+          APP_URL=http://localhost:3838 npx playwright test --timeout 180000
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: fondo_bienestar/e2e/playwright-report/
+          retention-days: 14
+
   deploy:
-    needs: test
+    needs: [test-r, test-e2e]
     runs-on: ubuntu-latest
 
     steps:
