@@ -2117,3 +2117,366 @@ test_that("BB3: SBC daily-to-monthly conversion is consistent", {
   salario_roundtrip <- sbc_daily * DIAS_POR_MES
   expect_equal(salario_roundtrip, salario, tolerance = 0.001)
 })
+
+
+# ==========================================================================
+# SECTION CC: Art. 167 & Ley 73 Formula Boundaries
+# ==========================================================================
+# Edge cases at bracket gaps, n_incrementos floor division, porcentaje cap,
+# extreme ages, and monotonicity. Identified by actuarial test review.
+
+test_that("CC1: Art. 167 grupo in gap (1.005) resolves to first row", {
+  # Gap between [0.00,1.00] and [1.01,1.25] -- code falls to first row
+  r <- lookup_articulo_167(1.005)
+  expect_true(is.numeric(r$cuantia_basica))
+  expect_num(r$cuantia_basica, 0.8000)
+})
+
+test_that("CC2: Art. 167 grupo in gap (1.255) resolves without error", {
+  r <- lookup_articulo_167(1.255)
+  expect_true(is.numeric(r$cuantia_basica))
+  expect_num(r$cuantia_basica, 0.8000)
+})
+
+test_that("CC3: All 21 Art. 167 inter-bracket gap values resolve without error", {
+  gap_values <- c(1.005, 1.255, 1.505, 1.755, 2.005, 2.255, 2.505,
+                  2.755, 3.005, 3.255, 3.505, 3.755, 4.005, 4.255,
+                  4.505, 4.755, 5.005, 5.255, 5.505, 5.755, 6.005)
+  for (g in gap_values) {
+    r <- lookup_articulo_167(g)
+    expect_true(is.numeric(r$cuantia_basica),
+                info = paste("Gap value", g, "failed"))
+    expect_true(r$cuantia_basica > 0 && r$cuantia_basica <= 1.0,
+                info = paste("Gap value", g, "cuantia out of range"))
+  }
+})
+
+test_that("CC4: Art. 167 cuantia in (0,1] and incremento > 0 for all brackets", {
+  for (i in 1:nrow(articulo_167_tabla)) {
+    mid <- (articulo_167_tabla$grupo_min[i] + articulo_167_tabla$grupo_max[i]) / 2
+    r <- lookup_articulo_167(mid)
+    expect_true(r$cuantia_basica > 0 && r$cuantia_basica <= 1.0,
+                info = paste("Row", i, "midpoint", mid))
+    expect_true(r$incremento_anual > 0, info = paste("Row", i))
+  }
+})
+
+test_that("CC5: 551 weeks gives 0 incrementos (floor division edge)", {
+  r <- calculate_ley73_pension(sbc_promedio_diario = 500, semanas = 551, edad = 65)
+  expect_num(r$n_incrementos, 0)
+})
+
+test_that("CC6: 552 weeks gives exactly 1 incremento", {
+  r <- calculate_ley73_pension(sbc_promedio_diario = 500, semanas = 552, edad = 65)
+  expect_num(r$n_incrementos, 1)
+})
+
+test_that("CC7: Pension at 552 weeks > pension at 551 weeks", {
+  r551 <- calculate_ley73_pension(sbc_promedio_diario = 500, semanas = 551, edad = 65)
+  r552 <- calculate_ley73_pension(sbc_promedio_diario = 500, semanas = 552, edad = 65)
+  expect_true(unname(r552$pension_sin_minimo) > unname(r551$pension_sin_minimo))
+})
+
+test_that("CC8: Low-salary bracket porcentaje capped at 36 incrementos", {
+  sbc <- SM_DIARIO_2025 * 0.5
+  r_35 <- calculate_ley73_pension(sbc, semanas = 500 + 35 * 52, edad = 65)
+  r_36 <- calculate_ley73_pension(sbc, semanas = 500 + 36 * 52, edad = 65)
+  expect_true(unname(r_35$porcentaje_total) < 1.0)
+  expect_num(r_36$porcentaje_total, 1.0)
+})
+
+test_that("CC9: High-salary bracket porcentaje capped at 36 incrementos", {
+  sbc <- SM_DIARIO_2025 * 10
+  r_35 <- calculate_ley73_pension(sbc, semanas = 500 + 35 * 52, edad = 65)
+  r_36 <- calculate_ley73_pension(sbc, semanas = 500 + 36 * 52, edad = 65)
+  expect_true(unname(r_35$porcentaje_total) < 1.0)
+  expect_num(r_36$porcentaje_total, 1.0)
+})
+
+test_that("CC10: Once porcentaje capped, more weeks do not increase it", {
+  sbc <- SM_DIARIO_2025 * 10
+  r_cap <- calculate_ley73_pension(sbc, semanas = 2500, edad = 65)
+  r_more <- calculate_ley73_pension(sbc, semanas = 3000, edad = 65)
+  expect_num(r_cap$porcentaje_total, 1.0)
+  expect_num(r_more$porcentaje_total, 1.0)
+  expect_num(r_cap$pension_sin_minimo, r_more$pension_sin_minimo, tolerance = 0.01)
+})
+
+test_that("CC11: Ley 73 at age 66 and 70 use factor 1.0 (vejez)", {
+  r66 <- calculate_ley73_pension(sbc_promedio_diario = 500, semanas = 1500, edad = 66)
+  r70 <- calculate_ley73_pension(sbc_promedio_diario = 500, semanas = 1500, edad = 70)
+  expect_num(r66$factor_edad, 1.0)
+  expect_num(r70$factor_edad, 1.0)
+  expect_num(r66$pension_mensual, r70$pension_mensual, tolerance = 0.01)
+})
+
+test_that("CC12: Ley 73 pension non-decreasing with semanas", {
+  sbc <- SM_DIARIO_2025 * 3
+  prev_pension <- 0
+  for (semanas in seq(500, 3000, by = 52)) {
+    r <- calculate_ley73_pension(sbc, semanas = semanas, edad = 65)
+    if (r$elegible) {
+      expect_true(unname(r$pension_mensual) >= prev_pension - 0.01,
+                  info = paste("Pension decreased at semanas =", semanas))
+      prev_pension <- unname(r$pension_mensual)
+    }
+  }
+})
+
+test_that("CC13: Cesantia factor ratio 60/65 = exactly 0.75", {
+  sbc <- SM_DIARIO_2025 * 5
+  r60 <- calculate_ley73_pension(sbc, semanas = 1500, edad = 60)
+  r65 <- calculate_ley73_pension(sbc, semanas = 1500, edad = 65)
+  if (!r60$aplico_minimo && !r65$aplico_minimo) {
+    ratio <- unname(r60$pension_sin_minimo) / unname(r65$pension_sin_minimo)
+    expect_num(ratio, 0.75, tolerance = 1e-6)
+  }
+})
+
+
+# ==========================================================================
+# SECTION DD: Life Expectancy & Retiro Programado Edge Cases
+# ==========================================================================
+
+test_that("DD1: Life expectancy interpolation 70-75 gap (male, age 72)", {
+  # Male: age 70=13.4, age 75=10.5 -> at 72: 13.4 + 0.4*(-2.9) = 12.24
+  ev <- get_esperanza_vida(72, "M")
+  expect_num(ev, 12.24, tolerance = 0.01)
+})
+
+test_that("DD2: Life expectancy interpolation 70-75 gap (female, age 73)", {
+  # Female: age 70=15.9, age 75=12.5 -> at 73: 15.9 + 0.6*(-3.4) = 13.86
+  ev <- get_esperanza_vida(73, "F")
+  expect_num(ev, 13.86, tolerance = 0.01)
+})
+
+test_that("DD3: Life expectancy interpolation 80-85 gap (male, age 82)", {
+  # Male: age 80=8.0, age 85=5.8 -> at 82: 8.0 + 0.4*(-2.2) = 7.12
+  ev <- get_esperanza_vida(82, "M")
+  expect_num(ev, 7.12, tolerance = 0.01)
+})
+
+test_that("DD4: Life expectancy monotonically decreasing 60-90", {
+  for (gender in c("M", "F")) {
+    prev_ev <- get_esperanza_vida(60, gender)
+    for (age in 61:90) {
+      ev <- get_esperanza_vida(age, gender)
+      expect_true(unname(ev) <= unname(prev_ev),
+                  info = paste(gender, "age", age))
+      prev_ev <- ev
+    }
+  }
+})
+
+test_that("DD5: Life expectancy floor of 2 years at age 95", {
+  expect_true(unname(get_esperanza_vida(95, "M")) >= 2)
+  expect_true(unname(get_esperanza_vida(95, "F")) >= 2)
+})
+
+test_that("DD6: Life expectancy extrapolation below age 60", {
+  ev <- get_esperanza_vida(50, "M")
+  ev_60 <- get_esperanza_vida(60, "M")
+  expect_num(ev, unname(ev_60) + 10, tolerance = 0.01)
+})
+
+test_that("DD7: Retiro programado = saldo / (esperanza * 12) exactly", {
+  for (saldo in c(100000, 500000, 2000000, 10000000)) {
+    for (genero in c("M", "F")) {
+      r <- calculate_retiro_programado(saldo, edad = 65, genero = genero)
+      ev <- unname(get_esperanza_vida(65, genero))
+      expect_num(r$pension_calculada, saldo / (ev * 12), tolerance = 0.01,
+                 info = paste("Saldo:", saldo, "Genero:", genero))
+    }
+  }
+})
+
+test_that("DD8: Saldo at breakeven produces pension equal to minimum", {
+  ev_male <- unname(get_esperanza_vida(65, "M"))
+  breakeven <- PENSION_MINIMA_LEY97 * ev_male * 12
+  r <- calculate_retiro_programado(breakeven, edad = 65, genero = "M")
+  expect_num(r$pension_calculada, PENSION_MINIMA_LEY97, tolerance = 0.01)
+  expect_true(unname(r$pension_mensual) >= PENSION_MINIMA_LEY97 - 0.01)
+})
+
+
+# ==========================================================================
+# SECTION EE: Fondo Complement & Minimum Guarantee Interaction
+# ==========================================================================
+
+test_that("EE1: When minimum guarantee > salary, Fondo complement = 0", {
+  elig <- check_fondo_eligibility("ley97", edad = 65, semanas = 1200,
+                                   sbc_promedio_mensual = 8000, anio = 2025)
+  expect_true(elig$elegible)
+  comp <- calculate_fondo_complement(
+    pension_afore = PENSION_MINIMA_LEY97, sbc_promedio_mensual = 8000,
+    elegibilidad = elig
+  )
+  expect_num(comp$complemento, 0)
+  expect_num(comp$pension_total, PENSION_MINIMA_LEY97, tolerance = 0.01)
+})
+
+test_that("EE2: When salary exactly equals pension_minima, complement = 0", {
+  salary <- PENSION_MINIMA_LEY97
+  elig <- check_fondo_eligibility("ley97", edad = 65, semanas = 1200,
+                                   sbc_promedio_mensual = salary, anio = 2025)
+  expect_true(elig$elegible)
+  comp <- calculate_fondo_complement(
+    pension_afore = PENSION_MINIMA_LEY97, sbc_promedio_mensual = salary,
+    elegibilidad = elig
+  )
+  expect_num(comp$complemento, 0, tolerance = 0.01)
+})
+
+test_that("EE3: Fondo complement exactly fills gap to salary", {
+  elig <- check_fondo_eligibility("ley97", edad = 65, semanas = 1200,
+                                   sbc_promedio_mensual = 15000, anio = 2025)
+  comp <- calculate_fondo_complement(
+    pension_afore = 5000, sbc_promedio_mensual = 15000, elegibilidad = elig
+  )
+  expect_num(comp$complemento, 10000)
+  expect_num(comp$pension_total, 15000)
+})
+
+test_that("EE4: Salary above umbral blocks Fondo eligibility", {
+  umbral <- get_umbral_fondo_bienestar(2025)
+  elig <- check_fondo_eligibility("ley97", edad = 65, semanas = 1200,
+                                   sbc_promedio_mensual = umbral + 1, anio = 2025)
+  expect_false(elig$elegible)
+})
+
+test_that("EE5: calculate_ley97_pension with 0 years remaining preserves saldo", {
+  r <- calculate_ley97_pension(
+    saldo_actual = 500000, salario_mensual = 15000,
+    edad_actual = 65, edad_retiro = 65,
+    semanas_actuales = 1200, genero = "M"
+  )
+  expect_true(r$elegible)
+  expect_num(r$saldo_proyectado, 500000, tolerance = 1)
+})
+
+test_that("EE6: Full pipeline with 0 years: Fondo eligible, minimum applies", {
+  r <- calculate_pension_with_fondo(
+    saldo_actual = 500000, salario_mensual = 15000,
+    edad_actual = 65, edad_retiro = 65,
+    semanas_actuales = 1200, genero = "M"
+  )
+  expect_true(r$con_fondo$elegible)
+  expect_true(r$solo_sistema$aplico_minimo)
+  expect_num(r$solo_sistema$pension_mensual, PENSION_MINIMA_LEY97, tolerance = 1)
+})
+
+
+# ==========================================================================
+# SECTION FF: AFORE Projection & Contribution Reform Boundaries
+# ==========================================================================
+
+test_that("FF1: Reform bracket gap at 1.005 UMA resolves to a bracket", {
+  rate <- get_ceav_employer_rate(1.005, 2025)
+  expect_true(is.numeric(rate))
+  expect_true(rate > 0)
+})
+
+test_that("FF2: Cuota social for gap value at 1.005 UMA is non-negative", {
+  cs <- get_cuota_social_mensual(1.005)
+  expect_true(is.numeric(cs))
+  expect_true(cs >= 0)
+})
+
+test_that("FF3: Reform rates increase from 2023 to 2030 for all brackets", {
+  for (uma_val in c(0.5, 1.5, 3.0, 5.0)) {
+    r2023 <- get_ceav_employer_rate(uma_val, 2023)
+    r2030 <- get_ceav_employer_rate(uma_val, 2030)
+    expect_true(r2030 >= r2023,
+                info = paste("Rate should increase at", uma_val, "UMA"))
+  }
+})
+
+test_that("FF4: Cuota social is zero for bracket 4.01+ UMA", {
+  cs <- get_cuota_social_mensual(5.0)
+  expect_num(cs, 0, tolerance = 0.01)
+})
+
+test_that("FF5: Scalar and vector projection modes agree within 1%", {
+  aport <- 2000; n <- 10
+  r_scalar <- project_afore_balance(
+    saldo_actual = 200000, aportacion_mensual = aport,
+    anios_al_retiro = n, rendimiento_real_anual = 0.04, comision_anual = 0.005
+  )
+  r_vector <- project_afore_balance(
+    saldo_actual = 200000, aportacion_mensual = rep(aport, n),
+    anios_al_retiro = n, rendimiento_real_anual = 0.04, comision_anual = 0.005
+  )
+  pct_diff <- abs(r_scalar$saldo_final - r_vector$saldo_final) / r_scalar$saldo_final
+  expect_true(pct_diff < 0.01,
+              info = paste("Scalar:", round(r_scalar$saldo_final),
+                           "Vector:", round(r_vector$saldo_final)))
+})
+
+test_that("FF6: Vector mode with increasing contributions < constant (less compounding)", {
+  n <- 10
+  constant <- rep(2000, n)
+  increasing <- seq(1500, 2500, length.out = n)
+  r_const <- project_afore_balance(200000, constant, n, 0.04, 0.005)
+  r_incr <- project_afore_balance(200000, increasing, n, 0.04, 0.005)
+  expect_true(r_const$saldo_final > r_incr$saldo_final)
+})
+
+test_that("FF7: Schedule spanning 2029-2031 shows rate increase then plateau", {
+  schedule <- generate_contribution_schedule(20000, anio_inicio = 2029, anios_al_retiro = 3)
+  expect_true(schedule[1] < schedule[2])
+  expect_num(schedule[2], schedule[3], tolerance = 0.01)
+})
+
+test_that("FF8: Schedule entirely after 2030 has constant contributions", {
+  schedule <- generate_contribution_schedule(20000, anio_inicio = 2032, anios_al_retiro = 5)
+  for (i in 2:5) {
+    expect_num(schedule[i], schedule[1], tolerance = 0.01)
+  }
+})
+
+test_that("FF9: Year before reform (2022) uses clamped 2023 rates", {
+  r_2022 <- calculate_aportacion_obligatoria(20000, anio = 2022)
+  r_2023 <- calculate_aportacion_obligatoria(20000, anio = 2023)
+  expect_num(r_2022$tasa_ceav, r_2023$tasa_ceav, tolerance = 0.0001)
+})
+
+
+# ==========================================================================
+# SECTION GG: Modalidad 40 Edge Cases
+# ==========================================================================
+
+test_that("GG1: M40 with exactly 250 semanas uses 100% M40 SBC", {
+  base <- calculate_ley73_pension(sbc_promedio_diario = 400, semanas = 1000, edad = 65)
+  r <- calculate_modalidad_40(
+    pension_actual = base, sbc_actual = 400, sbc_m40 = 2000,
+    semanas_actuales = 1000, semanas_m40 = 250,
+    edad_actual = 60, edad_retiro = 65
+  )
+  expect_num(r$nuevo_sbc_promedio, min(2000, TOPE_SBC_DIARIO))
+})
+
+test_that("GG2: M40 with 1 semana uses weighted average", {
+  base <- calculate_ley73_pension(sbc_promedio_diario = 400, semanas = 1000, edad = 65)
+  r <- calculate_modalidad_40(
+    pension_actual = base, sbc_actual = 400, sbc_m40 = 2000,
+    semanas_actuales = 1000, semanas_m40 = 1,
+    edad_actual = 64, edad_retiro = 65
+  )
+  expected_sbc <- (2000 * 1 + 400 * 249) / 250
+  expect_num(r$nuevo_sbc_promedio, expected_sbc, tolerance = 0.01)
+})
+
+test_that("GG3: M40 pension always >= base pension", {
+  for (sbc in c(300, 500, 1000, 2000)) {
+    base <- calculate_ley73_pension(sbc_promedio_diario = sbc, semanas = 1000, edad = 65)
+    if (!base$elegible) next
+    r <- calculate_modalidad_40(
+      pension_actual = base, sbc_actual = sbc,
+      sbc_m40 = TOPE_SBC_DIARIO * 0.8,
+      semanas_actuales = 1000, semanas_m40 = 260,
+      edad_actual = 60, edad_retiro = 65
+    )
+    expect_true(r$pension_con_m40 >= base$pension_mensual,
+                info = paste("M40 should not decrease pension at SBC =", sbc))
+  }
+})

@@ -763,3 +763,100 @@ test_that("LM3: Fondo requires fixed 1000 weeks regardless of year", {
   )
   expect_false(result$elegible)
 })
+
+
+# ============================================================================
+# SECTION LN: UMA Monthly Convention (INEGI vs Actuarial)
+# ============================================================================
+# INEGI defines UMA mensual = UMA diaria * 30.4 (exactly).
+# The actuarial standard uses DIAS_POR_MES = 365.25/12 = 30.4375.
+# These are intentionally different -- the pension formula uses 30.4375 for
+# daily-to-monthly conversions, but PENSION_MINIMA_LEY97 uses UMA_MENSUAL
+# (which follows INEGI's 30.4 convention).
+
+test_that("LN1: UMA_MENSUAL_2025 matches INEGI convention (diaria * 30.4)", {
+  expected_inegi <- UMA_DIARIA_2025 * 30.4
+  expect_num(UMA_MENSUAL_2025, round(expected_inegi, 2), tolerance = 0.01)
+})
+
+test_that("LN2: DIAS_POR_MES is 30.4375 (not INEGI's 30.4)", {
+  expect_true(DIAS_POR_MES != 30.4)
+  expect_equal(DIAS_POR_MES, 365.25 / 12)
+})
+
+test_that("LN3: Pension minima Ley 97 uses UMA_MENSUAL, not UMA_DIARIA * DIAS_POR_MES", {
+  # PENSION_MINIMA_LEY97 = 2.5 * 3439.46 = 8598.65
+  # NOT 2.5 * (113.14 * 30.4375) = 8606.72
+  expect_num(PENSION_MINIMA_LEY97, 2.5 * UMA_MENSUAL_2025, tolerance = 0.01)
+  wrong <- 2.5 * UMA_DIARIA_2025 * DIAS_POR_MES
+  expect_true(abs(PENSION_MINIMA_LEY97 - wrong) > 5)
+})
+
+
+# ============================================================================
+# SECTION LO: Fondo Bienestar Threshold Extrapolation (DOF/IMSS)
+# ============================================================================
+
+test_that("LO1: Known thresholds 2024-2026 match published values", {
+  expect_num(get_umbral_fondo_bienestar(2024), 16777.68, tolerance = 0.01)
+  expect_num(get_umbral_fondo_bienestar(2025), 17364, tolerance = 0.01)
+  expect_num(get_umbral_fondo_bienestar(2026), 18050, tolerance = 0.01)
+})
+
+test_that("LO2: Extrapolation at 3.5% annual from 2026 base", {
+  expect_num(get_umbral_fondo_bienestar(2027), 18050 * 1.035, tolerance = 0.01)
+  expect_num(get_umbral_fondo_bienestar(2030), 18050 * 1.035^4, tolerance = 0.01)
+})
+
+test_that("LO3: Long-range extrapolation to 2050 is reasonable", {
+  umbral_2050 <- get_umbral_fondo_bienestar(2050)
+  expected <- 18050 * (1.035)^24
+  expect_num(umbral_2050, expected, tolerance = 1)
+  expect_true(umbral_2050 > 30000 && umbral_2050 < 60000)
+})
+
+test_that("LO4: Threshold is monotonically increasing 2024-2040", {
+  prev <- get_umbral_fondo_bienestar(2024)
+  for (yr in 2025:2040) {
+    curr <- get_umbral_fondo_bienestar(yr)
+    expect_true(unname(curr) >= unname(prev), info = paste("Year", yr))
+    prev <- curr
+  }
+})
+
+
+# ============================================================================
+# SECTION LP: Transitional Minimum Weeks Edge Cases (DOF 16/12/2020)
+# ============================================================================
+
+test_that("LP1: Exact boundary at 2030 (975) and 2031 (1000)", {
+  expect_equal(get_semanas_minimas_ley97(2030), 975)
+  expect_equal(get_semanas_minimas_ley97(2031), 1000)
+})
+
+test_that("LP2: Worker with exactly transitional minimum weeks is eligible", {
+  # Retirement year = 2025 + (65-60) = 2030, min weeks = 975
+  # Worker with 715 weeks + 5*52=260 = 975 -> eligible
+  r_fail <- calculate_ley97_pension(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 60, edad_retiro = 65, semanas_actuales = 600
+  )
+  expect_false(r_fail$elegible)
+
+  r_pass <- calculate_ley97_pension(
+    saldo_actual = 200000, salario_mensual = 15000,
+    edad_actual = 60, edad_retiro = 65, semanas_actuales = 715
+  )
+  expect_true(r_pass$elegible)
+})
+
+test_that("LP3: Fondo requires 1000 weeks even when Ley 97 min is lower", {
+  # Retiring 2026: Ley 97 min=875, Fondo min=1000
+  # Worker with 900 weeks: passes Ley 97, fails Fondo
+  elig <- check_fondo_eligibility("ley97", edad = 65, semanas = 900,
+                                   sbc_promedio_mensual = 15000, anio = 2026)
+  expect_false(elig$elegible)
+  elig2 <- check_fondo_eligibility("ley97", edad = 65, semanas = 1000,
+                                    sbc_promedio_mensual = 15000, anio = 2026)
+  expect_true(elig2$elegible)
+})
