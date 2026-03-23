@@ -24,11 +24,15 @@ export default defineConfig({
       use: { browserName: 'chromium' },
     },
   ],
-  webServer: {
-    command: 'R -e "shiny::runApp(\'.\', host=\'0.0.0.0\', port=3838, launch.browser=FALSE)"',
-    port: 3838,
-    cwd: '..',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  // In CI the workflow starts the Shiny app manually (with correct R_LIBS_USER).
+  // Locally, Playwright starts the app automatically via webServer.
+  ...(process.env.CI ? {} : {
+    webServer: {
+      command: 'R -e "shiny::runApp(\'.\', host=\'0.0.0.0\', port=3838, launch.browser=FALSE)"',
+      port: 3838,
+      cwd: '..',
+      reuseExistingServer: true,
+      timeout: 60_000,
+    },
+  }),
 });
