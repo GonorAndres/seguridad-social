@@ -13,6 +13,9 @@ www/metodologia_*.html
 .playwright-mcp/
 *.png
 
+# Internal planning (not for repo)
+todo.md
+
 # E2E test infrastructure
 e2e/node_modules/
 e2e/test-results/
