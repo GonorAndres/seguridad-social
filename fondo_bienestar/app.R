@@ -23,6 +23,8 @@ ui <- bslib::page_fluid(
   tags$head(
     tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
     tags$link(rel = "icon", type = "image/svg+xml", href = "favicon.svg"),
+    tags$script(async = NA, src = "https://www.googletagmanager.com/gtag/js?id=G-098V02NCB0"),
+    tags$script(HTML("window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-098V02NCB0');")),
     tags$meta(name = "description", content = "Simulador de pensión IMSS. Calcula tu pensión de Ley 73, Ley 97 y Fondo Bienestar en 5 minutos."),
     tags$link(
       rel = "stylesheet",
