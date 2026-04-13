@@ -24,11 +24,22 @@ ANIO_ACTUAL <- 2025
 
 # UMA 2025
 UMA_DIARIA_2025 <- 113.14
-UMA_MENSUAL_2025 <- 3439.46
+# UMA mensual: computada con DIAS_POR_MES = 30.4375 (actuarial).
+# INEGI publica $3,439.46 usando factor 30.4; usamos 30.4375 para
+# consistencia interna con el resto del codigo. Diferencia ~0.14%.
+UMA_MENSUAL_2025 <- UMA_DIARIA_2025 * DIAS_POR_MES  # 3,443.70
 
-# Salario minimo 2025
+# Salario minimo 2025 (zona general)
 SM_DIARIO_2025 <- 278.80
-SM_MENSUAL_2025 <- 8474.52
+SM_MENSUAL_2025 <- SM_DIARIO_2025 * DIAS_POR_MES
+
+# Zona Libre Frontera Norte (CONASAMI DOF 27-dic-2024)
+SM_DIARIO_ZLFN_2025 <- 419.88
+SM_MENSUAL_ZLFN_2025 <- SM_DIARIO_ZLFN_2025 * DIAS_POR_MES
+
+# Identificadores de zona salarial
+ZONA_GENERAL <- "general"
+ZONA_FRONTERA_NORTE <- "zlfn"
 
 # Fondo Bienestar (DOF 01/05/2024)
 UMBRAL_FONDO_BIENESTAR_2025 <- 17364   # Promedio SBC IMSS
@@ -37,8 +48,12 @@ SEMANAS_MIN_FONDO_BIENESTAR <- 1000    # Fixed per decree, NOT the transitional 
 # Tope de cotizacion (25 UMAs)
 TOPE_SBC_DIARIO <- UMA_DIARIA_2025 * 25  # ~2828.50
 
-# Pension minima garantizada Ley 97 (2.5 UMA mensuales)
-PENSION_MINIMA_LEY97 <- UMA_MENSUAL_2025 * 2.5
+# Pension Minima Garantizada Ley 97
+# Fuente primaria: calculate_pmg_matrix() en R/pmg_matrix.R (matriz DOF 2020)
+# PENSION_MINIMA_LEY97 queda como fallback simplificado (2.5 UMA mensuales).
+PENSION_MINIMA_LEY97_FALLBACK <- UMA_MENSUAL_2025 * 2.5
+# Alias para backward compat (no borrar: muchos tests y consumidores legacy)
+PENSION_MINIMA_LEY97 <- PENSION_MINIMA_LEY97_FALLBACK
 
 # ============================================================================
 # REGIME & SCENARIO IDENTIFIERS

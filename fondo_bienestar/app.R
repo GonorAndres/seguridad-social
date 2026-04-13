@@ -34,6 +34,27 @@ ui <- bslib::page_fluid(
     tags$link(rel = "stylesheet", href = "styles.css"),
     # JavaScript for interactivity
     tags$script(HTML("
+      // ============================================================
+      // PostHog analytics helper (mirrors portafolio pattern)
+      // ============================================================
+      window.trackEvent = function(name, props) {
+        try {
+          if (typeof window.posthog !== 'undefined' && window.posthog && typeof window.posthog.capture === 'function') {
+            var payload = Object.assign(
+              { site: window.location.hostname, app: 'simulador-pension' },
+              props || {}
+            );
+            window.posthog.capture(name, payload);
+          }
+        } catch (e) { console.warn('trackEvent error:', e); }
+      };
+      // Allow server-side triggering via Shiny.setInputValue('__track__', {...})
+      if (typeof Shiny !== 'undefined') {
+        Shiny.addCustomMessageHandler('track_event', function(msg) {
+          window.trackEvent(msg.name, msg.props);
+        });
+      }
+
       // Debug: Log Shiny connection status
       $(document).on('shiny:connected', function() {
         console.log('Shiny connected successfully!');
@@ -57,10 +78,12 @@ ui <- bslib::page_fluid(
           container.slideDown(200);
           $(this).find('span').text('Usar fecha automatica');
           Shiny.setInputValue('regimen_override_active', true);
+          window.trackEvent('regime_override_toggled', { state: 'on' });
         } else {
           container.slideUp(200);
           $(this).find('span').text('No es correcto? Corregir');
           Shiny.setInputValue('regimen_override_active', false, {priority: 'event'});
+          window.trackEvent('regime_override_toggled', { state: 'off' });
         }
       });
 
@@ -68,6 +91,27 @@ ui <- bslib::page_fluid(
       $(document).on('click', '#start_wizard, #start_wizard_from_context', function() {
         console.log('Starting wizard...');
         Shiny.setInputValue('start_wizard_click', Date.now());
+        window.trackEvent('wizard_started', { from: this.id });
+      });
+
+      // Step navigation tracking (next/prev)
+      $(document).on('click', '[id^=next_step], [id^=prev_step]', function() {
+        var id = this.id;
+        var direction = id.indexOf('next_') === 0 ? 'forward' : 'back';
+        var m = id.match(/(\\d+)/);
+        var step = m ? parseInt(m[1], 10) : null;
+        window.trackEvent('step_nav', { direction: direction, from_step: step });
+      });
+
+      // External reference links (IMSS / CONSAR / CONASAMI / IMSS Digital)
+      $(document).on('click', 'a[href*=\"imss.gob.mx\"], a[href*=\"consar.gob.mx\"], a[href*=\"gob.mx/conasami\"]', function() {
+        var href = $(this).attr('href') || '';
+        var target = 'other';
+        if (href.indexOf('consar') > -1) target = 'consar';
+        else if (href.indexOf('conasami') > -1) target = 'conasami';
+        else if (href.indexOf('imss.gob.mx') > -1) target = 'imss';
+        else if (href.indexOf('serviciosdigitales') > -1) target = 'imss_digital';
+        window.trackEvent('external_link_clicked', { target: target, href: href });
       });
 
       $(document).on('click', '#show_context', function() {
@@ -360,6 +404,27 @@ ui <- bslib::page_fluid(
                     id = "semanas_estimate_text",
                     class = "form-text d-none",
                     ""
+                  )
+                )
+              ),
+
+              # Zona salarial (General vs Libre Frontera Norte)
+              fluidRow(
+                column(12,
+                  tags$div(
+                    class = "mt-3",
+                    tags$label(
+                      class = "form-label",
+                      "Zona salarial:",
+                      help_tooltip("CONASAMI publica dos salarios minimos: zona General ($278.80/dia) y Zona Libre de la Frontera Norte ($419.88/dia). La ZLFN aplica si trabajas en municipios fronterizos con EEUU y afecta el piso de pension Ley 73.")
+                    ),
+                    radioButtons(
+                      "zona_sm",
+                      label = NULL,
+                      choices = c("General" = "general", "Frontera Norte (ZLFN)" = "zlfn"),
+                      selected = "general",
+                      inline = TRUE
+                    )
                   )
                 )
               )
@@ -1091,10 +1156,13 @@ server <- function(input, output, session) {
       anios_restantes <- max(0, input$edad_retiro - floor(edad_actual))
       semanas_al_retiro <- input$semanas_cotizadas + (anios_restantes * SEMANAS_POR_ANO)
 
+      zona_sel <- input$zona_sm %||% ZONA_GENERAL
+
       resultado_base <- calculate_ley73_pension(
         sbc_promedio_diario = sbc_diario,
         semanas = semanas_al_retiro,
-        edad = input$edad_retiro
+        edad = input$edad_retiro,
+        zona_sm = zona_sel
       )
 
       # Simular Modalidad 40 si aplica
@@ -1108,7 +1176,8 @@ server <- function(input, output, session) {
           semanas_actuales = semanas_al_retiro - semanas_m40,
           semanas_m40 = semanas_m40,
           edad_actual = floor(edad_actual),
-          edad_retiro = input$edad_retiro
+          edad_retiro = input$edad_retiro,
+          zona_sm = zona_sel
         )
       }
 
@@ -1146,6 +1215,31 @@ server <- function(input, output, session) {
 
     resultados(res)
     resultados_originales(res)
+
+    # PostHog: calculation_done -- enviamos solo atributos no identificables
+    tryCatch({
+      age_bucket <- function(a) if (is.null(a) || is.na(a)) "unknown" else {
+        if (a < 30) "<30" else if (a < 40) "30-39" else if (a < 50) "40-49"
+        else if (a < 60) "50-59" else "60+"
+      }
+      track_props <- list(
+        regimen = res$regimen,
+        age_bucket = age_bucket(floor(edad_actual)),
+        zona_sm = input$zona_sm %||% "general",
+        fondo_elegible = if (res$regimen == REGIMEN_LEY97) isTRUE(res$con_fondo$elegible) else FALSE,
+        aplico_minimo = if (res$regimen == REGIMEN_LEY97) {
+          isTRUE(res$solo_sistema$aplico_minimo)
+        } else {
+          isTRUE(res$pension_base$aplico_minimo)
+        },
+        escenario = input$escenario %||% "base"
+      )
+      session$sendCustomMessage("track_event", list(
+        name = "calculation_done", props = track_props
+      ))
+    }, error = function(e) {
+      message("[PostHog] calculation_done track error: ", e$message)
+    })
 
     # Initialize cliff notification trackers
     if (res$regimen == REGIMEN_LEY97) {
@@ -1214,6 +1308,46 @@ server <- function(input, output, session) {
   semanas_debounced <- reactive({ input$slider_semanas }) |> debounce(300)
   afore_debounced <- reactive({ input$afore_comparar }) |> debounce(300)
   salario_debounced <- reactive({ input$slider_salario }) |> debounce(300)
+
+  # PostHog: sensitivity slider usage (debounced, only after first calc)
+  track_sensitivity <- function(slider_name) {
+    tryCatch({
+      session$sendCustomMessage("track_event", list(
+        name = "sensitivity_used", props = list(slider = slider_name)
+      ))
+    }, error = function(e) {
+      message("[PostHog] sensitivity_used error: ", e$message)
+    })
+  }
+  observeEvent(vol_debounced(), {
+    req(resultados_originales())
+    track_sensitivity("aportacion_voluntaria")
+  }, ignoreInit = TRUE)
+  observeEvent(edad_debounced(), {
+    req(resultados_originales())
+    track_sensitivity("edad_retiro")
+  }, ignoreInit = TRUE)
+  observeEvent(semanas_debounced(), {
+    req(resultados_originales())
+    track_sensitivity("semanas")
+  }, ignoreInit = TRUE)
+  observeEvent(salario_debounced(), {
+    req(resultados_originales())
+    track_sensitivity("salario")
+  }, ignoreInit = TRUE)
+  observeEvent(afore_debounced(), {
+    req(resultados_originales())
+    track_sensitivity("afore")
+  }, ignoreInit = TRUE)
+
+  # PostHog: zona_sm selection
+  observeEvent(input$zona_sm, {
+    tryCatch({
+      session$sendCustomMessage("track_event", list(
+        name = "zona_selected", props = list(zona = input$zona_sm)
+      ))
+    }, error = function(e) { NULL })
+  }, ignoreInit = TRUE)
 
   # Actualizar etiquetas de sliders (only when inputs exist)
   observe({
@@ -1307,11 +1441,13 @@ server <- function(input, output, session) {
         sbc_diario <- salario_slider / DIAS_POR_MES
         anios_restantes <- max(0, edad_slider - res_orig$entrada$edad_actual)
         semanas_al_retiro <- semanas_slider + (anios_restantes * SEMANAS_POR_ANO)
+        zona_sel <- input$zona_sm %||% ZONA_GENERAL
 
         resultado_base <- calculate_ley73_pension(
           sbc_promedio_diario = sbc_diario,
           semanas = semanas_al_retiro,
-          edad = edad_slider
+          edad = edad_slider,
+          zona_sm = zona_sel
         )
 
         resultado_m40 <- NULL
@@ -1324,7 +1460,8 @@ server <- function(input, output, session) {
             semanas_actuales = semanas_al_retiro - semanas_m40,
             semanas_m40 = semanas_m40,
             edad_actual = res_orig$entrada$edad_actual,
-            edad_retiro = edad_slider
+            edad_retiro = edad_slider,
+            zona_sm = zona_sel
           )
         }
 
@@ -1401,7 +1538,8 @@ server <- function(input, output, session) {
     calculate_ley73_pension(
       sbc_promedio_diario = sbc_diario,
       semanas = semanas_al_retiro,
-      edad = edad_ret
+      edad = edad_ret,
+      zona_sm = input$zona_sm %||% ZONA_GENERAL
     )
   }
 
@@ -1732,24 +1870,46 @@ server <- function(input, output, session) {
       "4% real"
     )
 
+    zona_label <- switch(input$zona_sm %||% "general",
+      "general" = "Zona General",
+      "zlfn"    = "Zona Libre Frontera Norte",
+      "Zona General"
+    )
+    sm_label <- if ((input$zona_sm %||% "general") == "zlfn") {
+      format_currency(SM_DIARIO_ZLFN_2025)
+    } else {
+      format_currency(SM_DIARIO_2025)
+    }
+
     tagList(
       tags$h6("Supuestos utilizados:"),
       tags$ul(
         tags$li(paste0("Régimen: ", if (res$regimen == REGIMEN_LEY73) "Ley 73" else "Ley 97 (AFORE)")),
-        tags$li(paste0("Rendimiento proyectado: ", rendimiento_texto)),
+        tags$li(paste0("Rendimiento proyectado: ", rendimiento_texto,
+                       " (escenarios educativos, no predicciones)")),
         if (res$regimen == REGIMEN_LEY97) tags$li(paste0("AFORE: ", res$entrada$afore)),
-        tags$li(paste0("Umbral Fondo Bienestar 2025: ", format_currency(UMBRAL_FONDO_BIENESTAR_2025))),
+        tags$li(paste0("Umbral Fondo Bienestar 2025: ",
+                       format_currency(UMBRAL_FONDO_BIENESTAR_2025),
+                       " (años posteriores: extrapolación 3.5% anual)")),
         tags$li(paste0("UMA diaria 2025: ", format_currency(UMA_DIARIA_2025))),
-        tags$li(paste0("Salario mínimo 2025: ", format_currency(SM_DIARIO_2025), "/día"))
+        tags$li(paste0("Salario mínimo 2025 (", zona_label, "): ", sm_label, "/día")),
+        if (res$regimen == REGIMEN_LEY97) {
+          tags$li("Pensión Mínima Garantizada: matriz DOF 2020 (edad × semanas × SBC, aprox. CONSAR)")
+        },
+        if (res$regimen == REGIMEN_LEY97) {
+          tags$li("Esperanza de vida: EMSSA 2009 (tabla oficial CNSF para rentas vitalicias)")
+        }
       ),
 
       tags$h6(class = "mt-3", "Fuentes de datos:"),
       tags$ul(
         tags$li("Tabla Articulo 167: Ley del Seguro Social 1973"),
+        tags$li("Reforma pensiones: DOF 16-dic-2020"),
+        tags$li("Fondo Bienestar: DOF 01-may-2024"),
         tags$li("UMA: INEGI / DOF"),
-        tags$li("Salario mínimo: CONASAMI"),
+        tags$li("Salario mínimo (General y ZLFN): CONASAMI"),
         tags$li("Comisiones AFORE: CONSAR"),
-        tags$li("Mortalidad: CONAPO / CNSF (simplificada)")
+        tags$li("Mortalidad: EMSSA 2009 (CNSF)")
       ),
 
       tags$h6(class = "mt-3", "Limitaciones:"),
@@ -1757,6 +1917,7 @@ server <- function(input, output, session) {
         tags$li("Esta es una estimación educativa, NO una garantía"),
         tags$li("Las leyes y políticas pueden cambiar"),
         tags$li("El Fondo Bienestar (2024) tiene sostenibilidad incierta"),
+        tags$li("La matriz PMG implementada es una aproximación pública de la tabla CONSAR"),
         tags$li("Los rendimientos pasados no garantizan rendimientos futuros"),
         tags$li("No incluye efectos de inflacion futura no proyectada")
       ),
@@ -1840,12 +2001,24 @@ server <- function(input, output, session) {
     shinyjs::runjs(paste0("window.open('", filename, "', '_blank');"))
   }
 
+  # Helper: track report views via PostHog (server-side)
+  track_report_view <- function(report_type) {
+    tryCatch({
+      session$sendCustomMessage("track_event", list(
+        name = "report_viewed", props = list(type = report_type)
+      ))
+    }, error = function(e) {
+      message("[PostHog] report_viewed track error: ", e$message)
+    })
+  }
+
   # Ver documento tecnico
   observeEvent(input$ver_tecnico, {
     req(resultados())
     tryCatch({
       html_content <- generate_technical_report(resultados())
       open_report_in_tab(html_content, "tecnico", "#0f766e", "#0d9488")
+      track_report_view("tecnico")
     }, error = function(e) {
       message("[Report] Error generating technical report: ", e$message)
       showNotification("Error al generar el reporte técnico", type = "error", duration = 5)
@@ -1858,6 +2031,7 @@ server <- function(input, output, session) {
     tryCatch({
       html_content <- generate_summary_report(resultados())
       open_report_in_tab(html_content, "resumen", "#db2777", "#ec4899")
+      track_report_view("resumen")
     }, error = function(e) {
       message("[Report] Error generating summary report: ", e$message)
       showNotification("Error al generar el resumen ejecutivo", type = "error", duration = 5)
@@ -1870,6 +2044,7 @@ server <- function(input, output, session) {
     tryCatch({
       html_content <- generate_basic_report(resultados())
       open_report_in_tab(html_content, "reporte", "#0f766e", "#0d9488")
+      track_report_view("basico")
     }, error = function(e) {
       message("[Report] Error generating basic report: ", e$message)
       showNotification("Error al generar el reporte básico", type = "error", duration = 5)
@@ -1881,6 +2056,7 @@ server <- function(input, output, session) {
     tryCatch({
       html_content <- generate_methodology_html()
       open_report_in_tab(html_content, "metodologia", "#0f766e", "#0d9488")
+      track_report_view("metodologia")
     }, error = function(e) {
       message("[Report] Error generating methodology: ", e$message)
       showNotification("Error al generar la metodología", type = "error", duration = 5)

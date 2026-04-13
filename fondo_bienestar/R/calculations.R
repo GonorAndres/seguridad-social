@@ -21,8 +21,21 @@
 calculate_ley73_pension <- function(sbc_promedio_diario,
                                      semanas,
                                      edad,
-                                     sm_vigente = SM_DIARIO_2025,
-                                     tipo_pension = "vejez") {
+                                     sm_vigente = NULL,
+                                     tipo_pension = "vejez",
+                                     zona_sm = ZONA_GENERAL) {
+
+  # Resolver salario minimo segun zona si no se proveyo explicitamente
+  if (is.null(sm_vigente)) {
+    sm_vigente <- if (identical(zona_sm, ZONA_FRONTERA_NORTE)) {
+      SM_DIARIO_ZLFN_2025
+    } else {
+      SM_DIARIO_2025
+    }
+  }
+
+  # Aplicar tope de cotizacion (25 UMA diarias)
+  sbc_promedio_diario <- min(sbc_promedio_diario, TOPE_SBC_DIARIO)
 
   # Validaciones basicas
   if (semanas < 500) {
@@ -362,7 +375,11 @@ generate_contribution_schedule <- function(salario_mensual,
 #' - Cuando aplica el minimo, las diferencias por genero/esperanza de vida
 #'   quedan enmascaradas porque ambos reciben la pension minima garantizada.
 #'
-calculate_retiro_programado <- function(saldo, edad, genero = "M") {
+calculate_retiro_programado <- function(saldo,
+                                         edad,
+                                         genero = "M",
+                                         semanas = NULL,
+                                         sbc_diario = NULL) {
 
   # Obtener esperanza de vida
   esperanza_vida <- get_esperanza_vida(edad, genero)
@@ -374,13 +391,18 @@ calculate_retiro_programado <- function(saldo, edad, genero = "M") {
   # Pension calculada = saldo / meses esperados de vida
   pension_calculada <- saldo / meses_esperados
 
-  # PENSION MINIMA GARANTIZADA (Ley 97)
+  # PENSION MINIMA GARANTIZADA (Ley 97 - reforma DOF 2020)
   # - Se aplica como PISO (floor), no como techo
-  # - Si pension_calculada < pension_minima, se otorga la minima
-  # - Esto protege a trabajadores con saldos bajos
-  # - Cuando aplica, enmascara diferencias por genero ya que ambos
-  #   reciben el mismo monto minimo garantizado
-  pension_minima <- PENSION_MINIMA_LEY97
+  # - Fuente primaria: calculate_pmg_matrix() implementa matriz edad x semanas x SBC
+  # - Si faltan semanas o SBC, usa fallback 2.5 UMA mensuales
+  if (!is.null(semanas) && !is.null(sbc_diario) &&
+      exists("calculate_pmg_matrix")) {
+    pension_minima <- calculate_pmg_matrix(edad = edad,
+                                            semanas = semanas,
+                                            sbc_diario = sbc_diario)
+  } else {
+    pension_minima <- PENSION_MINIMA_LEY97_FALLBACK
+  }
 
   aplico_minimo <- FALSE
   pension_mensual <- pension_calculada
@@ -475,11 +497,14 @@ calculate_ley97_pension <- function(saldo_actual,
     incluir_trayectoria = TRUE
   )
 
-  # Calcular pension
+  # Calcular pension (pasando semanas y SBC para matriz PMG)
+  sbc_diario_est <- salario_mensual / DIAS_POR_MES
   pension <- calculate_retiro_programado(
     saldo = proyeccion$saldo_final,
     edad = edad_retiro,
-    genero = genero
+    genero = genero,
+    semanas = semanas_al_retiro,
+    sbc_diario = sbc_diario_est
   )
 
   # Tasa de reemplazo
@@ -532,7 +557,8 @@ calculate_modalidad_40 <- function(pension_actual,
                                     semanas_actuales,
                                     semanas_m40,
                                     edad_actual,
-                                    edad_retiro = 65) {
+                                    edad_retiro = 65,
+                                    zona_sm = ZONA_GENERAL) {
 
   # Validaciones
   max_sbc_m40 <- TOPE_SBC_DIARIO  # 25 UMAs
@@ -557,13 +583,12 @@ calculate_modalidad_40 <- function(pension_actual,
                            sbc_actual * semanas_viejas) / 250
   }
 
-  # Recalcular pension con nuevos parametros
-  sm_vigente <- SM_DIARIO_2025
+  # Recalcular pension con nuevos parametros (respeta zona salarial)
   nueva_pension <- calculate_ley73_pension(
     sbc_promedio_diario = nuevo_sbc_promedio,
     semanas = semanas_totales,
     edad = edad_retiro,
-    sm_vigente = sm_vigente
+    zona_sm = zona_sm
   )
 
   # Costo total de M40
@@ -621,7 +646,8 @@ calculate_all_scenarios <- function(regimen,
                                      semanas_actuales,
                                      genero = "M",
                                      aportacion_voluntaria = 0,
-                                     afore_nombre = "XXI Banorte") {
+                                     afore_nombre = "XXI Banorte",
+                                     zona_sm = ZONA_GENERAL) {
 
   if (is.null(sbc_diario)) {
     sbc_diario <- salario_mensual / DIAS_POR_MES
@@ -636,7 +662,8 @@ calculate_all_scenarios <- function(regimen,
     pension_base <- calculate_ley73_pension(
       sbc_promedio_diario = sbc_diario,
       semanas = semanas_actuales + (anios_restantes * SEMANAS_POR_ANO),
-      edad = edad_retiro
+      edad = edad_retiro,
+      zona_sm = zona_sm
     )
 
     # Escenario con M40 (si tiene menos de 500 semanas o quiere mejorar)
@@ -653,7 +680,8 @@ calculate_all_scenarios <- function(regimen,
         semanas_actuales = semanas_actuales + (anios_restantes * SEMANAS_POR_ANO) - semanas_m40,
         semanas_m40 = semanas_m40,
         edad_actual = edad_actual,
-        edad_retiro = edad_retiro
+        edad_retiro = edad_retiro,
+        zona_sm = zona_sm
       )
     }
 

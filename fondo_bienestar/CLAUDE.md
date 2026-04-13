@@ -10,12 +10,13 @@
 
 ### File Structure & Responsibilities
 ```
-app.R          (~1960 lines) -- Main Shiny app: UI definition + server logic
-global.R       (~120 lines)  -- Package loading, CSV data, source()
-R/constants.R  (~80 lines)   -- Constants + get_semanas_minimas_ley97() (no Shiny dep)
-R/calculations.R    (~770)   -- Core formulas + tiered rate lookups (Ley 73, Ley 97, M40)
+app.R          (~1920 lines) -- Main Shiny app: UI definition + server logic
+global.R       (~130 lines)  -- Package loading, CSV data, source()
+R/constants.R  (~110 lines)  -- Constants + get_semanas_minimas_ley97() + zona SM (no Shiny dep)
+R/calculations.R    (~790)   -- Core formulas + tiered rate lookups (Ley 73, Ley 97, M40) + zona_sm + SBC cap
+R/pmg_matrix.R      (~90)    -- Matriz PMG DOF 2020 (edad x semanas x SBC)
 R/fondo_bienestar.R (~500)   -- Fondo Bienestar eligibility & complement
-R/data_tables.R     (~244)   -- Art. 167 lookup, AFORE data, mortality tables, validation
+R/data_tables.R     (~260)   -- Art. 167 lookup, AFORE data, EMSSA 2009 mortality, zona SM helper
 R/ui_helpers.R      (1330)   -- UI component builders (hero, wizard, timeline, results)
 R/document_generators.R (1667) -- HTML/PDF report generation
 www/styles.css      (~2170)  -- Full design system CSS
@@ -107,7 +108,9 @@ Global `<<-` assignment required for Shiny scoping rules.
    - Scalar mode: closed-form FV formula (backward compat)
    - Vector mode: iterative year-by-year compounding
 5. pension = saldo_final / (esperanza_vida * 12)
-6. pension_final = max(pension, 2.5 * UMA_mensual)
+6. pension_final = max(pension, PMG) where PMG = calculate_pmg_matrix(edad, semanas, sbc)
+   -> matriz DOF 2020 CONSAR, rango 1.5-2.5 UMA mensuales segun perfil
+   -> R/pmg_matrix.R, fallback a 2.5 UMA si faltan datos
 ```
 
 ### Fondo Bienestar -- R/fondo_bienestar.R
@@ -121,7 +124,8 @@ Threshold extrapolation: 3.5% annual growth from last known value (2026=$18,050)
 ### Key Simplifications (documented, intentional)
 - 100% density of contribution (real avg ~50-65%)
 - Constant real salary (no wage growth modeled)
-- Simplified mortality tables (CONAPO-based, linear interpolation)
+- Mortality tables: EMSSA 2009 (CNSF oficial anualidades), valores suavizados con interpolacion lineal
+- PMG Ley 97: matriz DOF 2020 aproximada (6 edades x 3 semanas x 5 SBC buckets) indexada a UMA
 - Commission subtracted from return (not charged on balance)
 - Only retiro programado modeled (no renta vitalicia)
 - No inflation modeling (all values real)
@@ -132,14 +136,17 @@ Threshold extrapolation: 3.5% annual growth from last known value (2026=$18,050)
 | Parameter | Value | Source |
 |-----------|-------|--------|
 | UMA Daily | $113.14 | INEGI/DOF |
-| UMA Monthly | $3,439.46 | Calculated |
-| Salario Minimo | $278.80/day | CONASAMI |
-| SM Monthly | $8,474.52 | Calculated |
+| UMA Monthly | $3,443.70 | UMA_DIARIA * DIAS_POR_MES (30.4375, actuarial) |
+| Salario Minimo (General) | $278.80/day | CONASAMI DOF 27-dic-2024 |
+| Salario Minimo (ZLFN) | $419.88/day | CONASAMI DOF 27-dic-2024 |
+| SM Monthly (General) | ~$8,486 | Calculated |
+| SM Monthly (ZLFN) | ~$12,780 | Calculated |
 | Fondo Bienestar Threshold | $17,364/month | DOF/IMSS |
-| SBC Cap (Tope) | 25 UMA daily | LSS |
-| Rendimiento Conservador | 3% real | |
-| Rendimiento Base | 4% real | |
-| Rendimiento Optimista | 5% real | |
+| SBC Cap (Tope) | 25 UMA daily ($2,828.50) | LSS Art. 28 |
+| PMG Ley 97 | Matriz DOF 2020 (rango 1.5-2.5 UMA) | R/pmg_matrix.R |
+| Rendimiento Conservador | 3% real | Escenario educativo |
+| Rendimiento Base | 4% real | Escenario educativo |
+| Rendimiento Optimista | 5% real | Escenario educativo |
 
 Contribution reform: tiered by salary bracket (DOF 2020). See `data/tasas_reforma_2020.csv`.
 Minimum weeks Ley 97: transitional 750 (2021) +25/yr -> 1000 (2031). See `get_semanas_minimas_ley97()`.
