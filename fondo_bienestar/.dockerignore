@@ -4,6 +4,8 @@ reports/
 subagents_outputs/
 .playwright-mcp/
 .claude/
+e2e/
+.github/
 
 CLAUDE.md
 README.md
@@ -18,8 +20,11 @@ setup_r.sh
 .Rhistory
 .RData
 .Rproj.user/
+.renv/
+renv/
 
 www/tecnico_*.html
 www/resumen_*.html
 www/reporte_*.html
 www/metodologia_*.html
+www/*.tmp

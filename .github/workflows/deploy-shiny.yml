@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   test-r:
-    name: R Unit Tests (818 tests)
+    name: R Unit Tests (845 assertions)
     runs-on: ubuntu-latest
 
     steps:
