@@ -38,8 +38,12 @@ jobs:
           use-public-rspm: true
 
       - name: Install R dependencies
+        # setup-r @v2 with use-public-rspm=true points install.packages at
+        # packagemanager.posit.co (Linux binaries). Leaving repos= default
+        # is important -- forcing cloud.r-project.org triggers source
+        # compilation and plotly fails to build on Ubuntu Noble runners.
         run: |
-          Rscript -e "install.packages(c('shiny','bslib','shinyjs','plotly','dplyr','scales','testthat'), repos='https://cloud.r-project.org', Ncpus=2)"
+          Rscript -e "install.packages(c('shiny','bslib','shinyjs','plotly','dplyr','scales','testthat'), Ncpus=2)"
 
       - name: Run testthat
         working-directory: fondo_bienestar
@@ -73,7 +77,7 @@ jobs:
 
       - name: Install R dependencies
         run: |
-          Rscript -e "install.packages(c('shiny','bslib','shinyjs','plotly','dplyr','scales'), repos='https://cloud.r-project.org', Ncpus=2)"
+          Rscript -e "install.packages(c('shiny','bslib','shinyjs','plotly','dplyr','scales'), Ncpus=2)"
 
       - uses: actions/setup-node@v4
         with:
