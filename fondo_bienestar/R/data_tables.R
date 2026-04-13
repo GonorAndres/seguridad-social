@@ -78,24 +78,27 @@ get_all_afores <- function() {
 }
 
 # ============================================================================
-# TABLAS DE MORTALIDAD (SIMPLIFICADA)
+# TABLAS DE MORTALIDAD (EMSSA 2009 - CNSF)
 # ============================================================================
 
 #' Obtener esperanza de vida segun edad y genero
-#' Basado en tablas CONAPO 2024-2070 simplificadas
+#'
+#' Basado en EMSSA 2009 (Experiencia Mexicana de Sobrevivencia para Asegurados),
+#' tabla oficial de la CNSF usada por aseguradoras para productos de rentas
+#' vitalicias y anualidades. Valores publicos suavizados.
+#'
 #' @param edad Edad actual
 #' @param genero "M" para masculino, "F" para femenino
 #' @return Anos de esperanza de vida restante
-# Esperanza de vida simplificada basada en CONAPO (valores aproximados, fines educativos)
 ESPERANZA_VIDA_F <- c(
-  "60" = 24.5, "61" = 23.6, "62" = 22.7, "63" = 21.8, "64" = 20.9,
-  "65" = 20.0, "66" = 19.2, "67" = 18.3, "68" = 17.5, "69" = 16.7,
-  "70" = 15.9, "75" = 12.5, "80" = 9.5, "85" = 7.0, "90" = 5.0
+  "60" = 25.8, "61" = 24.9, "62" = 24.1, "63" = 23.2, "64" = 22.4,
+  "65" = 21.5, "66" = 20.7, "67" = 19.8, "68" = 19.0, "69" = 18.2,
+  "70" = 17.4, "75" = 13.5, "80" = 10.1, "85" = 7.3, "90" = 5.1
 )
 ESPERANZA_VIDA_M <- c(
-  "60" = 21.0, "61" = 20.2, "62" = 19.4, "63" = 18.6, "64" = 17.8,
-  "65" = 17.0, "66" = 16.3, "67" = 15.5, "68" = 14.8, "69" = 14.1,
-  "70" = 13.4, "75" = 10.5, "80" = 8.0, "85" = 5.8, "90" = 4.2
+  "60" = 22.5, "61" = 21.7, "62" = 20.8, "63" = 20.0, "64" = 19.2,
+  "65" = 18.4, "66" = 17.6, "67" = 16.8, "68" = 16.0, "69" = 15.3,
+  "70" = 14.5, "75" = 11.3, "80" = 8.5, "85" = 6.1, "90" = 4.3
 )
 
 get_esperanza_vida <- function(edad, genero = "M") {
@@ -194,6 +197,28 @@ validar_entrada <- function(edad, semanas, sbc, fecha_primera_cotizacion = NULL)
     errores = errores,
     advertencias = advertencias
   ))
+}
+
+# ============================================================================
+# ZONA SALARIO MINIMO (CONASAMI)
+# ============================================================================
+
+#' Obtener salario minimo diario vigente segun zona
+#'
+#' CONASAMI publica dos zonas: General y Zona Libre Frontera Norte (ZLFN).
+#' La ZLFN aplica a municipios fronterizos con EEUU y tiene un SM superior.
+#'
+#' @param zona "general" (default) o "zlfn"
+#' @param anio Ano (solo 2025 soportado actualmente)
+#' @return Salario minimo diario en pesos
+get_salario_minimo_diario <- function(zona = ZONA_GENERAL, anio = ANIO_ACTUAL) {
+  if (is.null(zona) || is.na(zona) || !(zona %in% c(ZONA_GENERAL, ZONA_FRONTERA_NORTE))) {
+    zona <- ZONA_GENERAL
+  }
+  if (zona == ZONA_FRONTERA_NORTE) {
+    return(SM_DIARIO_ZLFN_2025)
+  }
+  return(SM_DIARIO_2025)
 }
 
 #' Determinar régimen de ley según fecha de primera cotización

@@ -63,6 +63,7 @@ get_salario_minimo <<- function(anio) {
 }
 
 source(file.path(r_dir, "data_tables.R"))
+source(file.path(r_dir, "pmg_matrix.R"))
 source(file.path(r_dir, "calculations.R"))
 source(file.path(r_dir, "fondo_bienestar.R"))
 
@@ -229,17 +230,20 @@ test_that("LD1: Ley 97 currently requires 1000 weeks at retirement", {
   expect_false(result$elegible)
 })
 
-test_that("LD2: Ley 97 pension minima garantizada is 2.5 UMA monthly", {
-  # Art. 170-C reformed: pension minima = 2.5 UMA mensuales
-  pension_minima_esperada <- UMA_MENSUAL_2025 * 2.5
-  # Low balance should trigger minimum guarantee
+test_that("LD2: Ley 97 pension minima garantizada via matriz DOF 2020", {
+  # Art. 170 reformado DOF 16-dic-2020: PMG varia por edad x semanas x SBC
+  # Bajo saldo debe activar piso PMG de la matriz
   result <- calculate_ley97_pension(
     saldo_actual = 50000, salario_mensual = 10000,
     edad_actual = 60, edad_retiro = 65,
     semanas_actuales = 800, genero = "M"
   )
   expect_true(result$elegible)
-  expect_num(result$pension_mensual, pension_minima_esperada, tolerance = 1)
+  # Calcular PMG esperada con los mismos parametros
+  semanas_al_retiro <- 800 + (65 - 60) * 52  # 1060
+  sbc_diario <- 10000 / DIAS_POR_MES
+  pmg_esperada <- calculate_pmg_matrix(edad = 65, semanas = semanas_al_retiro, sbc_diario = sbc_diario)
+  expect_num(result$pension_mensual, pmg_esperada, tolerance = 1)
   expect_true(result$aplico_minimo)
 })
 
@@ -766,17 +770,16 @@ test_that("LM3: Fondo requires fixed 1000 weeks regardless of year", {
 
 
 # ============================================================================
-# SECTION LN: UMA Monthly Convention (INEGI vs Actuarial)
+# SECTION LN: UMA Monthly Convention (Actuarial)
 # ============================================================================
-# INEGI defines UMA mensual = UMA diaria * 30.4 (exactly).
-# The actuarial standard uses DIAS_POR_MES = 365.25/12 = 30.4375.
-# These are intentionally different -- the pension formula uses 30.4375 for
-# daily-to-monthly conversions, but PENSION_MINIMA_LEY97 uses UMA_MENSUAL
-# (which follows INEGI's 30.4 convention).
+# Post fix 2026-04-13: UMA_MENSUAL_2025 ahora usa DIAS_POR_MES = 30.4375
+# (actuarial) para consistencia interna con el resto del codigo.
+# INEGI publica el valor con factor 30.4; la diferencia es ~0.14% y se
+# documenta en R/constants.R.
 
-test_that("LN1: UMA_MENSUAL_2025 matches INEGI convention (diaria * 30.4)", {
-  expected_inegi <- UMA_DIARIA_2025 * 30.4
-  expect_num(UMA_MENSUAL_2025, round(expected_inegi, 2), tolerance = 0.01)
+test_that("LN1: UMA_MENSUAL_2025 usa factor actuarial 30.4375", {
+  expected <- UMA_DIARIA_2025 * DIAS_POR_MES
+  expect_num(UMA_MENSUAL_2025, expected, tolerance = 0.01)
 })
 
 test_that("LN2: DIAS_POR_MES is 30.4375 (not INEGI's 30.4)", {
@@ -784,12 +787,11 @@ test_that("LN2: DIAS_POR_MES is 30.4375 (not INEGI's 30.4)", {
   expect_equal(DIAS_POR_MES, 365.25 / 12)
 })
 
-test_that("LN3: Pension minima Ley 97 uses UMA_MENSUAL, not UMA_DIARIA * DIAS_POR_MES", {
-  # PENSION_MINIMA_LEY97 = 2.5 * 3439.46 = 8598.65
-  # NOT 2.5 * (113.14 * 30.4375) = 8606.72
+test_that("LN3: Pension minima Ley 97 consistente con DIAS_POR_MES", {
+  # Post-fix: ambos valores coinciden
   expect_num(PENSION_MINIMA_LEY97, 2.5 * UMA_MENSUAL_2025, tolerance = 0.01)
-  wrong <- 2.5 * UMA_DIARIA_2025 * DIAS_POR_MES
-  expect_true(abs(PENSION_MINIMA_LEY97 - wrong) > 5)
+  consistente <- 2.5 * UMA_DIARIA_2025 * DIAS_POR_MES
+  expect_num(PENSION_MINIMA_LEY97, consistente, tolerance = 0.01)
 })
 
 

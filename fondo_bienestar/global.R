@@ -128,6 +128,7 @@ get_umbral_fondo_bienestar <<- function(anio) {
 # ============================================================================
 
 source("R/data_tables.R")
+source("R/pmg_matrix.R")
 source("R/calculations.R")
 source("R/fondo_bienestar.R")
 source("R/ui_helpers.R")

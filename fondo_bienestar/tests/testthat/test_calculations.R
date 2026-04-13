@@ -61,6 +61,7 @@ get_salario_minimo <<- function(anio) {
 
 # Source calculation files
 source(file.path(r_dir, "data_tables.R"))
+source(file.path(r_dir, "pmg_matrix.R"))
 source(file.path(r_dir, "calculations.R"))
 source(file.path(r_dir, "fondo_bienestar.R"))
 
@@ -337,11 +338,11 @@ test_that("D6: Component breakdown sums to total", {
 # ==========================================================================
 
 test_that("E1: Basic retiro programado calculation", {
-  # Male, age 65: esperanza = 17.0, meses = 204
-  r <- calculate_retiro_programado(saldo = 2000000, edad = 65, genero = "M")
-  expect_num(r$esperanza_vida, 17.0)
-  expect_num(r$meses_esperados, 204)
-  expected_pension <- 2000000 / 204
+  # Male, age 65 EMSSA 2009: esperanza = 18.4, meses = 220.8
+  r <- calculate_retiro_programado(saldo = 2500000, edad = 65, genero = "M")
+  expect_num(r$esperanza_vida, 18.4)
+  expect_num(r$meses_esperados, 220.8)
+  expected_pension <- 2500000 / 220.8
   expect_num(r$pension_calculada, expected_pension, tolerance = 0.01)
   expect_false(r$aplico_minimo)
   expect_num(r$pension_mensual, expected_pension, tolerance = 0.01)
@@ -376,7 +377,7 @@ test_that("E4: Both genders get pension minima when saldo is very low", {
 
 test_that("E5: aplico_minimo flag is consistent above/below threshold", {
   pension_minima <- UMA_MENSUAL_2025 * 2.5
-  meses <- 204  # male, age 65
+  meses <- 220.8  # male, age 65 EMSSA (18.4 * 12)
 
   saldo_above <- pension_minima * meses + 1000
   r_above <- calculate_retiro_programado(saldo = saldo_above, edad = 65, genero = "M")
@@ -744,12 +745,12 @@ test_that("J4: Insufficient weeks -> solo_sistema pension is zero", {
 # SECTION K: Helper functions (12 tests)
 # ==========================================================================
 
-test_that("K1: get_esperanza_vida male at 65 = 17.0", {
-  expect_num(get_esperanza_vida(65, "M"), 17.0)
+test_that("K1: get_esperanza_vida male at 65 = 18.4 (EMSSA 2009)", {
+  expect_num(get_esperanza_vida(65, "M"), 18.4)
 })
 
-test_that("K2: get_esperanza_vida female at 65 = 20.0", {
-  expect_num(get_esperanza_vida(65, "F"), 20.0)
+test_that("K2: get_esperanza_vida female at 65 = 21.5 (EMSSA 2009)", {
+  expect_num(get_esperanza_vida(65, "F"), 21.5)
 })
 
 test_that("K3: Female life expectancy > male at every listed age", {
@@ -763,15 +764,15 @@ test_that("K3: Female life expectancy > male at every listed age", {
 
 test_that("K4: Life expectancy interpolates for unlisted ages", {
   ev71 <- unname(get_esperanza_vida(71, "M"))
-  ev70 <- unname(get_esperanza_vida(70, "M"))  # 13.4
-  ev75 <- unname(get_esperanza_vida(75, "M"))  # 10.5
+  ev70 <- unname(get_esperanza_vida(70, "M"))  # EMSSA 2009: 14.5
+  ev75 <- unname(get_esperanza_vida(75, "M"))  # EMSSA 2009: 11.3
   expect_true(ev71 < ev70)
   expect_true(ev71 > ev75)
 })
 
 test_that("K5: Life expectancy below minimum age extrapolates upward", {
   ev55 <- unname(get_esperanza_vida(55, "M"))
-  ev60 <- unname(get_esperanza_vida(60, "M"))  # 21.0
+  ev60 <- unname(get_esperanza_vida(60, "M"))  # EMSSA 2009: 22.5
   expect_true(ev55 > ev60)
 })
 
@@ -2238,22 +2239,22 @@ test_that("CC13: Cesantia factor ratio 60/65 = exactly 0.75", {
 # SECTION DD: Life Expectancy & Retiro Programado Edge Cases
 # ==========================================================================
 
-test_that("DD1: Life expectancy interpolation 70-75 gap (male, age 72)", {
-  # Male: age 70=13.4, age 75=10.5 -> at 72: 13.4 + 0.4*(-2.9) = 12.24
+test_that("DD1: Life expectancy interpolation 70-75 gap (male, age 72, EMSSA)", {
+  # Male EMSSA 2009: age 70=14.5, age 75=11.3 -> at 72: 14.5 + 0.4*(-3.2) = 13.22
   ev <- get_esperanza_vida(72, "M")
-  expect_num(ev, 12.24, tolerance = 0.01)
+  expect_num(ev, 13.22, tolerance = 0.01)
 })
 
-test_that("DD2: Life expectancy interpolation 70-75 gap (female, age 73)", {
-  # Female: age 70=15.9, age 75=12.5 -> at 73: 15.9 + 0.6*(-3.4) = 13.86
+test_that("DD2: Life expectancy interpolation 70-75 gap (female, age 73, EMSSA)", {
+  # Female EMSSA 2009: age 70=17.4, age 75=13.5 -> at 73: 17.4 + 0.6*(-3.9) = 15.06
   ev <- get_esperanza_vida(73, "F")
-  expect_num(ev, 13.86, tolerance = 0.01)
+  expect_num(ev, 15.06, tolerance = 0.01)
 })
 
-test_that("DD3: Life expectancy interpolation 80-85 gap (male, age 82)", {
-  # Male: age 80=8.0, age 85=5.8 -> at 82: 8.0 + 0.4*(-2.2) = 7.12
+test_that("DD3: Life expectancy interpolation 80-85 gap (male, age 82, EMSSA)", {
+  # Male EMSSA 2009: age 80=8.5, age 85=6.1 -> at 82: 8.5 + 0.4*(-2.4) = 7.54
   ev <- get_esperanza_vida(82, "M")
-  expect_num(ev, 7.12, tolerance = 0.01)
+  expect_num(ev, 7.54, tolerance = 0.01)
 })
 
 test_that("DD4: Life expectancy monotonically decreasing 60-90", {
@@ -2354,7 +2355,7 @@ test_that("EE5: calculate_ley97_pension with 0 years remaining preserves saldo",
   expect_num(r$saldo_proyectado, 500000, tolerance = 1)
 })
 
-test_that("EE6: Full pipeline with 0 years: Fondo eligible, minimum applies", {
+test_that("EE6: Full pipeline with 0 years: Fondo eligible, PMG matriz aplica", {
   r <- calculate_pension_with_fondo(
     saldo_actual = 500000, salario_mensual = 15000,
     edad_actual = 65, edad_retiro = 65,
@@ -2362,7 +2363,9 @@ test_that("EE6: Full pipeline with 0 years: Fondo eligible, minimum applies", {
   )
   expect_true(r$con_fondo$elegible)
   expect_true(r$solo_sistema$aplico_minimo)
-  expect_num(r$solo_sistema$pension_mensual, PENSION_MINIMA_LEY97, tolerance = 1)
+  sbc_diario <- 15000 / DIAS_POR_MES
+  pmg_esperado <- calculate_pmg_matrix(edad = 65, semanas = 1200, sbc_diario = sbc_diario)
+  expect_num(r$solo_sistema$pension_mensual, pmg_esperado, tolerance = 1)
 })
 
 
@@ -2479,4 +2482,114 @@ test_that("GG3: M40 pension always >= base pension", {
     expect_true(r$pension_con_m40 >= base$pension_mensual,
                 info = paste("M40 should not decrease pension at SBC =", sbc))
   }
+})
+
+
+# ==========================================================================
+# SECTION HH: SBC cap Ley 73 (robustez post-fix 2026-04-13)
+# ==========================================================================
+
+test_that("HH1: SBC superior a 25 UMA diarias es capeado antes del calculo", {
+  # SBC doble del tope debe dar misma pension que SBC = tope
+  sbc_excesivo <- TOPE_SBC_DIARIO * 2
+  r_excesivo <- calculate_ley73_pension(sbc_excesivo, semanas = 1500, edad = 65)
+  r_tope <- calculate_ley73_pension(TOPE_SBC_DIARIO, semanas = 1500, edad = 65)
+  expect_num(r_excesivo$pension_mensual, r_tope$pension_mensual, tolerance = 0.01)
+})
+
+test_that("HH2: SBC dentro del tope no se altera", {
+  sbc_normal <- TOPE_SBC_DIARIO / 2
+  r <- calculate_ley73_pension(sbc_normal, semanas = 1500, edad = 65)
+  # grupo_salarial debe ser sbc_normal / SM_DIARIO_2025
+  expected_grupo <- sbc_normal / SM_DIARIO_2025
+  expect_num(r$grupo_salarial, expected_grupo, tolerance = 0.01)
+})
+
+
+# ==========================================================================
+# SECTION II: Zona salarial (frontera norte vs general)
+# ==========================================================================
+
+test_that("II1: Zona ZLFN usa SM mas alto ($419.88 vs $278.80)", {
+  # Para SBC muy bajo, el piso de pension es 1 SM mensual
+  sbc_muy_bajo <- SM_DIARIO_2025 * 0.5
+  r_gen <- calculate_ley73_pension(sbc_muy_bajo, semanas = 500, edad = 65,
+                                    zona_sm = ZONA_GENERAL)
+  r_zlfn <- calculate_ley73_pension(sbc_muy_bajo, semanas = 500, edad = 65,
+                                     zona_sm = ZONA_FRONTERA_NORTE)
+  expect_true(unname(r_zlfn$pension_mensual) > unname(r_gen$pension_mensual))
+})
+
+test_that("II2: Zona ZLFN piso = SM_DIARIO_ZLFN_2025 * DIAS_POR_MES", {
+  sbc_muy_bajo <- SM_DIARIO_2025 * 0.3
+  r <- calculate_ley73_pension(sbc_muy_bajo, semanas = 500, edad = 65,
+                                zona_sm = ZONA_FRONTERA_NORTE)
+  piso_esperado <- SM_DIARIO_ZLFN_2025 * DIAS_POR_MES
+  expect_num(r$pension_mensual, piso_esperado, tolerance = 1)
+})
+
+test_that("II3: get_salario_minimo_diario valor por zona", {
+  expect_equal(get_salario_minimo_diario(ZONA_GENERAL), SM_DIARIO_2025)
+  expect_equal(get_salario_minimo_diario(ZONA_FRONTERA_NORTE), SM_DIARIO_ZLFN_2025)
+  # Default (null/invalid) retorna general
+  expect_equal(get_salario_minimo_diario(NULL), SM_DIARIO_2025)
+  expect_equal(get_salario_minimo_diario("invalid"), SM_DIARIO_2025)
+})
+
+
+# ==========================================================================
+# SECTION JJ: PMG Matrix DOF 2020 (8 tests)
+# ==========================================================================
+
+test_that("JJ1: PMG perfil minimo = 1.5 UMA mensuales (edad 60, 1000 sem, 1 UMA)", {
+  pmg <- calculate_pmg_matrix(edad = 60, semanas = 1000, sbc_diario = UMA_DIARIA_2025)
+  expect_num(pmg, 1.5 * UMA_MENSUAL_2025, tolerance = 0.01)
+})
+
+test_that("JJ2: PMG perfil maximo = 2.5 UMA mensuales (edad 65+, 1250+ sem, 5+ UMA)", {
+  pmg <- calculate_pmg_matrix(edad = 65, semanas = 1250, sbc_diario = UMA_DIARIA_2025 * 5)
+  expect_num(pmg, 2.5 * UMA_MENSUAL_2025, tolerance = 0.01)
+})
+
+test_that("JJ3: PMG aumenta monotonamente con la edad (60 a 65)", {
+  pmgs <- sapply(60:65, function(e) {
+    unname(calculate_pmg_matrix(edad = e, semanas = 1100, sbc_diario = UMA_DIARIA_2025 * 3))
+  })
+  for (i in 2:length(pmgs)) {
+    expect_true(pmgs[i] >= pmgs[i-1])
+  }
+})
+
+test_that("JJ4: PMG aumenta monotonamente con las semanas (1000 a 1250)", {
+  pmgs <- sapply(seq(1000, 1250, by = 50), function(s) {
+    unname(calculate_pmg_matrix(edad = 63, semanas = s, sbc_diario = UMA_DIARIA_2025 * 3))
+  })
+  for (i in 2:length(pmgs)) {
+    expect_true(pmgs[i] >= pmgs[i-1])
+  }
+})
+
+test_that("JJ5: PMG aumenta monotonamente con el SBC (1 a 5 UMA)", {
+  pmgs <- sapply(1:5, function(mult) {
+    unname(calculate_pmg_matrix(edad = 63, semanas = 1100, sbc_diario = UMA_DIARIA_2025 * mult))
+  })
+  for (i in 2:length(pmgs)) {
+    expect_true(pmgs[i] >= pmgs[i-1])
+  }
+})
+
+test_that("JJ6: PMG con edad > 65 no crece mas alla del tope de edad", {
+  pmg_65 <- calculate_pmg_matrix(edad = 65, semanas = 1100, sbc_diario = UMA_DIARIA_2025 * 3)
+  pmg_70 <- calculate_pmg_matrix(edad = 70, semanas = 1100, sbc_diario = UMA_DIARIA_2025 * 3)
+  expect_num(pmg_65, pmg_70, tolerance = 0.01)
+})
+
+test_that("JJ7: PMG con semanas > 1250 no crece mas alla del tope", {
+  pmg_1250 <- calculate_pmg_matrix(edad = 65, semanas = 1250, sbc_diario = UMA_DIARIA_2025 * 3)
+  pmg_1500 <- calculate_pmg_matrix(edad = 65, semanas = 1500, sbc_diario = UMA_DIARIA_2025 * 3)
+  expect_num(pmg_1250, pmg_1500, tolerance = 0.01)
+})
+
+test_that("JJ8: PMG fallback retorna 2.5 UMA (compatibilidad)", {
+  expect_num(calculate_pmg_fallback(), 2.5 * UMA_MENSUAL_2025, tolerance = 0.01)
 })
