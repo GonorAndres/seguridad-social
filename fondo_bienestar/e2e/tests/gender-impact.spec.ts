@@ -35,9 +35,9 @@ const maleProfile: TestProfile = { ...baseInputs, genero: 'M' };
 const femaleProfile: TestProfile = { ...baseInputs, genero: 'F' };
 
 test.describe('Profile G: Gender Impact', () => {
-  test('validates life expectancy values from CONAPO tables', () => {
-    expect(ESPERANZA_VIDA_M[65]).toBe(17.0);
-    expect(ESPERANZA_VIDA_F[65]).toBe(20.0);
+  test('validates life expectancy values from EMSSA 2009 tables', () => {
+    expect(ESPERANZA_VIDA_M[65]).toBe(18.4);
+    expect(ESPERANZA_VIDA_F[65]).toBe(21.5);
   });
 
   test('male pension > $12,000 (above minimum, no masking)', async ({ page }) => {

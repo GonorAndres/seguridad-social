@@ -5,16 +5,20 @@
 export const DIAS_POR_MES = 30.4375; // 365.25 / 12
 export const SEMANAS_POR_ANO = 52;
 
-// UMA 2025 (INEGI/DOF)
+// UMA 2025 (INEGI/DOF) - valor diario oficial, mensual derivado con 30.4375
 export const UMA_DIARIA_2025 = 113.14;
-export const UMA_MENSUAL_2025 = 3439.46;
+export const UMA_MENSUAL_2025 = UMA_DIARIA_2025 * DIAS_POR_MES; // 3443.70
 
 // Salario Minimo 2025 (CONASAMI)
 export const SM_DIARIO_2025 = 278.80;
-export const SM_MENSUAL_2025 = 8474.52;
+export const SM_MENSUAL_2025 = SM_DIARIO_2025 * DIAS_POR_MES; // ~8486.0
+export const SM_DIARIO_ZLFN_2025 = 419.88;
+export const SM_MENSUAL_ZLFN_2025 = SM_DIARIO_ZLFN_2025 * DIAS_POR_MES; // ~12780.1
 
-// Pension minima garantizada Ley 97: 2.5 UMA mensuales
-export const PENSION_MINIMA_LEY97 = UMA_MENSUAL_2025 * 2.5; // 8598.65
+// Pension minima garantizada Ley 97 fallback: 2.5 UMA mensuales
+// (produccion ahora usa matriz DOF 2020 en R/pmg_matrix.R; esto sigue siendo
+// el tope superior de la matriz y el fallback)
+export const PENSION_MINIMA_LEY97 = UMA_MENSUAL_2025 * 2.5; // 8609.25
 
 // Pension minima Ley 73: 1 SM mensual (using actuarial conversion)
 export const PENSION_MINIMA_LEY73 = SM_DIARIO_2025 * DIAS_POR_MES; // ~8485.975
@@ -61,17 +65,17 @@ export const AFORE_COMISIONES_2025: Record<string, number> = {
   'XXI Banorte': 0.0055,
 };
 
-// Life expectancy (CONAPO-based, from R/data_tables.R)
+// Life expectancy: EMSSA 2009 (CNSF) - ver R/data_tables.R
 export const ESPERANZA_VIDA_M: Record<number, number> = {
-  60: 21.0, 61: 20.2, 62: 19.4, 63: 18.6, 64: 17.8,
-  65: 17.0, 66: 16.3, 67: 15.5, 68: 14.8, 69: 14.1,
-  70: 13.4, 75: 10.5, 80: 8.0, 85: 5.8, 90: 4.2,
+  60: 22.5, 61: 21.7, 62: 20.8, 63: 20.0, 64: 19.2,
+  65: 18.4, 66: 17.6, 67: 16.8, 68: 16.0, 69: 15.3,
+  70: 14.5, 75: 11.3, 80: 8.5, 85: 6.1, 90: 4.3,
 };
 
 export const ESPERANZA_VIDA_F: Record<number, number> = {
-  60: 24.5, 61: 23.6, 62: 22.7, 63: 21.8, 64: 20.9,
-  65: 20.0, 66: 19.2, 67: 18.3, 68: 17.5, 69: 16.7,
-  70: 15.9, 75: 12.5, 80: 9.5, 85: 7.0, 90: 5.0,
+  60: 25.8, 61: 24.9, 62: 24.1, 63: 23.2, 64: 22.4,
+  65: 21.5, 66: 20.7, 67: 19.8, 68: 19.0, 69: 18.2,
+  70: 17.4, 75: 13.5, 80: 10.1, 85: 7.3, 90: 5.1,
 };
 
 // Transitional minimum weeks for Ley 97 (DOF 16/12/2020)

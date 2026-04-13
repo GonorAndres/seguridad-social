@@ -125,17 +125,16 @@ test.describe('Profile D: Ley 97 Above Fondo Threshold', () => {
 });
 
 // ============================================================================
-// PROFILE E: LEY 97 MINIMUM GUARANTEE (Fondo eligible but complement ~$0)
+// PROFILE E: LEY 97 PMG MATRIX + FONDO TOP-UP
 // ============================================================================
 // Born 1961-06-01, salary $8,000, saldo $100K, 1000 weeks
-// After 1 year projection: balance grows slightly but still triggers minimum
-// pension_minima ($8,599) > salary ($8,000)
-// So Fondo complement = max(0, 8000 - 8599) = $0
-//
-// This edge case validates minimum-guarantee vs Fondo interaction.
+// Post 2026-04-13 fix: PMG uses DOF 2020 matriz (edad x semanas x SBC) instead
+// of the fixed 2.5 UMA. For this profile (edad 65, semanas ~1052, SBC ~2.3 UMA)
+// matrix PMG is ~$7,097 mensuales (below salary), so Fondo complement tops up
+// to salary: hero = min(salary, umbral) = $8,000.
 // ============================================================================
 
-test.describe('Profile E: Ley 97 Minimum + Fondo Edge Case', () => {
+test.describe('Profile E: Ley 97 PMG Matrix + Fondo Top-Up', () => {
   const profile: TestProfile = {
     fechaNacimiento: '1961-06-01',
     genero: 'M',
@@ -149,34 +148,35 @@ test.describe('Profile E: Ley 97 Minimum + Fondo Edge Case', () => {
     aforeActual: 'PensionISSSTE',
   };
 
-  test('pension is minimum guarantee ($8,599)', async ({ page }) => {
+  test('Fondo complement tops up AFORE pension + PMG floor to salary', async ({ page }) => {
     await runFullWizard(page, profile);
     const result = await extractResults(page);
 
     console.log(`Profile E - Hero: $${result.heroAmount}`);
-    console.log(`  Expected: ~$8,599 (minimum guarantee)`);
+    console.log(`  Expected: ~$8,000 (salary via Fondo complement)`);
 
-    // Even after 1 year projection, $100K + contributions << minimum needed
-    // So minimum guarantee applies: $8,598.65
-    assertPensionClose(result.heroAmount, PENSION_MINIMA_LEY97, 'Ley97 minimum guarantee');
+    // Matrix PMG for this profile (~$7,097) < salary ($8,000), so Fondo
+    // complement covers the gap and total equals salary.
+    assertPensionClose(result.heroAmount, 8000, 'Ley97 salary via Fondo complement');
   });
 
-  test('Fondo eligible but complement is effectively $0', async ({ page }) => {
+  test('hero within PMG matrix range (1.5-2.5 UMA) or topped by Fondo', async ({ page }) => {
     await runFullWizard(page, profile);
     const result = await extractResults(page);
 
-    // Fondo should show as eligible
-    // But complement = max(0, salary - pension_minima) = max(0, 8000-8599) = 0
-    // Hero shows the minimum guarantee amount, close to salary
-    expect(result.heroAmount).toBeGreaterThanOrEqual(7500);
+    // Matrix PMG range is 1.5 UMA ($5,166) to 2.5 UMA ($8,609); with Fondo
+    // the hero is at most the salary ($8,000).
+    expect(result.heroAmount).toBeGreaterThanOrEqual(5000);
     expect(result.heroAmount).toBeLessThanOrEqual(9500);
   });
 
-  test('replacement rate > 100% (minimum > salary)', async ({ page }) => {
+  test('replacement rate is 100% (Fondo brings total to salary)', async ({ page }) => {
     await runFullWizard(page, profile);
     const result = await extractResults(page);
 
-    // Minimum $8,599 / salary $8,000 = 107%
-    expect(result.replacementRate).toBeGreaterThanOrEqual(100);
+    // Fondo complement ensures pension_total >= min(salary, umbral). For this
+    // profile salary < umbral so total = salary and replacement rate = 100%.
+    expect(result.replacementRate).toBeGreaterThanOrEqual(95);
+    expect(result.replacementRate).toBeLessThanOrEqual(105);
   });
 });

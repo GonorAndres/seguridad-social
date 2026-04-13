@@ -46,11 +46,13 @@ test.describe('Regulatory Constants 2025', () => {
     expect(DIAS_POR_MES).toBe(30.4375);
   });
 
-  test('Pension Minima Garantizada Ley 97 = 2.5 UMA mensuales', () => {
-    // DOF reform: minimum pension = 2.5 * UMA mensual
+  test('Pension Minima Garantizada Ley 97 fallback = 2.5 UMA mensuales', () => {
+    // DOF 2020 reform: actual PMG is now a matrix (edad x semanas x SBC)
+    // implemented in R/pmg_matrix.R, rango 1.5-2.5 UMA mensuales. Este
+    // fallback coincide con el tope superior de la matriz.
     const calculated = 2.5 * UMA_MENSUAL_2025;
     expect(PENSION_MINIMA_LEY97).toBeCloseTo(calculated, 2);
-    expect(PENSION_MINIMA_LEY97).toBeCloseTo(8598.65, 2);
+    expect(PENSION_MINIMA_LEY97).toBeCloseTo(8609.25, 2);
   });
 
   test('Tope SBC = 25 UMA diarias (LSS Art. 28)', () => {
