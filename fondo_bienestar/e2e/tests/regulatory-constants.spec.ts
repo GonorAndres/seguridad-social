@@ -31,8 +31,10 @@ test.describe('Regulatory Constants 2025', () => {
   test('UMA 2025 values (INEGI/DOF)', () => {
     // UMA diaria 2025: $113.14 (DOF 10/01/2025)
     expect(UMA_DIARIA_2025).toBe(113.14);
-    // UMA mensual = UMA diaria * 30.4 (INEGI standard)
-    expect(UMA_MENSUAL_2025).toBe(3439.46);
+    // UMA mensual = UMA diaria * DIAS_POR_MES (30.4375, factor actuarial).
+    // Post fix 2026-04-13: consistencia interna con el resto del codigo.
+    // INEGI publica $3,439.46 usando factor 30.4; ver R/constants.R.
+    expect(UMA_MENSUAL_2025).toBeCloseTo(113.14 * 30.4375, 2);
   });
 
   test('Salario Minimo 2025 (CONASAMI)', () => {
