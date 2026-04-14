@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "fondo_bienestar/**"
+      - ".github/workflows/deploy-shiny.yml"
+  # Manual trigger (rerun failed deploy without a new commit)
+  workflow_dispatch:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
