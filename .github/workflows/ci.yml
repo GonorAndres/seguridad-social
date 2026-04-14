@@ -5,16 +5,21 @@ name: CI
 # so this workflow intentionally skips main pushes to avoid duplication.
 
 on:
+  # Any PR targeting main that touches app code OR any workflow file:
+  # this catches ci.yml + deploy-shiny.yml + any future workflow we add,
+  # so workflow edits get tested before landing on main.
   pull_request:
     branches: [main]
     paths:
       - 'fondo_bienestar/**'
-      - '.github/workflows/ci.yml'
+      - '.github/workflows/**'
   push:
     branches-ignore: [main]
     paths:
       - 'fondo_bienestar/**'
-      - '.github/workflows/ci.yml'
+      - '.github/workflows/**'
+  # Allow manual reruns from the Actions tab (handy when RSPM / CRAN blips).
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
