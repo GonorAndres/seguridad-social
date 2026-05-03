@@ -225,3 +225,43 @@ Fondo threshold progression: $16,778 (2024), $17,364 (2025), ~$18,050 (2026).
 - Navy color `#1a365d` fully removed from all R, CSS, SVG, and LaTeX
 - CSS `prefers-reduced-motion` media query disables animations for accessibility
 - LaTeX PDF headers use `\definecolor{primary}` (teal) and `\definecolor{accent}` (magenta)
+
+## CI/CD & Deployment Gotchas (learned in PR #10 / PR #11, 2026-04-13/14)
+
+### RSPM is mandatory on GitHub Actions runners
+`r-lib/actions/setup-r@v2` MUST be invoked with `use-public-rspm: true`. Without it, `install.packages()` defaults to `cloud.r-project.org` which forces source compilation on Ubuntu Noble. `plotly`'s `curl` dependency then fails to build the `curl.ts` target (`make: *** [Makefile:54: curl.ts] Error 1`), plotly is silently skipped, and the Shiny app later dies with `there is no package called 'plotly'` when Playwright tries to start it. Fix is 1 line per setup-r step. NEVER pass `repos='https://cloud.r-project.org'` explicitly in `install.packages()` calls in CI — it overrides RSPM.
+
+### Test expectations must derive from constants, not hardcode
+When UMA, PMG, or EMSSA values shifted we had to chase them across four files (two R test suites + `e2e/helpers/constants.ts` + `e2e/tests/regulatory-constants.spec.ts`). Write assertions as `expect_num(PENSION_MINIMA_LEY97, 2.5 * UMA_MENSUAL_2025)` not `expect_num(PENSION_MINIMA_LEY97, 8598.65)`. The hardcoded-value test passes today and fails the next time you update a regulatory input.
+
+### Playwright uses a TypeScript mirror of `R/constants.R`
+`fondo_bienestar/e2e/helpers/constants.ts` duplicates UMA, SM, mortality tables, AFORE commissions, etc. for use in Playwright assertions. Any change in `R/constants.R` / `R/data_tables.R` requires a parallel edit here, otherwise e2e tests will drift (pass locally against stale expected values but diverge from the live app). `hand-calculator.ts` depends on these too.
+
+### CI path filter must cover ALL workflow files
+`ci.yml` triggers on `paths: ['fondo_bienestar/**', '.github/workflows/**']`. Early version only matched `ci.yml` itself, which meant an edit to `deploy-shiny.yml` (missing the RSPM flag) landed on main unvalidated and broke the deploy. Always widen the filter to `**` so workflow-to-workflow changes get smoke-tested.
+
+### main branch is protected -- no direct push
+`git push origin main` is rejected with `push declined due to repository rule violations`. Hotfixes go via a branch + PR (even for single-line workflow fixes). `gh pr merge N --squash --delete-branch` works once CI is green; if it reports "Not possible to fast-forward" that's a local-git tracking quirk (the PR often already merged on the web side -- `git fetch origin main` clarifies).
+
+### Deploy workflow chain and what can fail
+`deploy-shiny.yml` on `push: main` runs three jobs in order:
+1. `test-r` (845 assertions, ~1.5 min) -- passes even if plotly didn't install, because R tests don't `library(plotly)`.
+2. `test-e2e` (60 Playwright tests, ~11 min) -- this is where a missing plotly shows up, because `shiny::runApp()` calls `library(plotly)` via `global.R`.
+3. `deploy` -- authenticates via WIF, builds Docker, pushes to `us-central1-docker.pkg.dev/.../simulador-pension`, then `deploy-cloudrun`. Min-instances=0 so cold starts take ~4 s on first hit post-deploy.
+
+### Infrastructure (already provisioned, do not recreate)
+- GCP project `project-ad7a5be2-a1c7-4510-82d` (number `451451662791`)
+- Service account `github-deployer@...` with `run.admin`, `artifactregistry.writer`, `iam.serviceAccountUser`
+- WIF pool `projects/451451662791/locations/global/workloadIdentityPools/github-pool/providers/github-provider`, bound to repo `GonorAndres/seguridad-social` (and several sister repos) via `roles/iam.workloadIdentityUser`
+- Artifact Registry: `us-central1/simulador-pension` (DOCKER)
+- GitHub secrets `GCP_PROJECT_ID`, `GCP_SERVICE_ACCOUNT`, `GCP_WIF_PROVIDER` already set
+- Cloud Run service URL: https://simulador-pension-d3qj5vwxtq-uc.a.run.app
+
+### Manual re-triggers
+Both `ci.yml` and `deploy-shiny.yml` expose `workflow_dispatch`, so a failed deploy can be rerun from the Actions tab without an empty commit. Useful when RSPM or CRAN has a transient blip.
+
+### Node.js 20 deprecation warnings (non-blocking)
+GitHub surfaces warnings about `actions/checkout@v4`, `actions/setup-node@v4`, `r-lib/actions/setup-r@v2`, `google-github-actions/*@v2` still targeting Node 20 (forced to Node 24 at runtime). They still work. Plan to bump to Node-24-native action versions when upstreams ship them.
+
+### Sensitivity slider events fire on first render
+The PostHog `sensitivity_used` observer fires once per slider when the results panel first renders (because `updateSliderInput` triggers the debounced reactive). `ignoreInit=TRUE` doesn't fully suppress it. Acceptable noise for analytics -- filter in PostHog if you need precise interaction counts.
