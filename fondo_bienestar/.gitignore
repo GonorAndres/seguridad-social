@@ -16,6 +16,12 @@ www/metodologia_*.html
 # Internal planning (not for repo)
 todo.md
 
+# Portfolio screenshots
+portfolio_gallery/
+
+# Subagent outputs
+subagents_outputs/
+
 # E2E test infrastructure
 e2e/node_modules/
 e2e/test-results/

@@ -7,63 +7,63 @@
    CSS Variables - Design System
    ----------------------------------------------------------------------------- */
 :root {
-  /* Primary - Tropical Teal */
-  --color-primary-800: #115e59;
-  --color-primary-700: #0f766e;
-  --color-primary-600: #0d9488;
-  --color-primary-500: #14b8a6;
+  /* Primary - Deep Emerald */
+  --color-primary-800: #064e3b;
+  --color-primary-700: #065f46;
+  --color-primary-600: #047857;
+  --color-primary-500: #059669;
 
-  /* Secondary - Vibrant Coral/Magenta */
-  --color-secondary-600: #db2777;
-  --color-secondary-500: #ec4899;
-  --color-secondary-400: #f472b6;
-  --color-secondary-300: #f9a8d4;
+  /* Secondary - Warm Amber */
+  --color-secondary-600: #92400e;
+  --color-secondary-500: #b45309;
+  --color-secondary-400: #d97706;
+  --color-secondary-300: #f59e0b;
 
   /* Semantic Colors */
-  --color-success: #10b981;
+  --color-success: #059669;
   --color-success-light: #d1fae5;
-  --color-warning: #f59e0b;
+  --color-warning: #d97706;
   --color-warning-light: #fef3c7;
-  --color-danger: #ef4444;
+  --color-danger: #dc2626;
   --color-danger-light: #fee2e2;
-  --color-info: #0d9488;
-  --color-info-light: #ccfbf1;
+  --color-info: #047857;
+  --color-info-light: #ecfdf5;
 
-  /* Neutrals - Warm golden */
-  --color-gray-50: #fef7ed;
-  --color-gray-100: #fef3e2;
-  --color-gray-200: #fde6c4;
-  --color-gray-300: #fcd5a0;
-  --color-gray-400: #c4a67a;
-  --color-gray-500: #8b7355;
-  --color-gray-600: #6b5a42;
-  --color-gray-700: #4a3d2e;
-  --color-gray-800: #332a1e;
-  --color-gray-900: #1f1912;
+  /* Neutrals - Cool slate */
+  --color-gray-50: #f8fafc;
+  --color-gray-100: #f1f5f9;
+  --color-gray-200: #e2e8f0;
+  --color-gray-300: #cbd5e1;
+  --color-gray-400: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-600: #475569;
+  --color-gray-700: #334155;
+  --color-gray-800: #1e293b;
+  --color-gray-900: #0f172a;
 
-  /* Accessible muted text (~4.7:1 on #fef7ed) */
-  --color-text-muted: #8b6914;
+  /* Accessible muted text (~4.8:1 on #f8fafc) */
+  --color-text-muted: #64748b;
 
   /* Surfaces */
-  --surface-base: #fffbf0;
-  --body-bg: #fef7ed;
+  --surface-base: #ffffff;
+  --body-bg: #f8fafc;
 
   /* Gradients */
-  --gradient-hero: linear-gradient(135deg, #0f766e 0%, #14b8a6 50%, #f472b6 100%);
-  --gradient-hero-dark: linear-gradient(135deg, #064e3b 0%, #0f766e 50%, #9d174d 100%);
-  --gradient-card-baseline: linear-gradient(135deg, #fef7ed 0%, #fef3e2 100%);
-  --gradient-card-fondo: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
-  --gradient-card-empowerment: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
-  --gradient-teal-subtle: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+  --gradient-hero: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+  --gradient-hero-dark: linear-gradient(135deg, #022c22 0%, #064e3b 50%, #065f46 100%);
+  --gradient-card-baseline: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  --gradient-card-fondo: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  --gradient-card-empowerment: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+  --gradient-teal-subtle: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
 
   /* Shadows */
-  --shadow-xs: 0 1px 2px rgba(60, 40, 20, 0.05);
-  --shadow-sm: 0 1px 3px rgba(60, 40, 20, 0.1), 0 1px 2px rgba(60, 40, 20, 0.06);
-  --shadow-md: 0 4px 6px -1px rgba(60, 40, 20, 0.1), 0 2px 4px -1px rgba(60, 40, 20, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(60, 40, 20, 0.1), 0 4px 6px -2px rgba(60, 40, 20, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(60, 40, 20, 0.1), 0 10px 10px -5px rgba(60, 40, 20, 0.04);
-  --shadow-glow-teal: 0 0 20px rgba(236, 72, 153, 0.3);
-  --shadow-glow-primary: 0 0 20px rgba(15, 118, 110, 0.3);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 10px 10px -5px rgba(15, 23, 42, 0.03);
+  --shadow-glow-teal: 0 0 20px rgba(6, 95, 70, 0.2);
+  --shadow-glow-primary: 0 0 20px rgba(6, 78, 59, 0.25);
 
   /* Warm Accents */
   --color-warm-accent-100: #fef3c7;
@@ -107,7 +107,7 @@
    ----------------------------------------------------------------------------- */
 body {
   background-color: var(--body-bg);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color: var(--color-gray-700);
   line-height: 1.6;
 }
@@ -482,7 +482,7 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 0.5rem 1rem;
-  cursor: pointer;
+  cursor: default;
   transition: var(--transition-normal);
 }
 
@@ -723,6 +723,7 @@ body {
   font-weight: 700;
   margin: var(--space-3) 0;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .pension-amount .pension-period {
@@ -1056,6 +1057,36 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* -----------------------------------------------------------------------------
+   Datepicker Override (match teal palette)
+   ----------------------------------------------------------------------------- */
+.datepicker table tr td.active,
+.datepicker table tr td.active:hover,
+.datepicker table tr td.active.active,
+.datepicker table tr td span.active,
+.datepicker table tr td span.active:hover {
+  background: var(--color-primary-700) !important;
+  border-color: var(--color-primary-700) !important;
+  color: white !important;
+}
+
+.datepicker table tr td.today,
+.datepicker table tr td.today:hover {
+  background: var(--color-gray-100) !important;
+  color: var(--color-primary-700) !important;
+}
+
+/* -----------------------------------------------------------------------------
+   Slider Range Labels
+   ----------------------------------------------------------------------------- */
+.slider-range {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-gray-400);
+}
+
+/* -----------------------------------------------------------------------------
    Help Tooltips
    ----------------------------------------------------------------------------- */
 .help-tooltip {
@@ -1104,8 +1135,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .alert-info {
-  background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
-  color: #115e59;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #064e3b;
 }
 
 .alert-success {
@@ -1168,7 +1199,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .afore-table .best-afore {
-  background: linear-gradient(135deg, #fdf2f8 0%, var(--surface-base) 100%);
+  background: linear-gradient(135deg, #ecfdf5 0%, var(--surface-base) 100%);
 }
 
 .afore-difference.positive {
@@ -1568,11 +1599,12 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .result-hero-amount {
-  font-size: 3rem;
+  font-size: clamp(1.5rem, 5vw, 3rem);
   font-weight: 700;
   line-height: 1.1;
   margin-bottom: var(--space-2);
   position: relative;
+  font-variant-numeric: tabular-nums;
 }
 
 .result-hero-amount .period {
@@ -1663,6 +1695,7 @@ input[type="range"]::-moz-range-thumb {
 .breakdown-row .breakdown-value {
   font-weight: 600;
   color: var(--color-gray-700);
+  font-variant-numeric: tabular-nums;
 }
 
 .breakdown-row.total {
@@ -1765,9 +1798,6 @@ input[type="range"]::-moz-range-thumb {
   .result-hero {
     padding: var(--space-6) var(--space-4);
   }
-  .result-hero-amount {
-    font-size: 2.25rem;
-  }
   .breakdown-row {
     padding: var(--space-2) var(--space-3);
     font-size: 0.9rem;
@@ -1775,9 +1805,6 @@ input[type="range"]::-moz-range-thumb {
 }
 
 @media (max-width: 576px) {
-  .result-hero-amount {
-    font-size: 1.85rem;
-  }
   .result-hero-badge {
     font-size: 0.8rem;
   }
@@ -1947,6 +1974,11 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: var(--shadow-lg), var(--shadow-glow-teal);
 }
 
+.irs--shiny .irs-handle:focus {
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.3);
+  outline: none;
+}
+
 .irs--shiny .irs-handle i:first-child,
 .irs--shiny .irs-handle i:last-child {
   display: none;
@@ -2004,7 +2036,7 @@ input[type="number"]:hover::-webkit-outer-spin-button {
    Technical Panel - Cleaner Accordion
    ----------------------------------------------------------------------------- */
 .technical-panel .accordion-button:focus {
-  box-shadow: none;
+  box-shadow: 0 0 0 2px var(--color-primary-500);
   border-color: var(--color-gray-200);
 }
 
@@ -2110,7 +2142,7 @@ input[type="number"]:hover::-webkit-outer-spin-button {
 
 /* Ley 73 sensitivity note */
 .ley73-sensitivity-note {
-  background: linear-gradient(135deg, #f0fdfa, #ccfbf1);
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
   border: 1px solid rgba(15, 118, 110, 0.15);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
@@ -2201,7 +2233,7 @@ input[type="number"]:hover::-webkit-outer-spin-button {
   border: 2px solid var(--color-primary-600);
   border-radius: var(--radius-lg);
   padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
+  background: var(--surface-base);
   margin-bottom: var(--space-3);
   transition: border-color 0.2s ease, opacity 0.2s ease;
 }
@@ -2252,12 +2284,14 @@ input[type="number"]:hover::-webkit-outer-spin-button {
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--color-gray-600);
+  font-variant-numeric: tabular-nums;
 }
 
 .despues-col .ad-amount {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--color-primary-700);
+  font-variant-numeric: tabular-nums;
 }
 
 .antes-despues-arrow {

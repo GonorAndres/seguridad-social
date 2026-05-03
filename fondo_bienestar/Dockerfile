@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN R -e "install.packages(c('bslib', 'shinyjs', 'plotly', 'dplyr', 'scales', 'rmarkdown'), repos='https://cloud.r-project.org', Ncpus=2)"
+RUN R -e "install.packages(c('bslib', 'shinyjs', 'plotly', 'rmarkdown'), Ncpus=2)"
 
 WORKDIR /app
 

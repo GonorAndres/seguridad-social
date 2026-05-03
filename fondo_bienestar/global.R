@@ -18,8 +18,6 @@ library(shiny)
 library(bslib)       # Bootstrap 5 theming
 library(shinyjs)     # Para navegacion del wizard
 library(plotly)      # Graficos interactivos
-library(dplyr)       # Manipulacion de datos
-library(scales)      # Formateo de numeros
 
 # ============================================================================
 # CARGAR DATOS ESTATICOS (UNA SOLA VEZ) - ANTES de los source files
@@ -131,6 +129,11 @@ source("R/data_tables.R")
 source("R/pmg_matrix.R")
 source("R/calculations.R")
 source("R/fondo_bienestar.R")
-source("R/ui_helpers.R")
+source("R/ui_theme.R")
+source("R/ui_landing.R")
+source("R/ui_results.R")
+source("R/ui_antes_despues.R")
+source("R/ui_components.R")
+source("R/ui_download.R")
 
 source("R/document_generators.R")

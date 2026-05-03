@@ -138,6 +138,15 @@ ui <- bslib::page_fluid(
         }
       });
 
+      // Re-enable button from server (validation errors, calculation failures)
+      if (typeof Shiny !== 'undefined') {
+        Shiny.addCustomMessageHandler('reset_calcular_btn', function(msg) {
+          var btn = $('#calcular');
+          btn.prop('disabled', false);
+          btn.html('<i class=\"bi bi-calculator me-2\"></i>Calcular pensión');
+        });
+      }
+
       // Smooth scroll to top of results
       $(document).on('shiny:value', function(event) {
         if (event.name === 'result_cards_frozen') {
@@ -635,6 +644,7 @@ ui <- bslib::page_fluid(
                       step = 1000,
                       ticks = FALSE
                     ),
+                    tags$div(class = "slider-range", tags$span("$5,000"), tags$span("$100,000")),
                     tags$div(class = "slider-impact", id = "salario_impact", "")
                   ),
 
@@ -656,6 +666,7 @@ ui <- bslib::page_fluid(
                         step = 100,
                         ticks = FALSE
                       ),
+                      tags$div(class = "slider-range", tags$span("$0"), tags$span("$5,000")),
                       tags$div(class = "slider-impact", id = "vol_impact", "")
                     )
                   ),
@@ -677,6 +688,7 @@ ui <- bslib::page_fluid(
                       step = 1,
                       ticks = FALSE
                     ),
+                    tags$div(class = "slider-range", tags$span("60"), tags$span("70")),
                     tags$div(class = "slider-impact", id = "age_impact", "")
                   ),
 
@@ -697,6 +709,7 @@ ui <- bslib::page_fluid(
                       step = 10,
                       ticks = FALSE
                     ),
+                    tags$div(class = "slider-range", tags$span("0"), tags$span("3,000")),
                     tags$div(class = "slider-impact", id = "semanas_impact", "")
                   ),
 
@@ -746,32 +759,14 @@ ui <- bslib::page_fluid(
               ),
 
               # Panel tecnico
-              tags$div(
-                class = "accordion mt-4",
+              bslib::accordion(
                 id = "technicalAccordion",
-
-                tags$div(
-                  class = "accordion-item technical-panel",
-                  tags$h2(
-                    class = "accordion-header",
-                    tags$button(
-                      class = "accordion-button collapsed",
-                      type = "button",
-                      `data-bs-toggle` = "collapse",
-                      `data-bs-target` = "#technicalCollapse",
-                      tags$i(class = "bi bi-gear me-2"),
-                      "Panel Técnico (supuestos y fórmulas)"
-                    )
-                  ),
-                  tags$div(
-                    id = "technicalCollapse",
-                    class = "accordion-collapse collapse",
-                    `data-bs-parent` = "#technicalAccordion",
-                    tags$div(
-                      class = "accordion-body",
-                      uiOutput("technical_details")
-                    )
-                  )
+                class = "mt-4 technical-panel",
+                open = FALSE,
+                bslib::accordion_panel(
+                  title = "Panel Técnico (supuestos y fórmulas)",
+                  icon = tags$i(class = "bi bi-gear"),
+                  uiOutput("technical_details")
                 )
               ),
 
@@ -816,7 +811,7 @@ ui <- bslib::page_fluid(
             tags$small(
               "Desarrollado con ",
               tags$i(class = "bi bi-heart-fill text-danger"),
-              " para los trabajadores mexicanos | 2025"
+              paste0(" para los trabajadores mexicanos | ", format(Sys.Date(), "%Y"))
             )
           )
         )
@@ -835,6 +830,8 @@ server <- function(input, output, session) {
   # RESOURCE PATHS
   # ==========================================================================
   if (dir.exists("docs")) addResourcePath("docs", "docs")
+  session_tmpdir <- tempdir()
+  addResourcePath("reports", session_tmpdir)
 
   # ==========================================================================
   # ERROR HANDLING - Log errors to console
@@ -1134,12 +1131,14 @@ server <- function(input, output, session) {
     # Validate AFORE balance is not negative
     if (is.na(input$saldo_afore) || input$saldo_afore < 0) {
       showNotification("El saldo de AFORE no puede ser negativo", type = "error")
+      session$sendCustomMessage("reset_calcular_btn", list())
       return()
     }
 
     # Validate voluntary contribution is not negative
     if (is.na(input$aportacion_voluntaria) || input$aportacion_voluntaria < 0) {
       showNotification("La aportación voluntaria no puede ser negativa", type = "error")
+      session$sendCustomMessage("reset_calcular_btn", list())
       return()
     }
 
@@ -1150,6 +1149,7 @@ server <- function(input, output, session) {
     regimen <- regimen_actual()
 
     # Realizar calculo
+    tryCatch({
     if (regimen == REGIMEN_LEY73) {
       # Calcular pension Ley 73
       sbc_diario <- input$salario_mensual / DIAS_POR_MES
@@ -1215,6 +1215,14 @@ server <- function(input, output, session) {
 
     resultados(res)
     resultados_originales(res)
+    }, error = function(e) {
+      message("[Calculation] Error: ", e$message)
+      showNotification("Error en el calculo. Verifica tus datos e intenta de nuevo.", type = "error", duration = 8)
+      session$sendCustomMessage("reset_calcular_btn", list())
+      return()
+    })
+
+    req(resultados())
 
     # PostHog: calculation_done -- enviamos solo atributos no identificables
     tryCatch({
@@ -1543,166 +1551,122 @@ server <- function(input, output, session) {
     )
   }
 
-  # ---- Impact observers ----
-
-  # Calcular impacto de voluntarias
+  # ---- Consolidated impact observer ----
+  # Single observer for all 5 slider impact labels. Each section short-circuits
+  # when the slider matches the baseline, avoiding unnecessary recalculation.
   observe({
-    req(resultados_originales(), vol_debounced())
+    req(resultados_originales())
     res <- resultados_originales()
-    if (vol_debounced() == (res$entrada$aportacion_voluntaria %||% 0)) {
-      shinyjs::html("vol_impact", "")
-      return()
-    }
-    if (res$regimen == REGIMEN_LEY97) {
+    regimen <- res$regimen
+
+    vol_val     <- vol_debounced()     %||% (res$entrada$aportacion_voluntaria %||% 0)
+    edad_val    <- edad_debounced()    %||% res$entrada$edad_retiro
+    semanas_val <- semanas_debounced() %||% res$entrada$semanas_actuales
+    salario_val <- salario_debounced() %||% res$entrada$salario_mensual
+    afore_val   <- input$afore_comparar
+
+    pension_orig_97 <- if (regimen == REGIMEN_LEY97) unname(res$solo_sistema$pension_mensual) else NULL
+    pension_orig_73 <- if (regimen == REGIMEN_LEY73) unname(res$pension_base$pension_mensual) else NULL
+
+    # 1. Salary impact
+    if (salario_val == res$entrada$salario_mensual) {
+      shinyjs::html("salario_impact", "")
+    } else {
       tryCatch({
-        nuevo <- recalculate_ley97(res, list(aportacion_voluntaria = vol_debounced()))
-        pension_orig <- unname(res$solo_sistema$pension_mensual)
+        if (regimen == REGIMEN_LEY97) {
+          nuevo <- recalculate_ley97(res, list(salario_mensual = salario_val))
+          render_impact_label("salario_impact", pension_orig_97, unname(nuevo$solo_sistema$pension_mensual))
+        } else {
+          nuevo <- recalculate_ley73(res, salario_mensual = salario_val)
+          render_impact_label("salario_impact", pension_orig_73, unname(nuevo$pension_mensual))
+        }
+      }, error = function(e) { message("[Impact] salary: ", e$message); shinyjs::html("salario_impact", "") })
+    }
+
+    # 2. Voluntary contributions impact (Ley 97 only)
+    if (vol_val == (res$entrada$aportacion_voluntaria %||% 0)) {
+      shinyjs::html("vol_impact", "")
+    } else if (regimen == REGIMEN_LEY97) {
+      tryCatch({
+        nuevo <- recalculate_ley97(res, list(aportacion_voluntaria = vol_val))
         pension_new <- unname(nuevo$con_acciones$pension_afore %||% nuevo$solo_sistema$pension_mensual)
-        render_impact_label("vol_impact", pension_orig, pension_new)
-      }, error = function(e) {
-        message("[Impact] Error calculating voluntary impact: ", e$message)
-        shinyjs::html("vol_impact", "")
-      })
+        render_impact_label("vol_impact", pension_orig_97, pension_new)
+      }, error = function(e) { message("[Impact] voluntary: ", e$message); shinyjs::html("vol_impact", "") })
     }
-  })
 
-  # Calcular impacto de edad de retiro
-  observe({
-    req(resultados_originales(), edad_debounced())
-    res <- resultados_originales()
-    edad_slider <- edad_debounced()
-    if (edad_slider == res$entrada$edad_retiro) {
+    # 3. Retirement age impact
+    if (edad_val == res$entrada$edad_retiro) {
       shinyjs::html("age_impact", "")
-      return()
+    } else {
+      tryCatch({
+        if (regimen == REGIMEN_LEY97) {
+          nuevo <- recalculate_ley97(res, list(edad_retiro = edad_val))
+          render_impact_label("age_impact", pension_orig_97, unname(nuevo$solo_sistema$pension_mensual))
+        } else {
+          nuevo <- recalculate_ley73(res, edad_retiro = edad_val)
+          render_impact_label("age_impact", pension_orig_73, unname(nuevo$pension_mensual))
+        }
+      }, error = function(e) { message("[Impact] age: ", e$message); shinyjs::html("age_impact", "") })
     }
-    tryCatch({
-      if (res$regimen == REGIMEN_LEY97) {
-        nuevo <- recalculate_ley97(res, list(edad_retiro = edad_slider))
-        render_impact_label("age_impact",
-          unname(res$solo_sistema$pension_mensual),
-          unname(nuevo$solo_sistema$pension_mensual))
-      } else {
-        nuevo <- recalculate_ley73(res, edad_retiro = edad_slider)
-        render_impact_label("age_impact",
-          unname(res$pension_base$pension_mensual),
-          unname(nuevo$pension_mensual))
-      }
-    }, error = function(e) {
-      message("[Impact] Error calculating age impact: ", e$message)
-      shinyjs::html("age_impact", "")
-    })
-  })
 
-  # Calcular impacto de cambio de AFORE
-  observe({
-    req(resultados_originales(), input$afore_comparar)
-    res <- resultados_originales()
-    if (res$regimen != REGIMEN_LEY97) {
-      shinyjs::html("afore_impact", "")
-      return()
-    }
-    if (input$afore_comparar == res$entrada$afore) {
-      shinyjs::html("afore_impact", "")
-      return()
-    }
-    tryCatch({
-      shinyjs::removeClass(selector = "#afore_impact", class = "positive")
-      shinyjs::removeClass(selector = "#afore_impact", class = "negative")
-      pension_orig <- unname(res$solo_sistema$pension_mensual)
-      nuevo <- recalculate_ley97(res, list(afore_nombre = input$afore_comparar))
-      pension_new <- unname(nuevo$solo_sistema$pension_mensual)
-      dif_pension <- pension_new - pension_orig
-      dif_saldo <- (nuevo$solo_sistema$saldo_proyectado %||% 0) -
-                   (res$solo_sistema$saldo_proyectado %||% 0)
-
-      if (!is.null(dif_pension) && dif_pension != 0) {
-        render_impact_label("afore_impact", pension_orig, pension_new)
-      } else if (!is.null(dif_saldo) && abs(dif_saldo) > 0) {
-        signo <- if (dif_saldo > 0) "+" else ""
-        clase <- if (dif_saldo > 0) "positive" else "negative"
-        shinyjs::html("afore_impact",
-          paste0(signo, format_currency(dif_saldo), " en saldo al retiro"))
-        shinyjs::addClass(selector = paste0("#afore_impact"), class = clase)
-      } else {
-        shinyjs::html("afore_impact", "Comisiones similares, impacto m\u00ednimo")
-      }
-    }, error = function(e) {
-      message("[Impact] Error calculating AFORE impact: ", e$message)
-      shinyjs::html("afore_impact", "")
-    })
-  })
-
-  # Calcular impacto de semanas cotizadas
-  observe({
-    req(resultados_originales(), semanas_debounced())
-    res <- resultados_originales()
-    semanas_slider <- semanas_debounced()
-    if (semanas_slider == res$entrada$semanas_actuales) {
+    # 4. Semanas impact
+    if (semanas_val == res$entrada$semanas_actuales) {
       shinyjs::html("semanas_impact", "")
-      return()
-    }
-    tryCatch({
-      shinyjs::removeClass(selector = "#semanas_impact", class = "positive")
-      shinyjs::removeClass(selector = "#semanas_impact", class = "negative")
-      if (res$regimen == REGIMEN_LEY97) {
-        pension_orig <- unname(res$solo_sistema$pension_mensual)
-        nuevo <- recalculate_ley97(res, list(semanas_actuales = semanas_slider))
-        pension_new <- unname(nuevo$solo_sistema$pension_mensual)
-        dif_pension <- pension_new - pension_orig
-
-        if (dif_pension != 0) {
-          render_impact_label("semanas_impact", pension_orig, pension_new)
-        } else if (nuevo$con_fondo$elegible != res$con_fondo$elegible) {
-          if (nuevo$con_fondo$elegible) {
-            shinyjs::html("semanas_impact", "Elegible para Fondo Bienestar")
-            shinyjs::addClass(selector = "#semanas_impact", class = "positive")
+    } else {
+      tryCatch({
+        shinyjs::removeClass(selector = "#semanas_impact", class = "positive")
+        shinyjs::removeClass(selector = "#semanas_impact", class = "negative")
+        if (regimen == REGIMEN_LEY97) {
+          nuevo <- recalculate_ley97(res, list(semanas_actuales = semanas_val))
+          pension_new <- unname(nuevo$solo_sistema$pension_mensual)
+          dif_pension <- pension_new - pension_orig_97
+          if (dif_pension != 0) {
+            render_impact_label("semanas_impact", pension_orig_97, pension_new)
+          } else if (nuevo$con_fondo$elegible != res$con_fondo$elegible) {
+            if (nuevo$con_fondo$elegible) {
+              shinyjs::html("semanas_impact", "Elegible para Fondo Bienestar")
+              shinyjs::addClass(selector = "#semanas_impact", class = "positive")
+            } else {
+              shinyjs::html("semanas_impact", "No elegible para Fondo")
+              shinyjs::addClass(selector = "#semanas_impact", class = "negative")
+            }
           } else {
-            shinyjs::html("semanas_impact", "No elegible para Fondo")
-            shinyjs::addClass(selector = "#semanas_impact", class = "negative")
+            anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
+            nuevo_semanas_retiro <- semanas_val + (anios_restantes * SEMANAS_POR_ANO)
+            shinyjs::html("semanas_impact",
+              paste0(format(nuevo_semanas_retiro, big.mark = ","), " sem. al retiro"))
           }
         } else {
-          anios_restantes <- max(0, res$entrada$edad_retiro - res$entrada$edad_actual)
-          nuevo_semanas_retiro <- semanas_slider + (anios_restantes * SEMANAS_POR_ANO)
-          shinyjs::html("semanas_impact",
-            paste0(format(nuevo_semanas_retiro, big.mark = ","), " sem. al retiro"))
+          nuevo <- recalculate_ley73(res, semanas_actuales = semanas_val)
+          render_impact_label("semanas_impact", pension_orig_73, unname(nuevo$pension_mensual))
         }
-      } else {
-        nuevo <- recalculate_ley73(res, semanas_actuales = semanas_slider)
-        render_impact_label("semanas_impact",
-          unname(res$pension_base$pension_mensual),
-          unname(nuevo$pension_mensual))
-      }
-    }, error = function(e) {
-      message("[Impact] Error calculating semanas impact: ", e$message)
-      shinyjs::html("semanas_impact", "")
-    })
-  })
-
-  # Calcular impacto de salario
-  observe({
-    req(resultados_originales(), salario_debounced())
-    res <- resultados_originales()
-    salario_slider <- salario_debounced()
-    if (salario_slider == res$entrada$salario_mensual) {
-      shinyjs::html("salario_impact", "")
-      return()
+      }, error = function(e) { message("[Impact] semanas: ", e$message); shinyjs::html("semanas_impact", "") })
     }
-    tryCatch({
-      if (res$regimen == REGIMEN_LEY97) {
-        nuevo <- recalculate_ley97(res, list(salario_mensual = salario_slider))
-        render_impact_label("salario_impact",
-          unname(res$solo_sistema$pension_mensual),
-          unname(nuevo$solo_sistema$pension_mensual))
-      } else {
-        nuevo <- recalculate_ley73(res, salario_mensual = salario_slider)
-        render_impact_label("salario_impact",
-          unname(res$pension_base$pension_mensual),
-          unname(nuevo$pension_mensual))
-      }
-    }, error = function(e) {
-      message("[Impact] Error calculating salary impact: ", e$message)
-      shinyjs::html("salario_impact", "")
-    })
+
+    # 5. AFORE impact (Ley 97 only)
+    if (regimen != REGIMEN_LEY97 || is.null(afore_val) || afore_val == (res$entrada$afore %||% "")) {
+      shinyjs::html("afore_impact", "")
+    } else {
+      tryCatch({
+        shinyjs::removeClass(selector = "#afore_impact", class = "positive")
+        shinyjs::removeClass(selector = "#afore_impact", class = "negative")
+        nuevo <- recalculate_ley97(res, list(afore_nombre = afore_val))
+        pension_new <- unname(nuevo$solo_sistema$pension_mensual)
+        dif_pension <- pension_new - pension_orig_97
+        dif_saldo <- (nuevo$solo_sistema$saldo_proyectado %||% 0) -
+                     (res$solo_sistema$saldo_proyectado %||% 0)
+        if (!is.null(dif_pension) && dif_pension != 0) {
+          render_impact_label("afore_impact", pension_orig_97, pension_new)
+        } else if (!is.null(dif_saldo) && abs(dif_saldo) > 0) {
+          signo <- if (dif_saldo > 0) "+" else ""
+          clase <- if (dif_saldo > 0) "positive" else "negative"
+          shinyjs::html("afore_impact", paste0(signo, format_currency(dif_saldo), " en saldo al retiro"))
+          shinyjs::addClass(selector = "#afore_impact", class = clase)
+        } else {
+          shinyjs::html("afore_impact", "Comisiones similares, impacto m\u00ednimo")
+        }
+      }, error = function(e) { message("[Impact] AFORE: ", e$message); shinyjs::html("afore_impact", "") })
+    }
   })
 
   # AFORE selector en resultados
@@ -1962,15 +1926,7 @@ server <- function(input, output, session) {
   # VISUALIZACION DE REPORTES (HTML en nueva pestana del navegador)
   # ==========================================================================
 
-  # Temp file tracking for session cleanup
-  session_temp_files <- character(0)
-  session$onSessionEnded(function() {
-    for (f in session_temp_files) {
-      if (file.exists(f)) try(file.remove(f), silent = TRUE)
-    }
-  })
-
-  # Helper: write HTML to www/ temp file and open in new tab
+  # Helper: write HTML to temp file and open in new tab via reports/ resource path
   open_report_in_tab <- function(html_content, prefix, print_btn_color, print_btn_hover) {
     # Wrap with print button
     html_with_print <- paste0(
@@ -1990,15 +1946,14 @@ server <- function(input, output, session) {
       "</body></html>"
     )
 
-    # Write to www/ with unique filename
+    # Write to session tempdir with unique filename
     filename <- paste0(prefix, "_", format(Sys.time(), "%Y%m%d%H%M%S"), "_",
                        sample(1000:9999, 1), ".html")
-    filepath <- file.path("www", filename)
+    filepath <- file.path(session_tmpdir, filename)
     writeLines(html_with_print, filepath)
-    session_temp_files <<- c(session_temp_files, filepath)
 
-    # Open in new browser tab
-    shinyjs::runjs(paste0("window.open('", filename, "', '_blank');"))
+    # Open in new browser tab via reports/ resource path
+    shinyjs::runjs(paste0("window.open('reports/", filename, "', '_blank');"))
   }
 
   # Helper: track report views via PostHog (server-side)
@@ -2072,6 +2027,7 @@ server <- function(input, output, session) {
     current_step(1)
     update_wizard_indicators(1)
     resultados(NULL)
+    resultados_originales(NULL)
   })
 
 }
