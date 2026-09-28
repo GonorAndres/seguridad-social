@@ -7,7 +7,7 @@ subagents_outputs/
 e2e/
 .github/
 
-CLAUDE.md
+AGENTS.md
 README.md
 setup_r.sh
 .gitignore
